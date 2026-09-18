@@ -21,14 +21,14 @@
   --shadow-glow: 0 0 20px rgba(79, 195, 247, 0.15);
   --radius: 12px;
   --radius-sm: 8px;
-  --font: 'Inter', -apple-system, sans-serif;
+  --font: 'Pretendard Variable', Pretendard, -apple-system, 'Segoe UI', 'Noto Sans KR', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ===== Reset & Base ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; scroll-behavior: smooth; }
+html { font-size: 13px; scroll-behavior: smooth; }
 body {
   font-family: var(--font);
   background: var(--bg-primary);
