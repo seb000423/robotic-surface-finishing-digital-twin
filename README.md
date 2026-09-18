@@ -1,10 +1,9 @@
 # Robotic Surface Finishing Digital Twin
 
-숙련공의 표면 마감(폴리싱/샌딩) 작업을 **Doosan M0609 6축 로봇팔**로 옮기기 위한
-**NVIDIA Isaac Sim** 기반 디지털 트윈 프로젝트입니다.
-자동차 본네트를 예시 작업 대상으로 사용하며, 스캔 대상과 작업 종류는 교체할 수 있습니다.
-3D 스캔 → 경로 생성 → 폴리싱 시뮬레이션 → 웹 대시보드 시각화
-파이프라인으로 구성됩니다.
+기존 수작업 표면 마감(폴리싱/샌딩)과 달리, 본 프로젝트는 **Doosan M0609 6축 협동로봇**이 공구로 작업 표면에 직접 접촉하여 마감하도록 구성
+숙련공의 작업을 **NVIDIA Isaac Sim** 기반 디지털 트윈에서 먼저 재현하고 검증하는 것이 목표
+자동차 본네트를 예시 작업 대상으로 사용하며, 스캔 대상과 작업 종류는 교체 가능
+3D 스캔 → 경로 생성 → 폴리싱 시뮬레이션 → 웹 대시보드 시각화 파이프라인으로 구성
 
 ---
 
@@ -69,7 +68,7 @@
 > alias isaac_python='~/isaacsim/python.sh'
 > alias isaac='isaac-sim.sh'
 > ```
-> Isaac Sim 스크립트는 반드시 `isaac_python`으로 실행해야 합니다 (시스템 `python3` 불가).
+> Isaac Sim 스크립트는 반드시 `isaac_python`으로 실행 (시스템 `python3` 불가).
 
 ---
 
@@ -115,7 +114,7 @@
 
 ### A. 웹 대시보드(UI)로 실행
 
-UI를 띄우고 **시작 버튼**을 누르면 Isaac Sim 폴리싱 시뮬레이션이 실행됩니다.
+UI를 띄우고 **시작 버튼**을 누르면 Isaac Sim 폴리싱 시뮬레이션 실행
 
 ```bash
 # 1) (다른 PC라면) Isaac Sim 설치 경로 지정 — 경로가 동일하면 생략 가능
@@ -140,8 +139,8 @@ export ISAAC_PYTHON=/내/경로/isaacsim/python.sh
 >     ▼
 > [rosbridge_server :9090] ──(WebSocket)──▶ [브라우저 UI 실시간 그래프/힘/진행률]
 > ```
-> `run_dashboard.sh`가 **rosbridge_server(:9090)** 도 자동 실행합니다.
-> rosbridge가 없으면 UI는 ROS2 데이터를 못 받고 **데모 모드**로 동작합니다
+> `run_dashboard.sh`가 **rosbridge_server(:9090)** 도 자동 실행
+> rosbridge가 없으면 UI는 ROS2 데이터를 못 받고 **데모 모드**로 동작
 > (`sudo apt install ros-humble-rosbridge-suite` 로 설치).
 > `run_dashboard.sh` 없이 수동 실행 시(터미널 2개):
 > ```bash
@@ -164,7 +163,7 @@ export ISAAC_PYTHON=/내/경로/isaacsim/python.sh
 python3 scripts/main_pipeline.py car      # 또는 cube
 ```
 > `main_pipeline.py`가 내부적으로 `scan.py`/`polishing`은 `isaac_python`,
-> `path_generator.py`는 `python3`으로 호출합니다.
+> `path_generator.py`는 `python3`으로 호출
 
 ### C. 단계별 실행
 
