@@ -1,0 +1,11 @@
+{
+    "version": "1.0",
+    "file_records": [
+        {
+            "source_url": "/home/rokey/0624/rokey_Corp3/src/robotarm_polishing/first_project_0620/HEX_E_H_QC_v3.obj",
+            "source_hash": "4d669680ab25b868afdf118e2760cc374a1b18b5",
+            "target_url": "./0624/rokey_Corp3/src/robotarm_polishing/first_project_0620/HEX_E_H_QC_v3.obj",
+            "target_hash": "aca53d30f48d486ba75bb413536072d74d67ef27"
+        }
+    ]
+}
