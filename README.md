@@ -35,9 +35,9 @@
 ## Demo
 
 <div align="center">
-  <img src="assets/demo.gif" width="82%" alt="Isaac Sim multi-robot polishing demo">
+  <img src="assets/demo.png" width="82%" alt="Isaac Sim multi-robot polishing cell">
   <br>
-  <sub>Entry scan → car lift → multi-robot polishing → re-polishing pass</sub>
+  <sub>Isaac Sim 작업 셀 — 천장 갠트리(C) + 좌/우 측면 리프트(SL/SR) 로봇과 폴리싱 경로</sub>
 </div>
 
 ---
