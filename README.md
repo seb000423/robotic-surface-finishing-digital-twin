@@ -265,6 +265,32 @@ F_cmd    = clip(F_target, 0, F_hard)     # 기존 안전 한계는 정책과 무
 
 ---
 
+## Web Console
+
+<div align="center">
+
+| Screen | Description |
+|---|---|
+| **① 사전 설정** | 차종 · 차체 리프트 높이 · 로봇 대수(1–3대) · 폴리셔 · 공정 레시피를 고르고 3D 로봇 셀에서 미리보기 |
+| **② 공정 감시** | 로봇별 접촉력 · 진행률 · 제거량 히트맵 · 이벤트 기록, Isaac Sim 시뮬레이션 기록 재생 |
+| **③ 결과 저장** | 공정 결과와 설정 스냅샷 저장 |
+| **④ 라이브러리** | 저장된 결과 · 정답 데이터 조회 · 비교 |
+
+</div>
+
+- Node.js 서버(로그인 · 계정 API, SQLite) + three.js 3D 뷰포트, Vercel + Turso 배포 구성
+- 시뮬레이션 쪽 `learning/ui_bridge/`가 기록(SQLite)과 모니터 피드(JSON)를 만들고 콘솔이 이를 읽어 표시
+
+```bash
+cd web_console
+npm run seed:data
+PT_ADMIN_PW='원하는-비밀번호' node backend/server.js    # http://127.0.0.1:8000
+```
+
+자세한 내용은 [`web_console/README.md`](web_console/README.md) 참고.
+
+---
+
 ## Engineering Challenges
 
 <div align="center">
@@ -300,6 +326,7 @@ F_cmd    = clip(F_target, 0, F_hard)     # 기존 안전 한계는 정책과 무
 | Motion | RMPFlow (`rmpflow/`) |
 | Contact Control | Virtual Spring + Admittance Control |
 | Dashboard | Node.js 20 + Vite 8 + Chart.js 4 |
+| Web Console | Node.js 22.5+ (`node:sqlite`), three.js r169, Vercel + Turso |
 | GPU | NVIDIA GeForce RTX 5080 Laptop (RTX 계열 권장) |
 
 </div>
@@ -449,6 +476,10 @@ robotic-surface-finishing-digital-twin/
 │   ├── rl/                      #   Isaac Lab env · PPO · 평가 · 체크포인트
 │   ├── vehicle_export/          #   차량 150셀 판정 CSV 생성
 │   └── ui_bridge/               #   시뮬레이션 기록 · 모니터 피드
+│
+├── web_console/                 # 관제·설정 웹 콘솔 (Node.js + three.js)
+│   ├── backend/                 #   서버 · API · 인증 · DB
+│   └── frontend/                #   설정 · 공정 감시 · 결과 저장 · 라이브러리 화면
 │
 ├── rmpflow/                     # RMPFlow 컨트롤러 · yaml · URDF
 ├── scan_obj/                    # 스캔 대상 USD (car, car_small, cube)

@@ -1,0 +1,151 @@
+{
+ "generated": "2026-08-30",
+ "source": "data_sample.txt",
+ "note": "에피소드 하나당 한 줄. 집계 방식은 make_quality.py 주석 참고.",
+ "gloss": {
+  "model": "GU = 25.0 + (78.0 - 25.0) * q_total, 5x5 타일",
+  "anchors": "Ulbrich et al., Coatings 2021, 11, 1320 (10.3390/coatings11111320)",
+  "weights": {
+   "ra": 1.0,
+   "scratch": 1.0,
+   "uniformity": 1.0,
+   "clearcoat": 0.0,
+   "optical": 0.0,
+   "thermal": 1.0
+  },
+  "pass": {
+   "mean": 70.0,
+   "p10": 60.0,
+   "std": 10.0,
+   "min": 45.0
+  },
+  "calibrated": false,
+  "tag": "SYNTHETIC",
+  "thermalSource": "열손상 열이 원본에 없어 q_thermal = 1 로 둔다"
+ },
+ "criteria": [
+  {
+   "key": "glossMean",
+   "label": "예측 20° GU proxy",
+   "unit": "GU",
+   "op": "gloss",
+   "limit": 70.0,
+   "digits": 1
+  },
+  {
+   "key": "ra",
+   "label": "평균 거칠기 Ra",
+   "unit": "µm",
+   "op": "<=",
+   "limit": 0.2,
+   "digits": 3
+  },
+  {
+   "key": "rz",
+   "label": "극단 거칠기 Rz",
+   "unit": "µm",
+   "op": "<=",
+   "limit": 2.0,
+   "digits": 3
+  },
+  {
+   "key": "clearcoat",
+   "label": "잔여 클리어코트 (최소)",
+   "unit": "µm",
+   "op": ">=",
+   "limit": 35.0,
+   "digits": 2
+  },
+  {
+   "key": "scratch",
+   "label": "스크래치",
+   "unit": "",
+   "op": "<",
+   "limit": null,
+   "digits": 4
+  }
+ ],
+ "episodes": [
+  {
+   "episode": 0,
+   "recipe": "recipe_00020",
+   "seed": 1000,
+   "cells": 3600,
+   "ra": 0.1351,
+   "rz": 1.7932,
+   "clearcoat": 38.3,
+   "scratch": 0.0589,
+   "scratchBefore": 0.11005,
+   "raBefore": 0.2274,
+   "rzBefore": 2.1276,
+   "clearcoatRemoved": 1.3013,
+   "defectRatio": 0.2139,
+   "passMean": 6.14,
+   "force": 5.778,
+   "rpm": 5436.0,
+   "feed": 5.946,
+   "dwell": 49.16,
+   "glossMean": 64.04,
+   "glossP10": 44.31,
+   "glossStd": 13.72,
+   "glossMin": 25.0,
+   "glossTiles": 144,
+   "glossBand": "partial",
+   "glossPass": false
+  },
+  {
+   "episode": 1,
+   "recipe": "recipe_00020",
+   "seed": 1001,
+   "cells": 3600,
+   "ra": 0.1054,
+   "rz": 1.4458,
+   "clearcoat": 47.768,
+   "scratch": 0.0438,
+   "scratchBefore": 0.09749,
+   "raBefore": 0.2001,
+   "rzBefore": 2.0684,
+   "clearcoatRemoved": 1.3013,
+   "defectRatio": 0.2511,
+   "passMean": 6.14,
+   "force": 5.778,
+   "rpm": 5436.0,
+   "feed": 5.946,
+   "dwell": 49.16,
+   "glossMean": 67.13,
+   "glossP10": 47.67,
+   "glossStd": 11.11,
+   "glossMin": 43.68,
+   "glossTiles": 144,
+   "glossBand": "partial",
+   "glossPass": false
+  },
+  {
+   "episode": 2,
+   "recipe": "recipe_00020",
+   "seed": 1002,
+   "cells": 3600,
+   "ra": 0.0956,
+   "rz": 1.3338,
+   "clearcoat": 40.951,
+   "scratch": 0.03434,
+   "scratchBefore": 0.07735,
+   "raBefore": 0.1795,
+   "rzBefore": 1.9798,
+   "clearcoatRemoved": 1.3013,
+   "defectRatio": 0.2367,
+   "passMean": 6.14,
+   "force": 5.778,
+   "rpm": 5436.0,
+   "feed": 5.946,
+   "dwell": 49.16,
+   "glossMean": 68.38,
+   "glossP10": 53.3,
+   "glossStd": 10.55,
+   "glossMin": 25.0,
+   "glossTiles": 144,
+   "glossBand": "partial",
+   "glossPass": false
+  }
+ ]
+}

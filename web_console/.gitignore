@@ -1,0 +1,9 @@
+node_modules/
+.vercel/
+.env
+.env.*
+
+# 로컬 DB (계정·세션 정보가 들어 있으므로 커밋하지 않음)
+backend/data/
+
+scripts/__pycache__/

@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(function () {
+  var u = function (p) { return new URL(p, location.href).href; };
+  window.__resources = {
+    three: u('/assets/vendor/three.module.js'),
+    gltfLoader: u('/assets/vendor/loaders/GLTFLoader.js'),
+    orbitControls: u('/assets/vendor/controls/OrbitControls.js'),
+    bufferGeometryUtils: u('/assets/vendor/utils/BufferGeometryUtils.js'),
+    'https://unpkg.com/react@18.3.1/umd/react.production.min.js': u('/assets/vendor/react.production.min.js'),
+    'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js': u('/assets/vendor/react-dom.production.min.js')
+  };
+})();
+</script>
+<script src="/assets/vendor/page-runtime.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  /* 폰트 — index.html 과 동일 선언. 경로는 프로젝트 루트 기준. */
+  @font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+  /* 토큰 —*/
+  :root {
+    /* 표면 */
+    --bg-void:    #08090B;
+    --bg-void-ch: 8 9 11;      /* 위 값의 채널. 스크림 알파용, 새 색 아님 */
+    --bg-base:    #0E1216;
+    --bg-base-ch: 14 18 22;
+    --bg-panel:   #14181D;
+    --bg-raised:  #1A1E24;
+    /* 경계 */
+    --line:       #232830;
+    --line-hi:    #3B424C;
+    /* 텍스트 */
+    --text-hi:    #F2F4F7;
+    --text-mid:   #A8B0BA;
+    --text-lo:    #5F6873;
+    /* 액센트 — 1개 */
+    --accent:     #9BC33A;
+    --accent-ch:  155 195 58;
+    --accent-dim: #59721A;
+    /* 의미색 — 상태 전용 */
+    --ok:         #3DD68C;
+    --warn:       #FFB74D;
+    --warn-ch:    255 183 77;
+    --crit:       #E8232A;
+    --crit-ch:    232 35 42;
+
+    --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    /*  — mono 를 버리고 Pretendard 로 일원화했다.
+       IBM Plex Mono 는 선언만 있고 woff2 가 없어서 Consolas 로 떨어졌고,
+       Consolas 에 한글이 없어 한글은 다시 OS 기본꼴로 떨어졌다.
+       한 줄 안에서 글꼴이 셋으로 갈렸다. 자릿수 정렬은 body 의*/
+    --f-mono: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+    --r-sm: 2px;
+    --r-md: 4px;
+
+    --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --e-in:  cubic-bezier(0.4, 0, 1, 1);
+    --t-fast: 120ms;
+    --t-base: 200ms;
+    --t-slow: 400ms;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-void); overflow: hidden; }
+  body { font-family: var(--f-sans); font-weight: 300; -webkit-font-smoothing: antialiased;
+         word-break: keep-all; font-variant-numeric: tabular-nums; }
+
+  /* 클릭 요소는 button 이다. 아래 리셋은 각 요소의 인라인 스타일이 덮어쓴다. */
+  button { font: inherit; color: inherit; background: none; border: 0; margin: 0; padding: 0;
+           text-align: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  a { color: var(--text-mid); text-decoration: none; }
+  a:hover { color: var(--text-hi); }
+  input, select { font-family: inherit; }
+  input[type="text"] { background: transparent; border: 1px solid var(--line); color: var(--text-hi); outline: none; }
+  input[type="text"]:focus { border-color: var(--line-hi); }
+  select { appearance: none; -webkit-appearance: none; background: var(--bg-base); border: 1px solid var(--line); color: var(--text-mid); outline: none; padding: 9px 26px 9px 11px; font-size: 14px; cursor: pointer; }
+  select:hover { border-color: var(--line-hi); color: var(--text-hi); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--bg-raised); }
+  @keyframes ptTray { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes ptFade { from { opacity: 0; } to { opacity: 1; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+  }
+</style>
+<link rel="stylesheet" href="assets/css/pt-header.css?v=2026-09-01e">
+
+</helmet>
+<div style="position: fixed; inset: 0; display: grid; grid-template-columns: 1fr; background: var(--bg-void); color: var(--text-hi)">
+
+  <main style="position: relative; overflow: hidden">
+
+    <div data-screen-label="04 Library" style="position: absolute; inset: 0; display: flex; flex-direction: column">
+
+      <header class="pt-hdr">
+        <div class="pt-hdr__in">
+          <div class="pt-hdr__start">
+            <div class="pt-hdr__sub">숙련공 정답 데이터</div>
+          </div>
+
+          <a class="pt-hdr__mark" href="index.html" aria-label="PolyTwin 홈">
+            <svg class="pt-hdr__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+              <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+              <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+            </svg>
+            <span>POLY<b>TWIN</b></span>
+          </a>
+
+          <div class="pt-hdr__end">
+            <!-- 여기 링크가 없어서 ④ 는 막다른 화면이었다 -->
+            <nav class="pt-hdr__nav" aria-label="화면">
+              <a href="console.html">① 설정</a>
+              <a href="monitor.html">② 공정 감시</a>
+              <a href="save.html">③ 결과 저장</a>
+            </nav>
+            <div class="pt-hdr__sep"></div>
+            <div class="pt-hdr__stat">{{ shownCount }} / {{ totalCount }}건</div>
+          </div>
+        </div>
+      </header>
+
+      <div style="flex: none; padding: 16px 30px; border-bottom: 1px solid var(--line)">
+        <div style="display: flex; flex-direction: column; gap: 14px">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <input type="text" value="{{ query }}" sc-camel-on-input="{{ setQuery }}" placeholder="세그먼트 검색" style="flex: 1; max-width: 320px; padding: 10px 14px; font-size: 16px; background: var(--bg-base)">
+            <div style="flex: 1"></div>
+
+            <div style="display: flex; border: 1px solid var(--line)">
+              <button type="button" sc-camel-on-click="{{ setGrid }}" style="padding: 9px 15px; font-size: 14px; color: {{ gridColor }}; background: {{ gridBg }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)">그리드</button>
+              <button type="button" sc-camel-on-click="{{ setList }}" style="padding: 9px 15px; font-size: 14px; color: {{ listColor }}; background: {{ listBg }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)">리스트</button>
+            </div>
+
+            <div style="display: flex; border: 1px solid var(--line)">
+              <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="2">
+                <button type="button" sc-camel-on-click="{{ s.pick }}" style="padding: 9px 15px; font-size: 14px; color: {{ s.color }}; background: {{ s.bg }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)">{{ s.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+              <sc-raw-select value="{{ f.value }}" sc-camel-on-change="{{ f.set }}">
+                <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.value }}">{{ o.label }}</option>
+                </sc-for>
+              </sc-raw-select>
+            </sc-for>
+            <button type="button" sc-camel-on-click="{{ toggleStdOnly }}" style="display: flex; align-items: center; gap: 9px; padding: 8px 13px; border: 1px solid {{ stdBorder }}; background: {{ stdBg }}; font-size: 14px; color: {{ stdColor }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out); margin-left: 8px">
+              <div style="width: 8px; height: 8px; background: {{ stdDot }}"></div>인증만 보기
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 22px 30px 30px">
+
+        <sc-if value="{{ hasViz }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid var(--line); background: var(--bg-base); margin-bottom: 22px; animation: ptFade var(--t-base) var(--e-out)">
+
+            <div style="display: flex; align-items: center; gap: 14px; padding: 13px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap">
+              <div style="font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo)">레시피 비교 · 접촉력 시계열</div>
+              <sc-for list="{{ vizLegend }}" as="l" hint-placeholder-count="2">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div style="width: 14px; height: 2px; background: {{ l.color }}"></div>
+                  <div style="font-size: 14px; color: var(--text-mid)">{{ l.name }}</div>
+                  <button type="button" sc-camel-on-click="{{ l.remove }}" style="font-size: 15px; color: var(--text-lo); cursor: pointer; padding: 0 2px; background: transparent; border: 0" style-hover="color: var(--text-hi)">×</button>
+                </div>
+              </sc-for>
+              <div style="flex: 1"></div>
+              <button type="button" sc-camel-on-click="{{ clearViz }}" style="font-size: 14px; color: var(--text-lo); cursor: pointer; background: transparent; border: 0" style-hover="color: var(--text-hi)">모두 닫기</button>
+            </div>
+
+            <div style="padding: 18px 18px 8px">
+              <div style="position: relative">
+              <svg viewBox="0 0 1200 300" role="img" aria-label="정답 run 의 접촉력 시계열" style="display: block; width: 100%; height: auto">
+                <rect x="{{ vizBand.x }}" y="{{ vizBand.y }}" width="{{ vizBand.w }}" height="{{ vizBand.h }}" style="fill: rgb(var(--accent-ch) / 0.07)"></rect>
+                <sc-for list="{{ vizGrid }}" as="g" hint-placeholder-count="4">
+                  <line x1="64" y1="{{ g.y }}" x2="1180" y2="{{ g.y }}" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke: var(--bg-panel)"></line>
+                </sc-for>
+                <sc-for list="{{ vizSeries }}" as="s" hint-placeholder-count="2">
+                  <path d="{{ s.base }}" fill="none" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" style="stroke: var(--line-hi)"></path>
+                </sc-for>
+                <sc-for list="{{ vizSeries }}" as="s" hint-placeholder-count="2">
+                  <path d="{{ s.d }}" fill="none" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke: {{ s.color }}"></path>
+                </sc-for>
+                <line x1="64" y1="264" x2="1180" y2="264" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke: var(--line)"></line>
+                <text x="64" y="286" style="fill: var(--text-lo); font-family: var(--f-mono); font-size: 14px">0</text>
+                <text x="622" y="286" text-anchor="middle" style="fill: var(--text-lo); font-size: 14px">경로 진행 (스텝)</text>
+              </svg>
+                <sc-for list="{{ vizGrid }}" as="g" hint-placeholder-count="5">
+                  <div style="position: absolute; left: 0; top: {{ g.top }}; width: 4.4%; transform: translateY(-50%); text-align: right; font-family: var(--f-mono); font-size: 13px; color: var(--text-lo); font-variant-numeric: tabular-nums; pointer-events: none">{{ g.label }}</div>
+                </sc-for>
+                <div style="position: absolute; right: 0; bottom: 1.5%; font-family: var(--f-mono); font-size: 13px; color: var(--text-lo); font-variant-numeric: tabular-nums; pointer-events: none">{{ vizXMax }}</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: baseline; gap: 10px; padding: 0 18px 12px">
+              <div style="width: 22px; height: 8px; background: rgb(var(--accent-ch) / 0.14); border: 1px solid rgb(var(--accent-ch) / 0.3)"></div>
+              <div style="font-size: 15px; color: var(--text-lo); word-break: keep-all">{{ vizBandNote }}</div>
+              <div style="width: 14px; height: 0; border-top: 1px dashed var(--line-hi); margin-left: 8px"></div>
+              <div style="font-size: 14px; color: var(--text-lo)">고정 게인 baseline</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; padding: 16px 18px 18px; border-top: 1px solid var(--line)">
+
+              <div>
+                <div style="font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 8px">지표 6종</div>
+                <div style="position: relative">
+                <svg viewBox="0 0 384 276" role="img" aria-label="지표 6종 비교 레이더" style="display: block; width: 100%; height: auto">
+                  <sc-for list="{{ radarRings }}" as="r" hint-placeholder-count="4">
+                    <polygon points="{{ r.points }}" fill="none" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke: var(--line)"></polygon>
+                  </sc-for>
+                  <sc-for list="{{ radarSpokes }}" as="a" hint-placeholder-count="6">
+                    <line x1="192" y1="134" x2="{{ a.x }}" y2="{{ a.y }}" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke: var(--line)"></line>
+                  </sc-for>
+                  <sc-for list="{{ radarSeries }}" as="sr" hint-placeholder-count="2">
+                    <polygon points="{{ sr.points }}" fill-opacity="0.12" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="fill: {{ sr.color }}; stroke: {{ sr.color }}"></polygon>
+                  </sc-for>
+                </svg>
+                  <sc-for list="{{ radarLabels }}" as="l" hint-placeholder-count="6">
+                    <div style="position: absolute; left: {{ l.left }}; top: {{ l.top }}; transform: {{ l.shift }}; font-size: 14px; color: var(--text-lo); white-space: nowrap; pointer-events: none">{{ l.text }}</div>
+                  </sc-for>
+                </div>
+                <div style="margin-top: 6px; font-size: 15px; color: var(--text-lo); line-height: 1.5; word-break: keep-all">{{ radarNote }}</div>
+              </div>
+
+              <div>
+                <div style="font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 10px">파라미터 차이</div>
+                <div style="display: grid; grid-template-columns: 92px {{ vizCols }}; gap: 6px 12px; align-items: baseline">
+                  <div></div>
+                  <sc-for list="{{ paramHead }}" as="h" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                      <div style="width: 3px; height: 11px; background: {{ h.color }}; flex: none"></div>
+                      <div style="font-size: 14px; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ h.name }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ paramRows }}" as="pr" hint-placeholder-count="4">
+                  <div style="display: grid; grid-template-columns: 92px {{ vizCols }}; gap: 6px 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--bg-panel)">
+                    <div style="font-size: 14px; color: var(--text-lo)">{{ pr.label }}</div>
+                    <sc-for list="{{ pr.cells }}" as="c" hint-placeholder-count="2">
+                      <div style="font-family: var(--f-mono); font-size: 16px; color: {{ c.color }}; font-variant-numeric: tabular-nums">{{ c.text }}</div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="margin-top: 8px; font-size: 15px; color: var(--text-lo); word-break: keep-all">{{ paramNote }}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: {{ vizCols }}; border-top: 1px solid var(--line)">
+              <sc-for list="{{ vizStats }}" as="v" hint-placeholder-count="2">
+                <div style="padding: 14px 18px; border-left: 1px solid var(--line)">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px">
+                    <div style="width: 3px; height: 13px; background: {{ v.color }}"></div>
+                    <div style="font-size: 14px; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ v.name }}</div>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 14px 22px">
+                    <sc-for list="{{ v.rows }}" as="r" hint-placeholder-count="4">
+                      <div>
+                        <div style="font-size: 14px; color: var(--text-lo); margin-bottom: 3px">{{ r.label }}</div>
+                        <div style="font-family: var(--f-mono); font-size: 16px; color: {{ r.color }}; font-variant-numeric: tabular-nums">{{ r.text }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isGrid }}">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px">
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="6">
+              <div style="border: 1px solid {{ c.border }}; background: var(--bg-base); display: flex; flex-direction: column; transition: border-color var(--t-fast) var(--e-out)">
+                <div style="position: relative; height: 60px; background: var(--bg-panel); overflow: hidden">
+                  <div style="position: absolute; inset: 0; padding: 7px 10px 14px">
+                    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 40" role="img" aria-label="정답 run 의 접촉력">
+                      <line x1="0" y1="{{ c.profileRefY }}" x2="100" y2="{{ c.profileRefY }}" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" style="stroke: var(--line-hi)"></line>
+                      <path d="{{ c.profilePath }}" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke: var(--accent)"></path>
+                    </svg>
+                  </div>
+                  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgb(var(--bg-base-ch) / 0) 54%, rgb(var(--bg-base-ch) / 0.92) 100%)"></div>
+                  <sc-if value="{{ c.standard }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; top: 8px; right: 8px; padding: 3px 8px; background: rgb(var(--accent-ch) / 0.14); border: 1px solid var(--accent); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-hi); border-radius: var(--r-sm)">{{ c.badge }}</div>
+                  </sc-if>
+                  <div style="position: absolute; bottom: 9px; left: 12px; font-family: var(--f-mono); font-size: 12px; color: var(--text-lo); display: flex; gap: 8px; font-variant-numeric: tabular-nums">
+                    <span>{{ c.date }}</span>
+                    <span style="color: var(--text-mid); letter-spacing: 0.04em">{{ c.expert }}</span>
+                  </div>
+                  <div style="position: absolute; bottom: 9px; right: 12px; font-family: var(--f-mono); font-size: 12px; color: var(--text-lo); font-variant-numeric: tabular-nums">접촉력 {{ c.forceLo }}–{{ c.forceHi }} N</div>
+                </div>
+
+                <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; flex: 1">
+                  <div style="font-size: 18px; font-weight: 500; color: var(--text-hi); line-height: 1.35; word-break: keep-all">{{ c.name }}</div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                    <sc-for list="{{ c.tags }}" as="t" hint-placeholder-count="3">
+                      <div style="padding: 3px 8px; border: 1px solid var(--line); font-size: 13px; color: var(--text-mid)">{{ t }}</div>
+                    </sc-for>
+                  </div>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                    <div style="padding: 3px 8px; border: 1px solid var(--line-hi); background: var(--bg-panel); font-size: 13px; color: var(--text-hi); border-radius: var(--r-sm); font-weight: 500">{{ c.scoreLabel }} <span style="font-family: var(--f-mono); font-variant-numeric: tabular-nums">{{ c.score }}</span></div>
+                    <sc-for list="{{ c.comments }}" as="cm" hint-placeholder-count="2">
+                      <div style="padding: 3px 8px; background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: 13px; color: var(--text-mid)">{{ cm }}</div>
+                    </sc-for>
+                  </div>
+
+                  <div style="display: flex; gap: 14px; font-family: var(--f-mono); font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums">
+                    <sc-for list="{{ c.stats }}" as="s" hint-placeholder-count="3">
+                      <div style="color: {{ s.color }}">{{ s.text }}</div>
+                    </sc-for>
+                  </div>
+                  <div style="flex: 1"></div>
+                  <div style="display: flex; gap: 8px; align-items: stretch">
+                    <button type="button" sc-camel-on-click="{{ c.load }}" style="flex: 1; padding: 10px 0; background: rgb(var(--accent-ch) / 0.14); border: 1px solid var(--accent); font-size: 15px; font-weight: 500; color: var(--text-hi); text-align: center; cursor: pointer; transition: background var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)" style-hover="background: var(--accent); color: var(--bg-void)">불러오기</button>
+                    <button type="button" sc-camel-on-click="{{ c.viz }}" style="flex: 1; padding: 10px 0; border: 1px solid {{ c.vizBorder }}; background: {{ c.vizBg }}; font-size: 15px; color: {{ c.vizColor }}; text-align: center; cursor: pointer; transition: background-color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)" style-hover="border-color: var(--text-lo)">{{ c.vizLabel }}</button>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isList }}">
+          <div style="border: 1px solid var(--line); background: var(--bg-base)">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 64px 1fr 1fr 1fr 110px 150px; padding: 12px 24px; border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 500; color: var(--text-lo)">
+              <div>세그먼트</div>
+              <div>태그</div>
+              <div>점수</div>
+              <div>in-band</div>
+              <div>과압</div>
+              <div>힘 표준편차</div>
+              <div>등록</div>
+              <div style="text-align: right">액션</div>
+            </div>
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="6">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 64px 1fr 1fr 1fr 110px 150px; padding: 14px 24px; border-bottom: 1px solid var(--line); align-items: center; transition: background-color var(--t-fast) var(--e-out)" style-hover="background: var(--bg-raised)">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <div style="width: 8px; height: 8px; background: {{ c.stdIconBg }}; border-radius: 50%"></div>
+                  <div style="font-size: 16px; font-weight: 500; color: var(--text-hi)">{{ c.name }}</div>
+                </div>
+                <div style="display: flex; gap: 4px; flex-wrap: wrap">
+                  <sc-for list="{{ c.tags }}" as="t" hint-placeholder-count="3">
+                    <div style="padding: 2px 6px; border: 1px solid var(--line); font-size: 12px; color: var(--text-mid)">{{ t }}</div>
+                  </sc-for>
+                </div>
+                <div style="font-family: var(--f-mono); font-size: 16px; font-weight: 700; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ c.score }}</div>
+                <sc-for list="{{ c.stats }}" as="s" hint-placeholder-count="3">
+                  <div style="font-family: var(--f-mono); font-size: 16px; color: {{ s.color }}; font-variant-numeric: tabular-nums">{{ s.plain }}</div>
+                </sc-for>
+                <div style="font-family: var(--f-mono); font-size: 16px; color: var(--text-lo); font-variant-numeric: tabular-nums">{{ c.date }}</div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px">
+                  <button type="button" sc-camel-on-click="{{ c.viz }}" style="padding: 6px 12px; border: 1px solid {{ c.vizBorder }}; background: {{ c.vizBg }}; font-size: 14px; color: {{ c.vizColor }}; cursor: pointer">{{ c.vizLabel }}</button>
+                  <button type="button" sc-camel-on-click="{{ c.load }}" style="padding: 6px 14px; background: rgb(var(--accent-ch) / 0.14); border: 1px solid var(--accent); color: var(--text-hi); font-size: 14px; font-weight: 500; cursor: pointer; transition: background var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out)" style-hover="background: var(--accent); color: var(--bg-void)">불러오기</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 70px 0; text-align: center; font-size: 16px; color: var(--text-lo); word-break: keep-all">{{ emptyText }}</div>
+        </sc-if>
+      </div>
+    </div>
+
+    <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="04 Load" style="position: absolute; inset: 0; z-index: 40; background: rgb(var(--bg-void-ch) / 0.96); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 30px; animation: ptFade var(--t-base) var(--e-out)">
+        <div style="width: min(1180px, 100%); max-height: 100%; display: flex; flex-direction: column">
+
+          <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px">
+            <div style="font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo)">LOADING TO 01</div>
+            <div style="flex: 1"></div>
+            <div style="font-family: var(--f-mono); font-size: 14px; color: var(--accent); font-variant-numeric: tabular-nums">{{ loadPct }}%</div>
+          </div>
+          <div style="font-size: 20px; font-weight: 500; color: var(--text-hi); margin-bottom: 22px">{{ loadName }}</div>
+
+          <div style="display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 26px; flex: 1; min-height: 0">
+
+            <div style="display: flex; flex-direction: column; gap: 13px">
+              <sc-for list="{{ loadRows }}" as="r" hint-placeholder-count="4">
+                <div>
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px">
+                    <div style="font-size: 14px; color: var(--text-mid)">{{ r.label }}</div>
+                    <div style="font-family: var(--f-mono); font-size: 16px; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ r.text }}<span style="font-size: 13px; color: var(--text-lo)"> {{ r.unit }}</span></div>
+                  </div>
+                  <div style="height: 2px; background: var(--bg-panel); position: relative">
+                    <div style="position: absolute; left: 0; top: 0; height: 100%; width: 100%; background: var(--accent); transform: scaleX({{ r.scale }}); transform-origin: left center; transition: transform var(--t-slow) var(--e-out)"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); background: var(--bg-base)">
+              <div style="flex: none; display: flex; align-items: baseline; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--line)">
+                <div style="font-size: 14px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">원본 로그</div>
+                <div style="font-family: var(--f-mono); font-size: 13px; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ csvTitle }}</div>
+                <div style="flex: 1"></div>
+                <div style="font-family: var(--f-mono); font-size: 13px; color: var(--text-lo); white-space: nowrap; font-variant-numeric: tabular-nums">{{ csvMeta }}</div>
+              </div>
+              <div style="flex: 1; min-height: 0; overflow: auto; padding: 10px 14px">
+                <div style="font-family: var(--f-mono); font-size: 13px; line-height: 1.7; white-space: pre; color: var(--text-lo); border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 6px">{{ csvHead }}</div>
+                <sc-for list="{{ csvLines }}" as="l" hint-placeholder-count="24">
+                  <div style="font-family: var(--f-mono); font-size: 13px; line-height: 1.7; white-space: pre; color: {{ l.color }}">{{ l.text }}</div>
+                </sc-for>
+                <sc-if value="{{ csvBusy }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding: 40px 0; text-align: center; font-size: 14px; color: var(--text-lo)">{{ csvStatus }}</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex: none; height: 1px; background: var(--bg-panel); margin: 22px 0 16px"></div>
+          <div style="flex: none; display: flex; align-items: center; gap: 12px">
+            <button type="button" sc-camel-on-click="{{ cancelLoad }}" style="font-size: 14px; color: var(--text-lo); cursor: pointer; background: transparent; border: 0" style-hover="color: var(--text-hi)">취소</button>
+            <a href="monitor.html" style="font-size: 14px; color: var(--text-lo); margin-left: 18px; transition: color var(--t-base) var(--e-out)">② 공정 감시 →</a>
+            <a href="save.html" style="font-size: 14px; margin-left: 18px; color: var(--text-lo); transition: color var(--t-base) var(--e-out); word-break: keep-all" style-hover="color: var(--text-mid)">③ 결과 저장 →</a>
+            <div style="flex: 1"></div>
+            <a href="console.html" style="padding: 13px 26px; border: 1px solid {{ goBorder }}; background: {{ goBg }}; font-size: 15px; letter-spacing: 0.12em; color: {{ goColor }}; transition: background-color var(--t-base) var(--e-out), border-color var(--t-base) var(--e-out), color var(--t-base) var(--e-out)">① 콘솔로 이동</a>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+// ══ 04 라이브러리 ══════════════════════════════════════════════
+// 카드는 전부 실측이다. 지어낸 레시피는 없다.
+//   출처 ①  데이터셋/seg_best_kpi.json — sweep_traj_csv(184MB, 595 run) 에서
+//            세그먼트마다 '세그먼트별_최적파라미터.csv 의 최적 파라미터와 일치하는 run'
+//            을 찾아 KPI·힘 시계열·파일 내 바이트 범위를 뽑아 둔 요약.
+//            만드는 법은 데이터셋/make_seed.py + add_traces.py.
+// 출처 ② GET /api/library — ① 웹 UI에서 RL 결과가 정답과 일치해
+//            합격시킨 기록. 서버 DB(library_entries)다. 예전에는
+//            localStorage 'polytwin_saved' 였고 브라우저 하나에 갇혀
+//            있었다 — 다른 PC 에서는 안 보이고 저장자도 몰랐다.
+//            로그인한 전원이 같은 목록을 본다.
+// 불러오기는 ①의 바이트 범위로 원본 CSV 를 Range 요청해 그 run 의 로그를 그대로 편다.
+
+/* 숙련공 정답 데이터 — DB(segments 테이블). 모양은 예전
+   데이터셋/seg_best_kpi.json 과 같다 */
+const SEED_URL = '/api/dataset/seg-best-kpi';
+const SAVED_URL = '/api/library';
+const DATASET_DATE = '08-27 10:26';       // 원본 CSV 생성 시각
+
+const CSV_ROWS = 200;                     // 표에 그릴 행 수
+const CSV_BYTES = 512 * 1024;             // 한 번에 읽을 최대 바이트
+const CSV_COL_W = 22;                     // 열 폭 상한(글자)
+
+// 스윕 범위 — 분석리포트 1장의 랜덤화 구간. 막대 눈금의 0/1 지점이다.
+const SWEEP = {
+  force:     { label: '접촉력 목표', unit: 'N',    d: 2, lo: 2.5, hi: 9.0 },
+  stiffness: { label: '패드 강성 k', unit: 'N/m',  d: 1, lo: 200, hi: 800 },
+  damping:   { label: '감쇠 c',      unit: 'Ns/m', d: 2, lo: 10,  hi: 80 },
+  speed:     { label: '속도 배율',   unit: 'x',    d: 2, lo: 0.5, hi: 4.5 },
+};
+const GAINS = ['force', 'stiffness', 'damping', 'speed'];
+
+// 시각화에 겹칠 수 있는 최대 개수. 각 계열에 범례가 붙으므로 색만으로 구분하지 않는다.
+const SERIES = ['var(--accent)', 'var(--warn)', 'var(--ok)'];
+const MAX_VIZ = 3;
+
+const pct = (v, d) => (v * 100).toFixed(d === undefined ? 1 : d);
+
+// ── 카드 스파크라인 ── 정답 run 의 접촉력. 목표 접촉력이 점선 기준이다.
+function sparkPath(tr) {
+  const f = tr.f, n = f.length, H = 40, TOP = 3, BOT = 6;
+  let lo = 0, hi = tr.tgt;
+  for (let i = 0; i < n; i++) if (f[i] > hi) hi = f[i];
+  const span = Math.max(0.5, hi - lo);
+  const y = (v) => H - BOT - (v - lo) / span * (H - TOP - BOT);
+  let cLo = Infinity, cHi = -Infinity;
+  for (let i = 0; i < n; i++) if (tr.c[i] > 0) {
+    if (f[i] < cLo) cLo = f[i];
+    if (f[i] > cHi) cHi = f[i];
+  }
+  if (cLo === Infinity) { cLo = 0; cHi = hi; }
+  return {
+    d: f.map((v, i) => (i ? 'L' : 'M') + (i / (n - 1) * 100).toFixed(1) + ',' + y(v).toFixed(1)).join(' '),
+    refY: y(tr.tgt).toFixed(1),
+    lo: cLo.toFixed(1),
+    hi: cHi.toFixed(1),
+  };
+}
+
+// ── 데이터셋 세그먼트 한 개 → 카드 한 장 ──
+function unitOfSeg(sg) {
+  return { id: 'ds-' + sg.seg, kind: 'dataset', src: '데이터셋', seg: sg.seg, sg: sg,
+           name: '세그먼트 ' + sg.seg + ' · ' + sg.robot + ' 로봇',
+           date: DATASET_DATE, who: '스윕 최적', p: sg.p };
+}
+
+// ── 웹 UI에서 합격시킨 기록 → 카드 한 장 ──
+// 파라미터는 RL 이 낸 값, 로그와 KPI 는 대조 기준이 된 정답 run 의 것이다.
+function unitOfSaved(rec) {
+  const sg = rec.ref;
+  if (!sg || !sg.trace || !rec.rl) return null;
+  return { id: rec.id, rowId: rec.rowId, kind: 'saved', src: 'RL 저장', seg: rec.seg, sg: sg,
+           name: rec.name, date: rec.date,
+           /* 누가 합격시켰는지 — 전에는 브라우저마다 달라서 적을 수 없었다 */
+           who: rec.owner ? (rec.owner + ' · RL 검증') : 'RL 검증',
+           p: { force: rec.rl.force, stiffness: rec.rl.stiffness,
+                damping: rec.rl.damping, speed: rec.rl.speed } };
+}
+
+// ── CSV 한 줄을 고정폭으로 ── 첫 열(run_id)만 왼쪽, 나머지는 오른쪽 정렬.
+function padCells(cells, w) {
+  const out = [];
+  for (let i = 0; i < w.length; i++) {
+    let v = cells[i] === undefined ? '' : String(cells[i]);
+    if (v.length > w[i]) v = v.slice(0, w[i]);
+    out.push(i === 0 ? v + ' '.repeat(w[i] - v.length) : ' '.repeat(w[i] - v.length) + v);
+  }
+  return out.join('  ');
+}
+
+function colWidths(header, rows) {
+  return header.map((h, i) => {
+    let m = h.length;
+    for (let r = 0; r < rows.length; r++) {
+      const v = rows[r][i];
+      if (v !== undefined && v.length > m) m = v.length;
+    }
+    return Math.min(CSV_COL_W, m);
+  });
+}
+
+class Component extends DCLogic {
+  state = {
+    query: '', robot: 'all', src: 'all', grade: 'all',
+    stdOnly: false, sort: 'quality', layout: 'grid',
+    seed: null, seedErr: '', saved: [], savedErr: '',
+    viz: [],
+    loadingId: null, loadPhase: 0,
+    csv: null, csvErr: '', csvBusy: false,
+  };
+
+  componentDidMount() {
+    fetch(SEED_URL, { credentials: 'same-origin' })
+      .then((r) => r.json().catch(() => ({})).then((d) => {
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        return d;
+      }))
+      .then((d) => this.setState({ seed: d }))
+      .catch((err) => this.setState({ seedErr: String(err.message || err) }));
+    /* 합격 기록은 서버에서. 실패해도 정답 데이터는 그대로 뜬다 —
+       라이브러리가 통째로 비는 것보다 반이라도 보이는 편이 낫다 */
+    fetch(SAVED_URL, { credentials: 'same-origin' })
+      .then((r) => r.json().catch(() => ({})).then((d) => {
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        return d;
+      }))
+      .then((d) => this.setState({ saved: Array.isArray(d.entries) ? d.entries : [], savedErr: '' }))
+      .catch((err) => this.setState({ saved: [], savedErr: String((err && err.message) || err) }));
+  }
+
+  componentWillUnmount() { if (this._abort) this._abort.abort(); }
+
+  units() {
+    const seed = this.state.seed;
+    if (!seed) return [];
+    const fromSaved = this.state.saved.map(unitOfSaved).filter(Boolean);
+    return fromSaved.concat((seed.segments || []).map(unitOfSeg));
+  }
+
+  toggleViz(id) {
+    this.setState((s) => {
+      if (s.viz.includes(id)) return { viz: s.viz.filter((x) => x !== id) };
+      if (s.viz.length >= MAX_VIZ) return {};
+      return { viz: s.viz.concat([id]) };
+    });
+  }
+
+  // 불러오기 — 파라미터 막대를 채우면서, 그 run 의 원본 로그를 Range 로 읽어 편다.
+  startLoad(u) {
+    if (this._abort) this._abort.abort();
+    this.setState({ loadingId: u.id, loadPhase: 0, csv: null, csvErr: '', csvBusy: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ loadPhase: 1 })));
+
+    const sg = u.sg;
+    const end = Math.min(sg.byteEnd - 1, sg.byteStart + CSV_BYTES - 1);
+    const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    this._abort = ctl;
+    /* 원본 sweep_traj_csv 는 183 MB 라 배포에 못 싣는다. Range 로 읽던 그 구간을
+       make_traces.py 가 그대로 잘라 둔 게 sliceFile 이다 — 바이트가 같으므로
+       마지막 잘린 줄까지 동일하다. 원본이 있으면 원본에 Range 를 건다. */
+    const useSlice = !!sg.sliceFile;
+    const req = useSlice
+      ? fetch(sg.sliceFile, { signal: ctl && ctl.signal })
+      : fetch(sg.file, { headers: { Range: 'bytes=' + sg.byteStart + '-' + end }, signal: ctl && ctl.signal });
+    req
+      .then((r) => { if (r.status !== 206 && r.status !== 200) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then((text) => {
+        const lines = text.split('\n');
+        lines.pop();                              // 마지막 줄은 잘려 있다 — 버린다
+        const rows = lines.slice(0, CSV_ROWS).map((l) => l.split(','));
+        this.setState({
+          csvBusy: false,
+          csv: { rows: rows, shown: rows.length, total: sg.steps,
+                 read: end - sg.byteStart + 1, size: sg.fileSize,
+                 file: sg.file.split('/').pop(), run: sg.bestRun },
+        });
+      })
+      .catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        this.setState({ csvBusy: false, csvErr: String(err.message || err) });
+      });
+  }
+
+  cancelLoad() {
+    if (this._abort) this._abort.abort();
+    this.setState({ loadingId: null, loadPhase: 0, csv: null, csvErr: '', csvBusy: false });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const all = this.units();
+
+    // ── 카드 목록 ──
+    let list = all.filter((u) => {
+      if (s.query && u.name.toLowerCase().indexOf(s.query.toLowerCase()) < 0
+          && u.seg.toLowerCase().indexOf(s.query.toLowerCase()) < 0) return false;
+      if (s.robot !== 'all' && u.sg.robot !== s.robot) return false;
+      if (s.src !== 'all' && u.src !== s.src) return false;
+      if (s.grade === 'in-band 0.95 이상' && u.sg.inband < 0.95) return false;
+      if (s.grade === '0.90–0.95' && !(u.sg.inband >= 0.90 && u.sg.inband < 0.95)) return false;
+      if (s.grade === '0.90 미만' && u.sg.inband >= 0.90) return false;
+      if (s.stdOnly && u.sg.inband < 0.95) return false;
+      return true;
+    });
+    list = list.slice().sort((a, b) => (s.sort === 'recent'
+      ? b.date.localeCompare(a.date)
+      : b.sg.inband - a.sg.inband));
+
+    const colorOf = (id) => SERIES[s.viz.indexOf(id)] || 'var(--text-lo)';
+
+    const cards = list.map((u) => {
+      const sg = u.sg, on = s.viz.indexOf(u.id) >= 0, full = !on && s.viz.length >= MAX_VIZ;
+      const sp = sparkPath(sg.trace);
+      const comments = [
+        '#baseline_' + sg.baselineInband.toFixed(3),
+        '#개선_+' + (sg.delta * 100).toFixed(1) + '%p',
+        sg.overSteps === 0 ? '#과압_없음' : '#과압_' + sg.overSteps + '스텝',
+      ];
+      const stats = [
+        { key: 'in-band', text: 'in-band ' + pct(sg.inband) + '%', plain: pct(sg.inband) + '%',
+          color: sg.inband >= 0.95 ? 'var(--ok)' : 'var(--text-mid)' },
+        { key: '과압', text: '과압 ' + pct(sg.overRatio, 1) + '%', plain: pct(sg.overRatio, 1) + '%',
+          color: sg.overSteps === 0 ? 'var(--ok)' : 'var(--warn)' },
+        { key: '힘σ', text: '힘σ ' + sg.forceStd.toFixed(2) + ' N', plain: sg.forceStd.toFixed(2) + ' N',
+          color: sg.forceStd <= 1.2 ? 'var(--ok)' : 'var(--text-mid)' },
+      ];
+      return {
+        name: u.name,
+        date: u.date,
+        expert: u.who,
+        standard: sg.inband >= 0.95,
+        badge: u.kind === 'saved' ? 'RL 합격' : '정답 인증',
+        border: on ? colorOf(u.id) : 'var(--line)',
+        stdIconBg: sg.inband >= 0.95 ? 'var(--accent)' : 'var(--line)',
+        tags: [sg.robot + ' 로봇', 'waypoint ' + sg.waypoints, sg.runCount + ' run'],
+        scoreLabel: 'in-band',
+        score: pct(sg.inband) + '%',
+        comments: comments,
+        stats: stats,
+        profilePath: sp.d,
+        profileRefY: sp.refY,
+        forceLo: sp.lo,
+        forceHi: sp.hi,
+        vizLabel: on ? '비교에서 빼기' : '비교에 추가',   // 기능 이름이 화면에 안 보이면 없는 기능이다
+        vizBorder: on ? colorOf(u.id) : 'var(--line)',
+        vizBg: on ? 'rgb(var(--accent-ch) / 0.07)' : 'transparent',
+        vizColor: on ? 'var(--text-hi)' : (full ? 'var(--line-hi)' : 'var(--text-mid)'),
+        viz: () => this.toggleViz(u.id),
+        load: () => this.startLoad(u),
+      };
+    });
+
+    // ── 시각화 패널 ── 핀 고정한 항목의 접촉력 시계열을 겹쳐 그린다.
+    const pinned = s.viz.map((id) => all.find((u) => u.id === id)).filter(Boolean);
+    const X0 = 64, X1 = 1180, Y0 = 22, Y1 = 264;
+    let yMax = 1, vizGrid = [], vizSeries = [], vizBand = { x: X0, y: Y0, w: 0, h: 0 };
+    let vizXMax = '', vizBandNote = '';
+    if (pinned.length) {
+      pinned.forEach((u) => u.sg.trace.f.forEach((v) => { if (v > yMax) yMax = v; }));
+      const first = pinned[0].sg.trace;
+      yMax = Math.max(yMax, first.hi[0] || 0) * 1.06;
+      const yOf = (v) => Y1 - (v / yMax) * (Y1 - Y0);
+      const steps = 4;
+      for (let i = 0; i <= steps; i++) {
+        const v = yMax * i / steps;
+        // top 은 SVG 밖 HTML 라벨용. viewBox 높이 300 기준 백분율이다
+        vizGrid.push({ y: yOf(v).toFixed(1), ty: (yOf(v) + 3.5).toFixed(1),
+                       top: (yOf(v) / 300 * 100).toFixed(2) + '%', label: v.toFixed(1) });
+      }
+      const pathOf = (arr) => arr.map((v, i) =>
+        (i ? 'L' : 'M') + (X0 + i / (arr.length - 1) * (X1 - X0)).toFixed(1) + ',' + yOf(v).toFixed(1)).join(' ');
+      vizSeries = pinned.map((u, i) => ({
+        color: SERIES[i] || 'var(--text-lo)',
+        d: pathOf(u.sg.trace.f),
+        base: (pinned.length === 1 && u.sg.baseline && u.sg.baseline.trace)
+          ? pathOf(u.sg.baseline.trace.f) : '',
+      }));
+      const lo = first.lo[0] || 0, hi = first.hi[0] || 0;
+      vizBand = { x: X0, y: yOf(hi).toFixed(1), w: X1 - X0, h: Math.max(0, yOf(lo) - yOf(hi)).toFixed(1) };
+      vizXMax = String(Math.max.apply(null, pinned.map((u) => u.sg.trace.n)));
+      vizBandNote = '허용 힘 밴드 ' + lo.toFixed(2) + '–' + hi.toFixed(2) + ' N ('
+        + pinned[0].seg + ' 기준). 이 안에 머문 스텝 비율이 in-band 다.';
+    }
+
+    /* ── 지표 6종 레이더 ──────────────────────────────────────
+       축은 전부 데이터셋 실측값이다. 다만 단위가 제각각이라(비율·%·N)
+       0~1 로 정규화해 겹쳐 그린다. 정규화 기준은 화면에 적어 둔다 —
+       기준을 숨기면 레이더는 아무 말이나 할 수 있는 그림이 된다. */
+    const CV_FULL = 30;      // 변동계수 30% 를 0점으로 본다
+    const DELTA_FULL = 0.30; // baseline 대비 +30%p 를 만점으로 본다
+    const clamp01 = (v) => (v < 0 ? 0 : (v > 1 ? 1 : v));
+    const AXES = [
+      { key: '목표대역 체류', f: (g) => clamp01(g.inband) },
+      { key: '접촉 유지율',   f: (g) => clamp01(g.contactRatio) },
+      { key: '힘 안정성',     f: (g) => clamp01(1 - g.cv / CV_FULL) },
+      { key: '과압 회피',     f: (g) => clamp01(1 - g.overRatio) },
+      { key: 'baseline 개선', f: (g) => clamp01(g.delta / DELTA_FULL) },
+      { key: '힘 정확도',     f: (g, u) => clamp01(1 - Math.abs(g.forceMean - u.p.force) / Math.max(0.1, u.p.force)) },
+    ];
+    const RCX = 192, RCY = 134, RR = 84;   // 라벨이 좌우로 나가므로 viewBox 384 에 반지름은 줄여 잡는다
+    const angOf = (i) => (-Math.PI / 2) + (i * 2 * Math.PI / AXES.length);
+    const ptAt = (i, t) => {
+      const a = angOf(i);
+      return (RCX + Math.cos(a) * RR * t).toFixed(1) + ',' + (RCY + Math.sin(a) * RR * t).toFixed(1);
+    };
+    const radarRings = [0.25, 0.5, 0.75, 1].map((t) => ({
+      points: AXES.map((_, i) => ptAt(i, t)).join(' '),
+    }));
+    const radarSpokes = AXES.map((_, i) => {
+      const a = angOf(i);
+      return { x: (RCX + Math.cos(a) * RR).toFixed(1), y: (RCY + Math.sin(a) * RR).toFixed(1) };
+    });
+    const radarLabels = AXES.map((ax, i) => {
+      const a = angOf(i), cx = Math.cos(a), cy = Math.sin(a);
+      // SVG <text> 는 이 프레임워크에서 바인딩이 안 먹어 HTML 로 얹는다.
+      // 좌표는 viewBox(384x276) 기준 백분율이라 폭이 바뀌어도 따라간다.
+      const lx = RCX + cx * (RR + 14), ly = RCY + cy * (RR + 14);
+      const ax0 = cx > 0.25 ? 0 : (cx < -0.25 ? -100 : -50);
+      return {
+        text: ax.key,
+        left: (lx / 384 * 100).toFixed(2) + '%',
+        top: (ly / 276 * 100).toFixed(2) + '%',
+        shift: 'translate(' + ax0 + '%, -50%)',
+      };
+    });
+    const radarSeries = pinned.map((u, i) => ({
+      color: SERIES[i] || 'var(--text-lo)',
+      points: AXES.map((ax, k) => ptAt(k, ax.f(u.sg, u))).join(' '),
+    }));
+    const radarNote = pinned.length
+      ? ('0–1 정규화 · 힘 안정성은 CV ' + CV_FULL + '% 를 0 점, baseline 개선은 +'
+         + (DELTA_FULL * 100).toFixed(0) + '%p 를 만점으로 본다')
+      : '';
+
+    /* ── 파라미터 차이 ──────────────────────────────────────
+       값이 갈리는 행만 액센트로 집어 준다. 전부 칠하면 어디가 다른지
+       오히려 안 보인다. 한 장만 골랐을 때는 비교할 상대가 없어 칠하지 않는다. */
+    const PARAMS = [
+      { key: 'force',     label: '접촉력 목표', unit: ' N',   d: 2 },
+      { key: 'stiffness', label: '패드 강성 k', unit: ' N/m', d: 1 },
+      { key: 'damping',   label: '감쇠 c',      unit: '',     d: 2 },
+      { key: 'speed',     label: '속도 배율',   unit: ' x',   d: 2 },
+    ];
+    const paramRows = PARAMS.map((pm) => {
+      const vals = pinned.map((u) => u.p[pm.key]);
+      const differs = pinned.length > 1
+        && Math.max.apply(null, vals) - Math.min.apply(null, vals) > 1e-9;
+      return {
+        label: pm.label,
+        cells: pinned.map((u, i) => ({
+          text: u.p[pm.key].toFixed(pm.d) + pm.unit,
+          color: differs ? 'var(--accent)' : 'var(--text-mid)',
+        })),
+      };
+    });
+    const paramHead = pinned.map((u, i) => ({ name: u.name, color: SERIES[i] || 'var(--text-lo)' }));
+    const paramNote = pinned.length > 1
+      ? '값이 갈리는 항목만 강조했다.'
+      : '두 장 이상 고르면 차이가 나는 항목을 짚어 준다.';
+
+    const vizStats = pinned.map((u, i) => ({
+      name: u.name,
+      color: SERIES[i] || 'var(--text-lo)',
+      rows: [
+        { label: 'in-band', text: pct(u.sg.inband) + '%',
+          color: u.sg.inband >= 0.95 ? 'var(--ok)' : 'var(--text-hi)' },
+        { label: 'baseline 대비', text: '+' + (u.sg.delta * 100).toFixed(1) + '%p', color: 'var(--text-hi)' },
+        { label: '과압', text: u.sg.overSteps + ' 스텝', color: u.sg.overSteps ? 'var(--warn)' : 'var(--ok)' },
+        { label: '힘 평균 / σ', text: u.sg.forceMean.toFixed(2) + ' / ' + u.sg.forceStd.toFixed(2), color: 'var(--text-hi)' },
+        { label: '스텝', text: String(u.sg.steps), color: 'var(--text-hi)' },
+      ],
+    }));
+
+    // ── 불러오기 오버레이 ──
+    const loadU = all.find((u) => u.id === s.loadingId) || null;
+    const loadRows = loadU ? GAINS.map((k) => {
+      const def = SWEEP[k], v = loadU.p[k];
+      const t = (v - def.lo) / (def.hi - def.lo);
+      return { label: def.label, unit: def.unit, text: v.toFixed(def.d),
+               scale: (s.loadPhase * Math.max(0, Math.min(1, t))).toFixed(3) };
+    }) : [];
+
+    let csvHead = '', csvLines = [], csvTitle = '', csvMeta = '', csvStatus = '';
+    if (loadU) {
+      csvTitle = loadU.sg.file.split('/').pop() + '  ·  run ' + loadU.sg.bestRun;
+      if (s.csv) {
+        const header = (s.seed && s.seed.header) || [];
+        const w = colWidths(header, s.csv.rows);
+        csvHead = padCells(header, w);
+        csvLines = s.csv.rows.map((r, i) => ({
+          text: padCells(r, w),
+          color: i % 2 ? 'var(--text-mid)' : 'var(--text-hi)',
+        }));
+        csvMeta = s.csv.shown + ' / ' + s.csv.total + '행  ·  '
+          + (s.csv.read / 1048576).toFixed(2) + ' / ' + (s.csv.size / 1048576).toFixed(1) + ' MB';
+      } else {
+        csvStatus = s.csvErr ? ('원본 CSV 를 읽지 못했습니다 — ' + s.csvErr) : '원본 로그를 읽는 중…';
+        csvMeta = loadU.sg.steps + '행';
+      }
+    }
+
+    const opt = (key, label, values) => ({
+      value: s[key],
+      options: [{ value: 'all', label: label }].concat(values.map((v) => ({ value: v, label: v }))),
+      set: (e) => this.setState({ [key]: e.target.value }),
+    });
+
+    return {
+      shownCount: String(cards.length),
+      totalCount: String(all.length),
+      isEmpty: cards.length === 0,
+      emptyText: s.seedErr
+        ? ('데이터셋을 읽지 못했습니다 — ' + s.seedErr + '. 데이터셋/seg_best_kpi.json 이 있는지 확인하세요.')
+        : (s.seed ? '조건에 맞는 세그먼트가 없다' : '데이터셋을 읽는 중…'),
+
+      query: s.query,
+      setQuery: (e) => this.setState({ query: e.target.value }),
+      filters: [
+        opt('robot', '로봇 전체', ['천장', '측면좌']),
+        opt('src', '출처 전체', ['데이터셋', 'RL 저장']),
+        opt('grade', '성능 전체', ['in-band 0.95 이상', '0.90–0.95', '0.90 미만']),
+      ],
+      stdBorder: s.stdOnly ? 'var(--accent)' : 'var(--line)',
+      stdBg: s.stdOnly ? 'rgb(var(--accent-ch) / 0.07)' : 'transparent',
+      stdColor: s.stdOnly ? 'var(--text-hi)' : 'var(--text-lo)',
+      stdDot: s.stdOnly ? 'var(--accent)' : 'var(--line)',
+      toggleStdOnly: () => this.setState((p) => ({ stdOnly: !p.stdOnly })),
+
+      isGrid: s.layout === 'grid',
+      isList: s.layout === 'list',
+      setGrid: () => this.setState({ layout: 'grid' }),
+      setList: () => this.setState({ layout: 'list' }),
+      gridColor: s.layout === 'grid' ? 'var(--text-hi)' : 'var(--text-lo)',
+      gridBg: s.layout === 'grid' ? 'var(--bg-panel)' : 'transparent',
+      listColor: s.layout === 'list' ? 'var(--text-hi)' : 'var(--text-lo)',
+      listBg: s.layout === 'list' ? 'var(--bg-panel)' : 'transparent',
+      sorts: [['quality', '품질순'], ['recent', '최신순']].map((e) => ({
+        label: e[1],
+        color: s.sort === e[0] ? 'var(--text-hi)' : 'var(--text-lo)',
+        bg: s.sort === e[0] ? 'var(--bg-panel)' : 'transparent',
+        pick: () => this.setState({ sort: e[0] }),
+      })),
+
+      cards: cards,
+
+      hasViz: pinned.length > 0,
+      vizLegend: pinned.map((u, i) => ({
+        name: u.name, color: SERIES[i] || 'var(--text-lo)',
+        remove: () => this.toggleViz(u.id),
+      })),
+      clearViz: () => this.setState({ viz: [] }),
+      vizSeries: vizSeries,
+      vizGrid: vizGrid,
+      vizBand: vizBand,
+      vizXMax: vizXMax,
+      vizBandNote: vizBandNote,
+      vizStats: vizStats,
+      radarRings: radarRings,
+      radarSpokes: radarSpokes,
+      radarLabels: radarLabels,
+      radarSeries: radarSeries,
+      radarNote: radarNote,
+      paramRows: paramRows,
+      paramHead: paramHead,
+      paramNote: paramNote,
+      vizCols: 'repeat(' + Math.max(1, pinned.length) + ', minmax(0, 1fr))',
+
+      loading: !!loadU,
+      loadName: loadU ? loadU.name : '',
+      loadPct: s.loadPhase ? '100' : '0',
+      loadRows: loadRows,
+      csvHead: csvHead,
+      csvLines: csvLines,
+      csvTitle: csvTitle,
+      csvMeta: csvMeta,
+      csvBusy: !!loadU && !s.csv,
+      csvStatus: csvStatus,
+      cancelLoad: () => this.cancelLoad(),
+      goBorder: s.loadPhase ? 'var(--accent)' : 'var(--line)',
+      goBg: s.loadPhase ? 'rgb(var(--accent-ch) / 0.14)' : 'transparent',
+      goColor: s.loadPhase ? 'var(--text-hi)' : 'var(--text-lo)',
+    };
+  }
+}
+</script>
+
+
+
+<!-- 언어 전환 — 번들에도 같은 두 줄이 들어가야 한다.
+     scripts/i18n-bundle-patch.py --check 로 확인한다. -->
+<script src="assets/js/i18n-app.js?v=2026-09-01d"></script>
+<script src="assets/js/i18n.js"></script>
+</body></html>

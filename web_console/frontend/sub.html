@@ -1,0 +1,3040 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PolyTwin</title>
+<meta name="description" content="PolyTwin — 로봇 폴리싱 공정 디지털 트윈. 공정 · 기술 · 안전 검증 · 가격 정책 · 팀.">
+<meta name="theme-color" content="#08090B">
+<link rel="icon" href="assets/favicon.svg">
+
+<link rel="preload" href="assets/fonts/Pretendard-300.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Pretendard-500.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Pretendard-700.subset.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/* ══ 폰트 — index.html 과 동일 ══ */
+@font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+  src:url("assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+  src:url("assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+  src:url("assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+  src:url("assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+  src:url("assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+  src:url("assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+/* ══ 토큰 —*/
+:root {
+  --bg-void:   #08090B;
+  --bg-void-ch: 8 9 11;
+  --bg-base:   #0E1216;
+  --bg-panel:  #14181D;
+  --bg-raised: #1A1E24;
+  --line:      #232830;
+  --line-hi:   #3B424C;
+  --text-hi:   #F2F4F7;
+  --text-mid:  #A8B0BA;
+  --text-lo:   #5F6873;
+  --accent:     #9BC33A;
+  --accent-dim: #59721A;
+  --ok:   #3DD68C;
+  --warn: #FFB74D;
+  --crit: #E8232A;
+
+  --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+  --r-sm: 2px;
+  --r-md: 4px;
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 400ms;
+  --header-h: 64px;
+  --gutter: 24px;
+}
+@media (min-width: 768px)  { :root { --gutter: 40px; } }
+@media (min-width: 1280px) { :root { --gutter: 64px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  -webkit-text-size-adjust: 100%;
+  /* 메뉴를 열면 html 에 overflow:hidden 이 걸리면서 스크롤바가 사라진다.
+     뷰포트가 그만큼 넓어지므로 가운데 정렬된 .mark 가 스크롤바 폭의 절반만큼
+     오른쪽으로 튄다. 자리를 늘 비워 두면 열고 닫아도 로고가 움직이지 않는다. */
+  scrollbar-gutter: stable;
+}
+body {
+  margin: 0;
+  background: var(--bg-void);
+  color: var(--text-mid);
+  font-family: var(--f-sans);
+  font-weight: 300;
+  font-size: 17px;
+  line-height: 1.7;
+  word-break: keep-all;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p, figure, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding-inline: var(--gutter); }
+.label {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; line-height: 1.3; color: var(--text-lo);
+}
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; font-weight: 500; }
+
+.skip {
+  position: absolute; left: var(--gutter); top: -100px; z-index: 1000;
+  background: var(--bg-panel); color: var(--text-hi);
+  border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  padding: 12px 20px; font-size: 16px;
+  transition: top var(--t-fast) var(--e-out);
+}
+.skip:focus { top: 12px; }
+
+/* ══ 헤더 — 검은색. index.html 과 동일한 3분할 ══ */
+.hdr {
+  position: fixed; inset: 0 0 auto; z-index: 100;
+  height: var(--header-h);
+  background: var(--bg-void);
+  border-bottom: 1px solid var(--line);
+}
+.hdr__in {
+  height: 100%;
+  padding-inline: clamp(16px, 2.2vw, 40px);
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 16px; min-width: 0;
+}
+.mark {
+  grid-column: 2; justify-self: center;
+  display: inline-flex; align-items: center; gap: 12px;
+  font-size: 20px; font-weight: 500; letter-spacing: 0.3em;
+  color: var(--text-hi); text-transform: uppercase; white-space: nowrap;
+  padding-block: 8px; padding-inline-start: 0.3em;
+}
+.mark b { font-weight: 700; color: var(--accent); }
+/* 심벌 — 육각 두 면. 왼쪽 면은 바탕을 따라 뒤집히고(다크 = 흰색, 반전 = 검정),
+   오른쪽 면은 어느 바탕에서나 브랜드 연두다. */
+.mark__sig { flex: none; width: 40px; height: 24px; }
+.mark__sig .a { fill: currentColor; }
+.mark__sig .b { fill: var(--accent); }
+.hdr__end { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lang { display: none; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; letter-spacing: 0.06em; margin: 0; }
+.lang span { color: var(--line-hi); }
+.lang a { color: var(--text-lo); padding: 12px 2px; transition: color var(--t-fast) var(--e-out); }
+.lang a[aria-current="true"] { color: var(--text-hi); }
+@media (min-width: 768px) { .lang { display: flex; } }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 20px;
+  font-family: inherit; font-size: 16px; font-weight: 500; letter-spacing: 0.04em;
+  border-radius: var(--r-sm); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--e-out),
+              border-color var(--t-fast) var(--e-out),
+              color var(--t-fast) var(--e-out);
+}
+.btn--ghost { background: transparent; color: var(--text-hi); border: 1px solid var(--line-hi); }
+.btn--ghost:hover { background: var(--bg-raised); border-color: var(--text-lo); }
+.hdr__cta { display: none; letter-spacing: 0.1em; }
+@media (min-width: 380px) { .hdr__cta { display: inline-flex; } }
+
+.menu-btn {
+  grid-column: 1; justify-self: start;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; margin-inline-start: -10px;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--text-hi); cursor: pointer;
+  transition: background-color var(--t-fast) var(--e-out);
+}
+.menu-btn:hover { background: var(--bg-raised); }
+.menu-btn .ico-x { display: none; }
+[data-menu="open"] .menu-btn .ico-bars { display: none; }
+[data-menu="open"] .menu-btn .ico-x { display: block; }
+
+/* ══ 메뉴 오버레이 — index.html 과 동일한 반전 ══ */
+.drawer {
+  --hair: rgb(var(--bg-void-ch) / 0.14);
+  position: fixed; inset: 0; z-index: 99;
+  background: var(--text-hi);
+  overflow-y: auto; overscroll-behavior: contain;
+  animation: menuIn var(--t-base) var(--e-out);
+}
+@keyframes menuIn { from { opacity: 0; transform: translateY(-6px); } }
+.drawer[hidden] { display: none; }
+.drawer__in {
+  max-width: 1280px; margin-inline: auto;
+  min-height: 100dvh;
+  padding: calc(var(--header-h) + 56px) var(--gutter) 56px;
+  display: grid; gap: 56px;
+}
+@media (min-width: 900px) {
+  .drawer__in { grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: 80px; }
+}
+.menu-col { display: grid; grid-template-rows: auto 1fr auto; }
+.menu-main { display: grid; align-content: start; }
+.menu-foot {
+  align-self: end; padding-top: 40px;
+  font-size: 15px; letter-spacing: 0.02em; color: var(--text-lo);
+}
+.m-group { border-bottom: 1px solid var(--hair); }
+.m-group > summary {
+  display: flex; align-items: center; gap: 14px;
+  padding-block: 22px; cursor: pointer;
+  list-style: none;
+  font-size: clamp(22px, 3vw, 34px); font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.02em; color: var(--bg-void);
+  /* SOLUTION·PR 은 원래 대문자다. 영어로 바뀌는 COMPANY·TECHNOLOGY 만
+     소문자로 남으면 네 줄이 따로 논다. 한글은 대소문자가 없어
+     한국어 화면은 이 규칙에 영향을 받지 않는다 */
+  text-transform: uppercase;
+  transition: color var(--t-fast) var(--e-out);
+}
+.m-group > summary::-webkit-details-marker { display: none; }
+.m-group > summary:hover { color: var(--accent-dim); }
+.m-chev {
+  width: 18px; height: 18px; flex: none; color: var(--text-lo);
+  transition: transform var(--t-base) var(--e-out);
+}
+.m-group[open] > summary .m-chev { transform: rotate(180deg); }
+.m-sub { display: grid; padding-bottom: 18px; }
+.m-sub a {
+  padding: 11px 0 11px 2px;
+  font-size: 21px; color: var(--text-lo);
+  transition: color var(--t-fast) var(--e-out);
+}
+.m-sub a:hover { color: var(--bg-void); }
+.m-sub a[aria-current="page"] { color: var(--bg-void); font-weight: 500; }
+.m-group[open] > .m-sub { animation: subIn var(--t-base) var(--e-out); }
+@keyframes subIn { from { opacity: 0; transform: translateY(-4px); } }
+
+.menu-side { display: grid; align-content: start; gap: 12px; }
+.menu-side h2 {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-lo); margin-bottom: 4px;
+}
+.menu-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 64px; padding: 0 18px;
+  border: 1px solid var(--hair); border-radius: var(--r-md);
+  font-size: 19px; font-weight: 500; color: var(--bg-void);
+  transition: border-color var(--t-fast) var(--e-out),
+              background-color var(--t-fast) var(--e-out);
+}
+.menu-card:hover { border-color: var(--text-lo); background: rgb(var(--bg-void-ch) / 0.04); }
+.menu-card svg { width: 16px; height: 16px; color: var(--text-lo); flex: none; }
+
+[data-menu="open"] .hdr { background: var(--text-hi); border-bottom-color: rgb(var(--bg-void-ch) / 0.14); }
+[data-menu="open"] .mark { color: var(--bg-void); }
+/* 로고는 반전면에서도 브랜드 원색을 쓴다. WCAG 1.4.3 은 로고타입을 대비
+   요건에서 제외한다 — 흰 면 위 1.9:1 이지만 이건 글이 아니라 상표다.
+   심벌만 원색으로 올리고 TWIN 을 내리면 두 초록이 어긋나 고장난 것처럼 보인다.
+   로고 밖의 글자(대제목 hover, 역할 배지)는 그대로 --accent-dim 을 쓴다. */
+[data-menu="open"] .mark b { color: var(--accent); }
+[data-menu="open"] .mark__sig .b { fill: var(--accent); }
+[data-menu="open"] .menu-btn { color: var(--bg-void); }
+[data-menu="open"] .menu-btn:hover { background: rgb(var(--bg-void-ch) / 0.06); }
+[data-menu="open"] .lang a { color: var(--text-lo); }
+[data-menu="open"] .lang a[aria-current="true"] { color: var(--bg-void); }
+[data-menu="open"] .lang span { color: rgb(var(--bg-void-ch) / 0.3); }
+[data-menu="open"] .btn--ghost { color: var(--bg-void); border-color: rgb(var(--bg-void-ch) / 0.3); }
+[data-menu="open"] .btn--ghost:hover { background: rgb(var(--bg-void-ch) / 0.06); }
+[data-menu="open"] { overflow: hidden; }
+
+/* ══ 페이지 머리 ══ */
+main { padding-top: var(--header-h); }
+.crumb {
+  display: flex; align-items: center; gap: 10px;
+  padding-top: 56px;
+}
+.crumb a { color: var(--text-lo); transition: color var(--t-fast) var(--e-out); }
+.crumb a:hover { color: var(--text-mid); }
+.crumb .sep { color: var(--line-hi); }
+.page-head { padding-block: 20px clamp(48px, 7vh, 88px); display: grid; gap: 20px; }
+.page-head h1 {
+  font-size: clamp(30px, 4.6vw, 54px); font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.02em; color: var(--text-hi); text-wrap: balance;
+  max-width: 24ch;
+}
+.page-head .lede { max-width: 56ch; font-size: clamp(16px, 1.7vw, 19px); color: var(--text-mid); text-wrap: pretty; }
+
+/* ══ 프로세스 — 번호 붙은 교차 배치 ══ */
+.proc { border-top: 1px solid var(--line); }
+.p-step {
+  display: grid; gap: 28px;
+  padding-block: clamp(48px, 7vh, 80px);
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .p-step { grid-template-columns: minmax(0, 30ch) minmax(0, 1fr); gap: clamp(48px, 6vw, 96px); }
+  .p-step:nth-of-type(even) { grid-template-columns: minmax(0, 1fr) minmax(0, 30ch); }
+  .p-step:nth-of-type(even) .p-txt { order: 2; }
+}
+.p-no {
+  display: inline-flex; align-items: baseline; gap: 10px;
+  margin-bottom: 14px;
+}
+.p-no b {
+  font-size: 16px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--accent); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+}
+.p-txt { min-width: 0; }
+.p-txt h2 {
+  font-size: clamp(20px, 2.4vw, 27px); font-weight: 700; line-height: 1.35;
+  letter-spacing: -0.01em; color: var(--text-hi); text-wrap: balance;
+  margin-bottom: 12px;
+}
+.p-txt p { font-size: 17px; color: var(--text-mid); }
+.p-txt ul { margin-top: 18px; display: grid; gap: 9px; }
+.p-txt li { position: relative; padding-inline-start: 18px; font-size: 16px; color: var(--text-mid); }
+/* ── 양쪽 정렬을 쓰지 않는다 ────────────────────────────────
+   한때 30ch 좁은 단 문단 하나를 재서 "여백 15% 까지는 안 띈다" 로
+   일반화했는데, 문장마다 줄당 어절 수가 달라 그 값이 다른 문단엔
+   안 맞았다 (예: '시장과 결제 경로' 03단계, 짧은 어절이 줄 앞을
+   차지하면 남는 공백이 몇 안 되는 자리에 몰려 들쭉날쭉해진다).
+   keep-all + justify 조합은 어절 수가 적을수록 깨지므로, 문단마다
+   재는 대신 그냥 양쪽 정렬을 쓰지 않는다. ── */
+
+.p-txt li::before {
+  content: ""; position: absolute; inset-inline-start: 0; top: 10px;
+  width: 6px; height: 1px; background: var(--accent-dim);
+}
+.p-fig {
+  min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-panel); overflow: hidden;
+}
+/* 레터박스는 이미지 자체의 near-black 과 이어져야 한다.
+   밝은 PPT 크롭을 쓰던 시절의 흰 배경이 여기 있었다 */
+.p-fig img { width: 100%; height: auto; max-height: 460px; object-fit: contain; background: var(--bg-void); }
+.p-fig figcaption {
+  padding: 10px 14px; border-top: 1px solid var(--line);
+  font-size: 16px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-lo); background: var(--bg-base);
+}
+/* 언어별 대문자 — 이 캡션은 낱말 라벨이 아니라 한 문장이다.
+   uppercase 는 한글에 아무 일도 하지 않아서 한국어 화면은 처음부터
+   평범한 결로 렌더됐다. 영문에서만 전 대문자가 되면서
+   "PAINT CROSS-SECTION AND DAMAGE DEPTH — LAYER THICKNESSES ARE…" 같은
+   120자짜리 대문자 덩어리가 됐다. 낱말 윤곽이 사라져 읽는 속도가 떨어진다.
+   EN 에서 끄는 것이 한국어 화면과 결을 맞추는 쪽이다. */
+html[lang="en"] .p-fig figcaption { text-transform: none; letter-spacing: 0.02em; }
+/* 본문 폭을 다 쓰는 개요 도해 — 안의 글자가 작아서 높이를 더 준다 */
+.p-fig.p-fig--wide img { max-height: min(72vh, 660px); }
+/* 세로로 긴 그림은 띠 폭을 다 쓰면 좌우가 전부 여백이 된다.
+   폭을 줄여 가운데 세운다 */
+.p-fig.p-fig--tall { max-width: 560px; margin-inline: auto; }
+
+/* 이미지가 아직 없는 단계 */
+.p-fig .ph {
+  aspect-ratio: 16 / 10; display: grid; place-content: center; gap: 8px;
+  text-align: center; color: var(--text-lo); font-size: 16px;
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 14px, rgb(var(--bg-void-ch) / 0.5) 14px 15px);
+}
+
+/* ══ 수치 스트립 ══ */
+.stats { padding-block: clamp(48px, 7vh, 80px); }
+.stats__grid {
+  display: grid; gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+@media (min-width: 900px) { .stats__grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+.stats__grid > div { background: var(--bg-base); padding: 26px 20px; display: grid; gap: 8px; }
+.stats__v {
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+  font-size: clamp(26px, 3vw, 36px); font-weight: 300; line-height: 1;
+  letter-spacing: -0.03em; color: var(--text-hi);
+}
+.stats__v small { font-size: 16px; font-weight: 500; color: var(--text-lo); margin-inline-start: 4px; letter-spacing: 0.04em; }
+
+/* ══ 빈 상태 (PR) ══ */
+.empty {
+  margin-block: clamp(48px, 8vh, 96px);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-panel);
+  padding: clamp(48px, 9vh, 110px) 24px;
+  display: grid; place-items: center; gap: 14px; text-align: center;
+}
+.empty h2 { font-size: 20px; font-weight: 700; color: var(--text-hi); }
+.empty p { font-size: 16px; color: var(--text-mid); max-width: 40ch; }
+
+/* ══ 다음 페이지 이동 ══ */
+.next {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  padding-block: clamp(40px, 6vh, 64px) clamp(64px, 9vh, 110px);
+}
+
+/* ══ 푸터 ══ */
+.ft { border-top: 1px solid var(--line); padding-block: 40px 48px; }
+.ft__in { display: grid; gap: 24px; }
+@media (min-width: 768px) { .ft__in { grid-template-columns: 1fr auto; align-items: center; } }
+.ft small { color: var(--text-lo); font-size: 15px; }
+.ft__links { display: flex; flex-wrap: wrap; gap: 4px; }
+.ft__links a { padding: 10px 12px; font-size: 15px; color: var(--text-lo); transition: color var(--t-fast) var(--e-out); }
+.ft__links a:hover { color: var(--text-mid); }
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .m-group[open] > .m-sub { animation: none; }
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+
+
+.hdr__auth { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr__who { display: none; align-items: baseline; gap: 7px; font-size: 15px; color: var(--text-lo); min-width: 0; }
+@media (min-width: 560px) { .hdr__who { display: flex; } }
+.hdr__role {
+  flex: none; padding: 2px 5px;
+  border: 1px solid var(--accent-dim); border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.1em; color: var(--accent);
+}
+[data-menu="open"] .hdr__who { color: rgb(var(--bg-void-ch) / 0.45); }
+[data-menu="open"] .hdr__role { color: var(--accent-dim); border-color: rgb(var(--bg-void-ch) / 0.3); }
+/* ══════════════════════════════════════════════════════════════
+   네이티브 도해 — 기획서 슬라이드 스크린샷을 대체한다
+   래스터 크롭은 흰 판때기로 박히고, 폰트·팔레트가 다르고,
+   텍스트가 픽셀로 구워져 있어 읽히지도 확대되지도 않았다.
+   여기서는 같은 내용을 이 화면의 토큰으로 다시 그린다.
+   ══════════════════════════════════════════════════════════════ */
+
+/* 화면에서는 감추고 보조기술에는 남긴다 */
+.sr {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+.fg { padding: 20px; display: grid; gap: 14px; }
+.fg__hd { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.fg__t { font-size: 16px; font-weight: 500; color: var(--text-hi); }
+.fg__n { font-size: 14px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); }
+
+/* ── 계측 채널 ── 수치는 세로로 정렬되므로 tabular-nums 필수 ── */
+.ch { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.ch__r {
+  display: grid; grid-template-columns: minmax(88px, 1fr) minmax(0, 2.2fr) minmax(78px, auto);
+  gap: 12px; align-items: center;
+  padding: 9px 12px; background: var(--bg-base);
+}
+.ch__k { font-size: 15px; color: var(--text-mid); }
+.ch__k small { display: block; font-size: 13px; letter-spacing: 0.08em; color: var(--text-lo); }
+.ch__w { min-width: 0; }
+.ch__w svg { display: block; width: 100%; height: 26px; color: var(--accent); }
+.ch__v {
+  text-align: right; font-size: 16px; color: var(--text-hi);
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+.ch__v small { font-size: 13px; font-weight: 500; letter-spacing: 0.06em; color: var(--text-lo); margin-inline-start: 3px; }
+.ch__sum {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 10px 12px; background: var(--bg-base);
+}
+.ch__sum b {
+  font-size: 22px; font-weight: 300; letter-spacing: -0.03em; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.ch__sum span { font-size: 15px; color: var(--text-lo); }
+
+/* ── 막대 차트 ── */
+.bars svg { display: block; width: 100%; height: auto; }
+.bars .grid { stroke: var(--line); stroke-width: 1; }
+.bars .b-old { fill: var(--line-hi); }
+.bars .b-new { fill: var(--accent); }
+/* viewBox 를 렌더 폭에 맞췄으므로(배율 ≈ 1) 여기 px 가 곧 화면 px 다.
+   라벨 11 · 값 13 — HTML 쪽과 같은 척도 */
+.bars .t-ax { fill: var(--text-lo); font-size: 14px; letter-spacing: 0.02em; }
+.bars .t-val { fill: var(--text-mid); font-size: 16px; font-variant-numeric: tabular-nums; }
+.bars .t-val.is-hi { fill: var(--text-hi); }
+.bars .t-d { fill: var(--text-lo); font-size: 14px; font-variant-numeric: tabular-nums; }
+.bars .t-d.is-up { fill: var(--warn); }
+.lg { display: flex; gap: 14px; font-size: 14px; color: var(--text-lo); }
+.lg i { display: inline-block; width: 9px; height: 9px; margin-inline-end: 5px; border-radius: var(--r-sm); }
+.lg .k-old { background: var(--line-hi); }
+.lg .k-new { background: var(--accent); }
+.lg .k-tgt { background: var(--warn); }
+
+/* ── 세대 비교 ── 3열 균등 카드가 아니라 세로로 쌓는 비교다 ── */
+.gen { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.gen__r {
+  display: grid; gap: 4px;
+  padding: 13px 14px; background: var(--bg-base);
+  border-inline-start: 2px solid var(--line-hi);
+}
+.gen__r.is-open { border-inline-start-color: var(--accent); background: var(--bg-panel); }
+.gen__hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.gen__no {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.12em; color: var(--text-lo);
+  font-variant-numeric: tabular-nums;
+}
+.gen__t { font-size: 16px; font-weight: 500; color: var(--text-hi); }
+.gen__d { font-size: 16px; color: var(--text-lo); }
+.gen__o { margin-top: 3px; font-size: 16px; color: var(--text-mid); }
+.gen__o b { color: var(--text-hi); font-weight: 500; font-variant-numeric: tabular-nums; }
+.gen__r.is-open .gen__o b { color: var(--accent); }
+/* 상태는 색만으로 알리지 않는다 — 점 + 글자 */
+.st {
+  margin-inline-start: auto; display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 6px; border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 500; letter-spacing: 0.06em; white-space: nowrap;
+}
+.st::before { content: ""; width: 4px; height: 4px; background: currentColor; }
+.st.s-done { color: var(--ok); }
+.st.s-open { color: var(--warn); border-color: var(--warn); }
+
+/* ── 공정 범위 ── 숙련공 6단계 중 시스템이 맡는 구간을 표시한다 ── */
+.frame { padding-block: clamp(32px, 5vh, 56px); display: grid; gap: 24px; }
+.sc { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.sc__r {
+  display: grid; grid-template-columns: 26px minmax(0, 13ch) minmax(0, 1fr) auto;
+  gap: 14px; align-items: baseline;
+  padding: 12px 14px; background: var(--bg-base);
+  border-inline-start: 2px solid transparent;
+}
+/* 자동화 구간만 액센트. 나머지는 사람의 손으로 남는다 */
+.sc__r.is-auto { border-inline-start-color: var(--accent); background: var(--bg-panel); }
+.sc__no {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-lo);
+  font-variant-numeric: tabular-nums;
+}
+.sc__r.is-auto .sc__no { color: var(--accent); }
+.sc__t { font-size: 16px; font-weight: 500; color: var(--text-mid); word-break: keep-all; }
+.sc__r.is-auto .sc__t { color: var(--text-hi); }
+.sc__d { font-size: 16px; color: var(--text-lo); word-break: keep-all; }
+.sc__sum { display: flex; align-items: baseline; gap: 9px; padding: 12px 14px; background: var(--bg-base); }
+.sc__sum b {
+  font-size: 22px; font-weight: 300; letter-spacing: -0.03em; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.sc__sum b small { font-size: 16px; color: var(--accent-dim); }
+.sc__sum span { font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+@media (max-width: 720px) {
+  .sc__r { grid-template-columns: 26px minmax(0, 1fr) auto; row-gap: 5px; }
+  .sc__d { grid-column: 2 / -1; }
+  /* 칩은 제목 옆에 붙인다 — 맨 아래 왼쪽으로 흘러내리면 어느 행인지 안 보인다 */
+  .sc__r > .st { grid-column: 3; grid-row: 1; }
+}
+/* 담당 칩 — 점 + 글자. 색만으로 알리지 않는다 */
+.st.s-man { color: var(--text-lo); border-color: var(--line-hi); }
+.st.s-sys { color: var(--accent); border-color: var(--accent); }
+
+/*   이 페이지의 다른 도해는 전부 정지한 SVG·마크업이다. 여기만 실물
+   모델을 띄우는 이유는 "물리를 다룬다"가 정지 그림으로는 증명되지
+   않기 때문이다. 캔버스 높이는 고정하지 않고 비율로 묶는다 —
+   높이를 px 로 박으면 좁은 화면에서 로봇이 잘린다. */
+.rb { display: grid; gap: 12px; }
+.rb__stage {
+  position: relative; aspect-ratio: 4 / 3;
+  background: var(--bg-void); border: 1px solid var(--line);
+  overflow: hidden;
+}
+@media (min-width: 640px) { .rb__stage { aspect-ratio: 16 / 10; } }
+.rb__stage canvas { display: block; width: 100%; height: 100%; }
+/* 로드 전·실패 시 자리를 지키는 글자. 캔버스가 뜨면 JS 가 지운다 */
+.rb__ph {
+  position: absolute; inset: 0; display: grid; place-content: center; gap: 6px;
+  text-align: center; color: var(--text-lo); font-size: 15px;
+}
+.rb__ph b { color: var(--text-mid); font-weight: 500; font-size: 16px; }
+/* 계측값 띠 — 로봇 아래에 붙여 3D 가 장식이 아님을 알린다 */
+.rb__hud {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
+  background: var(--line); border: 1px solid var(--line);
+}
+@media (min-width: 560px) { .rb__hud { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.rb__hud > div { background: var(--bg-base); padding: 10px 14px; display: grid; gap: 3px; }
+.rb__v {
+  font-size: 20px; font-weight: 300; line-height: 1; letter-spacing: -0.02em;
+  color: var(--text-hi); font-variant-numeric: tabular-nums;
+}
+.rb__v small { font-size: 14px; font-weight: 500; color: var(--text-lo); margin-inline-start: 4px; }
+.rb__k { font-size: 14px; color: var(--text-lo); word-break: keep-all; }
+
+/* ── 정책 정합 ── 공고가 요구하는 것과 우리가 이미 가진 것을 마주 세운다 ──
+   좌: 정책이 내건 조건 / 우: 우리가 대는 근거. 가운데 선이 대응을 만든다.
+   두 칸을 같은 격자에 두는 이유는 눈이 가로로 짝을 지어 읽게 하기 위해서다 */
+.pf { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.pf__hd, .pf__r {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px; background: var(--line);
+}
+.pf__hd > *, .pf__r > * { background: var(--bg-base); padding: 12px 14px; }
+.pf__hd > * {
+  background: var(--bg-panel);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-lo);
+}
+/* 우리 쪽 칸만 액센트로 두른다 — 대응의 방향을 색이 알린다 */
+.pf__r > :last-child { border-inline-start: 2px solid var(--accent); background: var(--bg-panel); }
+.pf__k { font-size: 16px; font-weight: 500; color: var(--text-mid); word-break: keep-all; }
+.pf__r > :last-child .pf__k { color: var(--text-hi); }
+.pf__d { margin-top: 3px; font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+.pf__n {
+  font-size: 15px; color: var(--text-lo); font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.pf__n b { color: var(--text-hi); font-weight: 500; }
+/* 합계 줄 — 겹치는 지점이 몇 개인지 세어 준다 */
+.pf__sum { display: flex; align-items: baseline; gap: 9px; padding: 12px 14px; background: var(--bg-base); }
+.pf__sum b {
+  font-size: 22px; font-weight: 300; letter-spacing: -0.03em; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.pf__sum span { font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+@media (max-width: 720px) {
+  /* 좁아지면 짝을 세로로 쌓는다. 우리 쪽 칸의 왼쪽 선이 짝의 아래쪽임을 알린다 */
+  .pf__hd { display: none; }
+  .pf__r { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── 도장면 단면 ── 연마가 되돌릴 수 있는 층은 하나뿐이다 ── */
+.pl { display: grid; gap: 12px; }
+.pl svg { display: block; width: 100%; height: auto; }
+.pl .s-clear  { fill: var(--bg-raised); }
+.pl .s-base   { fill: var(--line); }
+.pl .s-primer { fill: var(--bg-base); }
+.pl .s-panel  { fill: var(--line-hi); }
+/* 연마 대상 층만 액센트로 두른다 — 나머지는 값 차이로만 구분한다 */
+.pl .s-clear.is-t { stroke: var(--accent); stroke-width: 1; }
+.pl .surf { stroke: var(--text-lo); stroke-width: 1; }
+/* 패인 자국. 도형 배경색으로 메워 실제로 파낸 것처럼 읽힌다 */
+.pl .cut { fill: var(--bg-panel); stroke-width: 1.5; stroke-linejoin: round; }
+.pl .lead { stroke-width: 1; }
+.pl .cut.d1, .pl .lead.d1 { stroke: var(--ok); }
+.pl .cut.d2, .pl .lead.d2 { stroke: var(--warn); }
+.pl .cut.d3, .pl .lead.d3 { stroke: var(--crit); }
+.pl .t-n {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.pl .t-n.d1 { fill: var(--ok); }
+.pl .t-n.d2 { fill: var(--warn); }
+.pl .t-n.d3 { fill: var(--crit); }
+.pl .t-l { fill: var(--text-mid); font-size: 16px; }
+.pl .t-s { fill: var(--text-lo); font-size: 14px; }
+.pl .t-l.is-t, .pl .t-s.is-t { fill: var(--accent); }
+
+.pl__v { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.pl__v > div {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center;
+  padding: 9px 12px; background: var(--bg-base);
+}
+.pl__no {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-lo);
+  font-variant-numeric: tabular-nums;
+}
+.pl__t { font-size: 16px; color: var(--text-mid); word-break: keep-all; }
+.pl__t small { display: block; font-size: 13px; color: var(--text-lo); }
+/* 판정 칩 — 색만으로 알리지 않는다. .st 규칙을 그대로 쓴다 */
+.st.s-part { color: var(--warn); border-color: var(--warn); }
+.st.s-no   { color: var(--crit); border-color: var(--crit); }
+
+/* ── 파이프라인 ── */
+.flow { display: grid; }
+.flow__r {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px;
+  padding-block: 9px; position: relative;
+}
+/* 단계를 잇는 선. 마지막 칸은 잇지 않는다 */
+.flow__r:not(:last-child)::before {
+  content: ""; position: absolute; inset-inline-start: 14px; top: 30px; bottom: -2px;
+  width: 1px; background: var(--line);
+}
+.flow__n {
+  width: 29px; height: 22px; display: grid; place-content: center;
+  border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 500; color: var(--text-lo);
+  font-variant-numeric: tabular-nums; background: var(--bg-panel);
+}
+.flow__r.is-key .flow__n { border-color: var(--accent-dim); color: var(--accent); }
+.flow__t { font-size: 16px; font-weight: 500; color: var(--text-hi); }
+.flow__d { margin-top: 2px; font-size: 16px; color: var(--text-lo); }
+.flow__env {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 9px 12px; margin-bottom: 4px;
+  border: 1px solid var(--line); background: var(--bg-base);
+  font-size: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-lo);
+}
+.flow__env b { color: var(--text-mid); font-weight: 500; }
+
+/* ── 사이클 구간 점유 ── 간트. 라벨 열 + 공용 시간축 한 벌 ── */
+.gantt { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; }
+/* 라벨 열은 한글 4–5자(63px)에 맞춘 폭이다. 영문은 Transfer 59px,
+   Set down 67px 로 72px 안에서 여유가 2px 도 안 남는다 — 조금만
+   흔들려도 두 줄로 접히고 그 행만 두 배로 커진다. EN 에서 열을 넓힌다. */
+html[lang="en"] .gantt { grid-template-columns: 88px minmax(0, 1fr); }
+.gantt__l {
+  font-size: 16px; color: var(--text-mid); text-align: end;
+  word-break: keep-all; padding-inline-end: 2px;
+}
+.gantt__tr {
+  height: 24px; display: flex; align-items: center;
+  border-inline-start: 1px solid var(--line-hi);
+}
+.gantt__b { height: 10px; background: var(--accent-dim); border-radius: var(--r-sm); }
+.gantt__b.is-bn { background: var(--warn); }
+.gantt__ax {
+  grid-column: 2; height: 1px; background: var(--line);
+  margin-block-start: 4px;
+}
+.gantt__cap {
+  grid-column: 1 / -1; margin-block-start: 12px; padding-block-start: 10px;
+  border-block-start: 1px solid var(--line);
+  font-size: 15px; color: var(--text-lo); word-break: keep-all;
+}
+.gantt__cap b { color: var(--warn); font-weight: 500; }
+
+/* ── 리드 영상 ── 공정을 말로 설명하기 전에 한 번 보여준다 ── */
+.lead {
+  margin-block: 4px 8px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-panel); overflow: hidden;
+}
+.lead video {
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 16 / 9; max-height: 62vh; object-fit: contain;
+  background: var(--bg-void);
+}
+.lead figcaption {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: var(--bg-base);
+  font-size: 16px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-lo);
+}
+/* 위 .p-fig figcaption 과 같은 이유 — 영상 캡션도 한 문장이다 */
+html[lang="en"] .lead figcaption { text-transform: none; letter-spacing: 0.02em; }
+.lead figcaption b { color: var(--text-mid); font-weight: 500; }
+.lead figcaption span { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+
+/* ── 영상 크롭 ── 화면 녹화에 같이 찍힌 앱 UI를 재인코딩 없이 잘라낸다.
+   남길 영역으로 비율을 잡고 영상을 그만큼 키워 밀어넣는다.
+   퍼센트는 컨테이너 기준이라 어떤 폭에서도 같은 자리가 잘린다.
+   (top/left 의 % 는 각각 높이/폭에 걸린다 — 변수도 그 기준으로 계산한다) */
+.vcrop {
+  position: relative; overflow: hidden;
+  display: block; width: 100%;
+  background: var(--bg-void);
+}
+.vcrop video {
+  position: absolute; top: var(--vy); left: var(--vx);
+  width: var(--vw); height: var(--vh);
+  display: block; max-height: none; aspect-ratio: auto; object-fit: fill;
+  background: var(--bg-void);
+}
+
+/* ── 영상 ── 흰 배경을 깔지 않는다. 이미지와 달리 레터박스가 배경으로 읽힌다 */
+.p-fig video {
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 16 / 9;          /* 자리를 미리 잡아 레이아웃이 밀리지 않게 */
+  max-height: 460px; object-fit: contain;
+  background: var(--bg-void);
+}
+
+@media (max-width: 560px) {
+  .fg { padding: 14px; }
+  .ch__r { grid-template-columns: minmax(0, 1fr) minmax(70px, auto); }
+  .ch__w { grid-column: 1 / -1; order: 3; }
+}
+
+/* ── 크롭 영상이 .p-fig 안에 올 때 ── 위의 .p-fig video 가 .vcrop video 보다
+   뒤에 선언돼 기하 속성을 도로 덮는다. 여기서 다시 크롭 기하로 되돌린다 ── */
+.p-fig .vcrop video {
+  position: absolute; top: var(--vy); left: var(--vx);
+  width: var(--vw); height: var(--vh);
+  max-height: none; aspect-ratio: auto; object-fit: fill;
+}
+
+/* ── 비교 행 ── 기존 방식 vs 폴리트윈. 3열 균등 카드가 아니라 행 대조다 ── */
+.cmp { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.cmp__h, .cmp__r {
+  display: grid; grid-template-columns: minmax(88px, 0.7fr) minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 14px; padding: 11px 13px; background: var(--bg-base);
+}
+.cmp__h { background: var(--bg-panel); padding-block: 8px; }
+.cmp__h span { font-size: 14px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); }
+.cmp__k { font-size: 15px; font-weight: 500; color: var(--text-hi); word-break: keep-all; }
+.cmp__a { font-size: 16px; color: var(--text-lo); word-break: keep-all; }
+.cmp__b { font-size: 16px; color: var(--text-mid); word-break: keep-all; border-inline-start: 2px solid var(--accent-dim); padding-inline-start: 10px; }
+.cmp__b b { color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .cmp__h { display: none; }
+  .cmp__r { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+
+/* ── 계측 요약 행 ── 라벨 · 산출 근거 · 값. 값은 mono 결이 아니라도 tabular ── */
+.cal { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.cal__r {
+  display: grid; grid-template-columns: minmax(88px, 0.8fr) minmax(0, 1.4fr) minmax(92px, auto);
+  gap: 12px; align-items: baseline; padding: 9px 12px; background: var(--bg-base);
+}
+.cal__k { font-size: 16px; font-weight: 500; color: var(--text-mid); word-break: keep-all; }
+.cal__d { font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+.cal__v { font-size: 16px; color: var(--text-hi); text-align: end; font-variant-numeric: tabular-nums; }
+.cal__r.is-sum { background: var(--bg-panel); border-inline-start: 2px solid var(--accent); }
+.cal__r.is-sum .cal__v { color: var(--accent); font-size: 16px; font-weight: 500; }
+@media (max-width: 560px) {
+  .cal__r { grid-template-columns: minmax(0, 1fr) minmax(80px, auto); }
+  .cal__d { grid-column: 1 / -1; order: 3; }
+}
+
+/* ── ISO 대역 도해 ── */
+.iso svg { display: block; width: 100%; height: auto; }
+.iso .ax { stroke: var(--line-hi); stroke-width: 1; }
+.iso .band { fill: var(--accent-dim); }
+.iso .tgt { stroke: var(--accent); stroke-width: 1.5; }
+.iso .lim { stroke: var(--crit); stroke-width: 1.5; }
+.iso text { fill: var(--text-lo); font-size: 14px; font-variant-numeric: tabular-nums; }
+.iso .t-acc { fill: var(--accent); font-size: 14px; }
+.iso .t-crit { fill: var(--crit); font-size: 14px; }
+
+/* ══ 아래 넷은 기획서 크롭을 네이티브로 옮기며 추가했다 ══
+   표를 그림으로 넣으면 글자가 선택도 검색도 안 되고, 스크린리더가 못 읽고,
+   모바일에서 통째로 줄어든다. 표는 표로 그린다. ── */
+
+/* ── 데이터 표 ── 깊이는 그림자가 아니라 선이다 ── */
+.tbw { overflow-x: auto; }
+.tb { width: 100%; border-collapse: collapse; border: 1px solid var(--line); }
+.tb caption {
+  text-align: start; padding-bottom: 7px;
+  font-size: 15px; color: var(--text-lo); word-break: keep-all;
+}
+.tb th, .tb td {
+  padding: 8px 12px; text-align: start; font-size: 16px;
+  border-bottom: 1px solid var(--line); background: var(--bg-base); white-space: nowrap;
+}
+.tb thead th {
+  background: var(--bg-panel); color: var(--text-lo);
+  font-size: 14px; font-weight: 500; letter-spacing: 0.08em;
+}
+.tb tbody th { font-weight: 500; color: var(--text-mid); }
+.tb tbody td { color: var(--text-mid); }
+/* 자릿수가 흔들리면 계측 화면이 아니다 */
+.tb .n { text-align: end; font-variant-numeric: tabular-nums; color: var(--text-hi); }
+.tb .c { text-align: center; }
+.tb tbody tr:last-child > * { border-bottom: 0; }
+.tb .s-ok { color: var(--ok); }
+.tb .s-no { color: var(--crit); }
+.tb .s-warn { color: var(--warn); }
+
+/* ── 판정 표시 ── 색만으로 알리지 않는다. 점 + 글자.
+   체크 기호(U+2713)·빈 원(U+25CB)은 Pretendard 서브셋 928자에 없다.
+   글리프를 늘리는 대신 점을 CSS 로 그린다 — 폰트가 커지지 않는다 ── */
+.gr { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; white-space: nowrap; }
+.gr::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.gr.is-y { color: var(--accent); }
+.gr.is-n { color: var(--text-lo); }
+.gr.is-n::before { background: none; box-shadow: inset 0 0 0 1px currentColor; }
+.gr.is-w { color: var(--warn); }
+.gr.is-w::before { background: none; box-shadow: inset 0 0 0 1px currentColor; }
+
+/* ── 곱셈 조합 ── 3종 × 4단계 × 4단계 = 48 ── */
+.mul { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.mul__op { align-self: center; font-size: 16px; color: var(--text-lo); }
+.mul__c { flex: 1 1 128px; min-width: 0; display: grid; gap: 6px; align-content: start; }
+.mul__h { display: grid; gap: 1px; }
+.mul__n { font-size: 16px; font-weight: 500; color: var(--accent); font-variant-numeric: tabular-nums; }
+.mul__k { font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+.mul__v {
+  padding: 6px 9px; background: var(--bg-base); border: 1px solid var(--line);
+  font-size: 16px; color: var(--text-mid); font-variant-numeric: tabular-nums;
+}
+.mul__c.is-sum .mul__v { border-color: var(--accent-dim); background: var(--bg-panel); color: var(--text-hi); }
+.dots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 8px 9px; }
+.dots i { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+
+/* ── 학습 순환 ── 정책과 환경이 상태·보상으로 되돌아온다 ── */
+.rl { display: grid; gap: 9px; }
+.rl__row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.rl__b { padding: 11px 13px; background: var(--bg-base); border: 1px solid var(--line); display: grid; gap: 2px; }
+.rl__b.is-key { border-color: var(--accent-dim); background: var(--bg-panel); }
+.rl__t { font-size: 16px; font-weight: 500; color: var(--text-hi); }
+.rl__s { font-size: 14px; color: var(--text-lo); font-variant-numeric: tabular-nums; }
+.rl__ar { align-self: center; font-size: 15px; color: var(--text-lo); }
+.rl__back {
+  padding: 2px 0 6px; font-size: 14px; color: var(--text-lo); text-align: center;
+}
+.rl__eq {
+  padding: 11px 13px; background: var(--bg-base); border: 1px solid var(--line);
+  font-size: 16px; color: var(--text-mid); word-break: keep-all;
+}
+.rl__eq b { color: var(--accent); font-weight: 500; }
+.rl__curve { display: grid; gap: 10px; padding: 11px 13px; background: var(--bg-base); border: 1px solid var(--line); }
+.rl__curve svg { display: block; width: 100%; height: 56px; }
+.rl__curve .ln { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.rl__curve .fl { fill: var(--accent-dim); opacity: 0.28; }
+.rl__curve p { font-size: 15px; color: var(--text-lo); word-break: keep-all; }
+
+/* ── 그림 위 라벨 ── 렌더는 그대로 두고 글자만 마크업으로 얹는다.
+   그림에 구운 글자는 선택도 번역도 안 되지만, 이건 텍스트로 남는다.
+   위치는 원본 픽셀에서 실측한 퍼센트다 — 눈대중 금지 ── */
+/* .p-fig img 의 max-height 460px + object-fit:contain 을 그대로 두면 그림이
+   레터박스가 되고, 그러면 퍼센트로 잡은 라벨이 엉뚱한 자리에 붙는다.
+   상자를 그림 비율로 묶어 상자 = 그림이 되게 한다 (max-width 는 인라인) */
+.ov { position: relative; margin-inline: auto; line-height: 0; }
+.p-fig .ov img { display: block; width: 100%; height: auto; max-height: none; object-fit: fill; }
+.ov__l {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: 2px 7px; border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  background: rgb(var(--bg-void-ch) / 0.74);
+  font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--text-hi);
+  white-space: nowrap; pointer-events: none;
+}
+.ov__l.is-warn { color: var(--warn); border-color: var(--warn); }
+@media (max-width: 560px) { .ov__l { font-size: 13px; padding: 1px 5px; } }
+
+/* ── 게시물 목록 ── News · Blog ── */
+.posts { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin-block: clamp(24px, 4vh, 44px); }
+.post { display: grid; gap: 7px; padding: 20px 18px; background: var(--bg-base); }
+.post time { font-size: 14px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-lo); font-variant-numeric: tabular-nums; }
+.post h2 { font-size: 17px; font-weight: 700; color: var(--text-hi); word-break: keep-all; }
+.post p { font-size: 16px; line-height: 1.65; color: var(--text-mid); max-width: 74ch; word-break: keep-all; }
+
+/* ── 문답 ── */
+.qa { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin-block: clamp(24px, 4vh, 44px); }
+.qa details { background: var(--bg-base); }
+.qa details[open] { background: var(--bg-panel); }
+.qa summary {
+  cursor: pointer; list-style: none;
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 11px;
+  padding: 14px 16px; font-size: 16px; font-weight: 500; color: var(--text-hi); word-break: keep-all;
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary::before { content: "Q"; color: var(--accent); font-weight: 700; }
+.qa summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qa__a { padding: 0 16px 16px 47px; font-size: 16px; line-height: 1.65; color: var(--text-mid); max-width: 74ch; word-break: keep-all; }
+
+/* 언어별 본문 폭 — ch 는 숫자 0 의 폭이라 두 언어에서 같은 px 를 낸다.
+   Pretendard 16px 기준 74ch = 688px 이고, 그 안에 들어가는 글자 수는
+   한글 46자 / 영문 96자다. 한글은 적정 구간이고 영문은 두 배 가까이
+   길다 — 줄 끝에서 다음 줄 앞을 못 찾는 폭이다.
+   영문만 58ch(≈75자)로 줄인다. 글의 내용은 건드리지 않는다. */
+html[lang="en"] .post p,
+html[lang="en"] .qa__a { max-width: 58ch; }
+
+/* 양쪽 정렬은 한국어에만. 한글은 어절이 짧고 글자가 고정폭이라
+   남는 폭이 공백 몇 개에 고르게 흡수되지만, 영문은 낱말 길이 편차가
+   커서 — 특히 30ch(영문 39자)짜리 좁은 단에서 — 한 줄에 공백이
+   대여섯 개뿐이라 줄마다 크게 벌어지고 세로로 흰 강이 생긴다.
+   영문 본문은 왼쪽 맞춤 그대로 둔다. */
+html[lang="en"] .p-txt p,
+html[lang="en"] .p-txt li,
+html[lang="en"] .post p,
+html[lang="en"] .qa__a,
+html[lang="en"] .page-head .lede { text-align: start; }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="hdr">
+  <div class="hdr__in">
+    <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="drawer" aria-label="메뉴 열기">
+      <svg class="ico-bars" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M3 6h16M3 11h16M3 16h16"/>
+      </svg>
+      <svg class="ico-x" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M4 4l14 14M18 4L4 18"/>
+      </svg>
+    </button>
+
+    <a class="mark" href="index.html" aria-label="PolyTwin 홈">
+      <svg class="mark__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+        <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+        <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+      </svg>
+      <span>Poly<b>Twin</b></span>
+    </a>
+
+    <div class="hdr__end">
+      <p class="lang" role="group" aria-label="언어">
+        <a href="?lang=ko" hreflang="ko" data-lang="ko" aria-current="true">KR</a>
+        <span aria-hidden="true">·</span>
+        <a href="?lang=en" hreflang="en" data-lang="en">EN</a>
+      </p>
+      <div class="hdr__auth" data-auth-slot>
+        <a class="btn btn--ghost hdr__cta" href="console.html">LOG IN</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer__in">
+    <div class="menu-col">
+    <nav class="menu-main" aria-label="사이트">
+      <details class="m-group">
+        <summary>기업소개<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=goal">우리의 목표</a>
+          <a href="sub.html?p=values">우리의 가치관</a>
+          <a href="sub.html?p=results">우리의 성과</a>
+          <a href="sub.html?p=pricing">가격 정책</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>SOLUTION<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=polishing">폴리싱</a>
+          <a href="sub.html?p=deburring">디버링</a>
+          <a href="sub.html?p=sanding">샌딩</a>
+          <a href="sub.html?p=pickplace">Pick &amp; Place</a>
+          <a href="sub.html?p=roadmap">확장 로드맵</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>기술혁신<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=physical-ai">Physical AI</a>
+          <a href="sub.html?p=rl">강화학습</a>
+          <a href="sub.html?p=expert-db">숙련공 DB</a>
+          <a href="sub.html?p=safety">안전 검증</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>PR<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=news">News</a>
+          <a href="sub.html?p=media">Media</a>
+          <a href="sub.html?p=blog">Blog</a>
+          <a href="sub.html?p=faq">FAQ</a>
+        </div>
+      </details>
+    </nav>
+    <p class="menu-foot">PolyTwin — 로봇 폴리싱 공정 디지털 트윈</p>
+    </div>
+
+    <div class="menu-side">
+      <h2>바로 가기</h2>
+      <a class="menu-card" href="console.html">
+        콘솔 열기
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+      <a class="menu-card" href="library.html">
+        라이브러리
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+      <a class="menu-card" href="index.html">
+        홈으로
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 본문은 아직 한국어다. 사전이 낱말 단위도 담고 있어 여기까지 풀면
+     한 문단에 두 언어가 섞인다. 번역이 끝나면 이 표시를 지운다. -->
+<main id="main">
+  <div class="wrap">
+    <nav class="crumb label" aria-label="현재 위치">
+      <a href="index.html">홈</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span id="crumbGroup">…</span>
+      <span class="sep" aria-hidden="true">/</span>
+      <span id="crumbPage" aria-current="page">…</span>
+    </nav>
+
+    <header class="page-head">
+      <h1 id="pageTitle">…</h1>
+      <p class="lede" id="pageLede"></p>
+    </header>
+  </div>
+
+  <div class="wrap" id="pageBody"><!-- JS 렌더 --></div>
+</main>
+
+<footer class="ft">
+  <div class="wrap ft__in">
+    <small>PolyTwin — 로봇 폴리싱 공정 디지털 트윈 · 2026</small>
+    <nav class="ft__links" aria-label="푸터">
+      <a href="index.html">홈</a>
+      <a href="sub.html?p=polishing">폴리싱</a>
+      <a href="sub.html?p=expert-db">숙련공 DB</a>
+      <a href="console.html">콘솔</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+/* ══ 메뉴 오버레이 — index.html 과 동일 동작 ══ */
+(function () {
+  const btn = document.getElementById('menuBtn');
+  const drawer = document.getElementById('drawer');
+  const setOpen = (open) => {
+    const root = document.documentElement;
+    drawer.hidden = !open;
+    if (open) root.setAttribute('data-menu', 'open');
+    else root.removeAttribute('data-menu');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    if (open) drawer.querySelector('summary, a')?.focus();
+  };
+  btn.addEventListener('click', () => setOpen(drawer.hidden));
+  drawer.addEventListener('click', (e) => { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !drawer.hidden) { setOpen(false); btn.focus(); } });
+  const groups = drawer.querySelectorAll('.m-group');
+  groups.forEach((d) => d.addEventListener('toggle', () => {
+    if (!d.open) return;
+    groups.forEach((o) => { if (o !== d) o.open = false; });
+  }));
+})();
+
+/* ══ 페이지 내용 ══
+   수치는 CACADACA 기획서(2026-08)에 있는 값만 쓴다.
+   기획서에 없는 공정(디버링·샌딩·픽앤플레이스)은 수치 없이 절차만 적는다. */
+const DIM = {
+  /*  기획서 크롭(밝은 배경 PPT)을 다크 리메이크로 교체.
+     원본은 assets/img/_orig_light/ 에 있다. 값은 파일 실측 픽셀이다 */
+  'crop_scan.webp':[1200,960],      'crop_path.webp':[1200,675],
+  'crop_boundary.webp':[1200,675],  'crop_blindspot.webp':[1200,529],
+  'crop_collision.webp':[1200,675],
+  /*  한글 제목·설명 띠를 잘라냈다. 알맹이는 언어 중립이다.
+     원본은 assets/img/_precrop_/ 에 있다*/
+  'crop_force.webp':[1140,467],     'crop_ansys.webp':[1076,586],
+  'crop_preston.webp':[1200,922],
+  /*  빈 자리(PH) 6곳 채움. 생성 도해 — 캡션에 형태 예시임을 적는다*/
+  'crop_deburr_run.webp':[1536,1024],
+  'crop_sand_grit.webp':[1536,1024],     'crop_sand_quality.webp':[1536,1024],
+  'crop_pose.webp':[1536,1024],
+  'pdf_20_1746x1361.jpg':[1746,1361],
+  /* 본문 폭을 다 쓰는 개요 도해. 글자가 작아 스텝 그림보다 크게 뽑았다 */
+  'wide_rl_overview.webp':[1800,771], 'wide_loop.webp':[1706,922],
+  'wide_system.webp':[1672,941],      'wide_path.webp':[1536,1024],
+  'wide_result.webp':[1800,771],      'wide_docs.webp':[1097,1200],
+};
+/* 정적 자산은 server.js 가 max-age=3600 으로 보낸다 — 파일명을 그대로 두고
+   내용만 바꾸면 브라우저가 한 시간 동안 옛 바이트를 쓴다.
+   자산을 교체했으면 이 값을 올려라. DIM 조회는 쿼리 없는 파일명으로 한다 */
+const ASSET_V = '2026-08-31h';   /* 기획서 크롭 10장을 네이티브 도해로 교체 ·
+                                    ansys·force 는 한글 띠 제거 · collision·preston 은 구운 라벨 제거 */
+const IMG = (f, cap) => ({ img: 'assets/img/' + f + '?v=' + ASSET_V, cap, dim: DIM[f] });
+const PH  = (cap) => ({ ph: cap });
+
+/* ══ 네이티브 도해 ══════════════════════════════════════════════
+   기획서 슬라이드를 크롭한 JPG 대신 같은 내용을 이 화면의
+   토큰으로 다시 그린다. 텍스트가 텍스트로 남고, 다크에서 살고,
+   확대해도 뭉개지지 않고, 스크린리더가 읽는다.
+
+   수치는 전부 CACADACA 기획서(2026-08)에 있는 값이다.
+   파형만 형태 예시이고 그 사실은 캡션에 적는다.
+   ══════════════════════════════════════════════════════════════ */
+const FIG = (key, cap) => ({ fig: key, cap });
+
+/* 렌더는 그대로 두고 라벨만 마크업으로 얹는 도해.
+   그림에 구운 글자는 선택도 검색도 번역도 안 되고 스크린리더가 못 읽는다.
+   라벨 위치는 원본 픽셀에서 실측한 퍼센트다 — 눈대중으로 넣지 마라.
+   상자 폭을 그림 비율로 묶어 두는 이유는 .ov 의 CSS 주석에 적었다 */
+const ovFig = (file, title, alt, labels) => {
+  const [w, h] = DIM[file];
+  return `
+    <div class="fg">
+      <div class="fg__hd"><p class="fg__t">${title}</p></div>
+      <div class="ov" style="max-width:min(100%, ${Math.round((460 * w) / h)}px)">
+        <img src="assets/img/${file}?v=${ASSET_V}" width="${w}" height="${h}" loading="lazy" alt="${alt}">
+        ${labels.map(([x, y, t, c]) =>
+          `<span class="ov__l ${c}" style="left:${x}%;top:${y}%">${t}</span>`).join('')}
+      </div>
+    </div>`;
+};
+/* 영상. w·h 는 자리를 잡기 위한 것이고 실제 크기는 CSS 가 정한다 */
+const VID = (file, cap, o = {}) => ({
+  vid: 'assets/video/' + file, cap,
+  dim: [o.w || 1280, o.h || 720],
+  start: o.start, end: o.end,          /* 초 단위. 주면 그 구간만 반복한다 */
+  /* crop: 원본 픽셀 단위 [좌, 상, 우, 하]. 화면 녹화라 앱 UI 가 같이 찍힌 영상을
+     재인코딩 없이 잘라낸다. src 픽셀에서 실측한 값만 쓴다 — 눈대중 금지 */
+  crop: o.crop,
+});
+
+/* 결정적 난수 — 새로고침마다 파형이 달라지면 계측 화면이 아니다 */
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+/* 폭 200 · 높이 26 좌표계의 폴리라인. 실제 크기는 CSS 가 정한다 */
+function spark(kind, seed) {
+  const N = 116, W = 200, H = 26, PAD = 3;
+  const r = lcg(seed);
+  const v = [];
+  let hold = 0, cur = 0.5;
+
+  for (let i = 0; i < N; i++) {
+    const x = i / (N - 1);
+    if (kind === 'square') {
+      /* 접촉 구간과 이탈 구간이 번갈아 나오는 접촉력 */
+      if (hold <= 0) { cur = r() < 0.45 ? 0.14 + r() * 0.1 : 0.72 + r() * 0.2; hold = 1 + Math.floor(r() * 6); }
+      hold -= 1;
+      v.push(cur);
+    } else if (kind === 'spike') {
+      /* 대체로 일정하다가 가끔 튀는 이송속도 */
+      v.push(r() < 0.14 ? 0.62 + r() * 0.36 : 0.2 + r() * 0.14);
+    } else if (kind === 'wave') {
+      /* 곡면을 따라 완만하게 도는 공구 자세 */
+      v.push(0.5 + 0.3 * Math.sin(x * 11) + 0.13 * Math.sin(x * 27 + 1.4) + (r() - 0.5) * 0.07);
+    } else {
+      /* 머물다 이동하면 0 으로 떨어지는 체류 시간 */
+      if (hold <= 0) { hold = 4 + Math.floor(r() * 12); cur = 0; }
+      cur += (0.86 / hold) * (0.7 + r() * 0.6);
+      hold -= 1;
+      v.push(Math.min(cur, 0.94));
+    }
+  }
+
+  const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
+  return v.map((y, i) => {
+    const px = (i / (N - 1)) * W;
+    const py = H - PAD - ((y - lo) / span) * (H - PAD * 2);
+    return (i ? 'L' : 'M') + px.toFixed(1) + ' ' + py.toFixed(1);
+  }).join('');
+}
+
+const CHANNELS = [
+  ['접촉력', 'N', 'square', 7, '1.50', '중앙값'],
+  ['이송속도', 'mm/s', 'spike', 23, '22.5', '중앙값'],
+  ['공구 자세', '°', 'wave', 41, '4 – 22', '범위'],
+  ['체류 시간', 's', 'saw', 59, '4.0', '중앙값'],
+];
+
+const FIGS = {
+  /* ── 디지털 트윈에서 남는 물리량 ── */
+  knowhow: () => `
+    <div class="fg">
+      <div class="fg__hd">
+        <p class="fg__t">디지털 트윈에서 같은 작업을 할 때</p>
+        <p class="fg__n">Recorded</p>
+      </div>
+      <div class="ch">
+        ${CHANNELS.map(([k, u, kind, seed, val, note]) => `
+          <div class="ch__r">
+            <p class="ch__k">${k}<small>${u}</small></p>
+            <div class="ch__w">
+              <svg viewBox="0 0 200 26" preserveAspectRatio="none" fill="none" aria-hidden="true">
+                <path d="${spark(kind, seed)}" stroke="currentColor" stroke-width="1"
+                      stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+              </svg>
+            </div>
+            <p class="ch__v">${val}<small>${note}</small></p>
+          </div>`).join('')}
+        <div class="ch__sum"><b>17</b><span>작업 종료 후 남는 물리량</span></div>
+      </div>
+    </div>`,
+
+  /* ── 광택 공정 6단계와 자동화 범위 ──
+     숙련공 교육자료 「자동차 광택」 3장의 공정 구분을 그대로 쓴다.
+     시스템이 맡는 구간은 05 하나다. 앞의 네 단계는 전처리이고
+     06 은 후처리다 — 넓게 말하지 않는 편이 실제로 더 강하다. */
+  scope: () => {
+    /* 번호, 공정, 설명, 담당 */
+    const P = [
+      ['세차', '먼지를 털어내고 앰블럼·구석의 찌든 때를 솔로 뺀다. 도장면 판정은 이 상태에서 한다', 'man'],
+      ['타르 · 철분 제거', '일반 세차로 지워지지 않는 타르와 클리어층에 박힌 철분을 약품으로 녹여 뺀다', 'man'],
+      ['낙진 제거', '표면에 앉은 분진을 클레이바·낙진패드로 걷어낸다. 남기면 연마 중에 표면을 긁는다', 'man'],
+      ['마스킹', '고무·플라스틱부는 패드가 닿으면 회복되지 않는다. 연마 대상이 아닌 곳을 덮는다', 'man'],
+      ['폴리싱', '1차 절삭 · 2차 기계자국 정리 · 3차 광도 마감. 기술이 집약되는 구간이다', 'sys'],
+      ['마무리', '마스킹을 떼고 틈에 낀 콤파운드를 걷어낸 뒤 탈지 또는 왁스로 마감한다', 'man'],
+    ];
+    const KO = { man: '사람', sys: '시스템' };
+    const rows = P.map(([t, d, who], i) => `
+      <div class="sc__r${who === 'sys' ? ' is-auto' : ''}">
+        <span class="sc__no">${String(i + 1).padStart(2, '0')}</span>
+        <p class="sc__t">${t}</p>
+        <p class="sc__d">${d}</p>
+        <span class="st s-${who}">${KO[who]}</span>
+      </div>`).join('');
+
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">숙련공 공정 6단계 중 시스템이 맡는 구간은 하나다</p>
+          <p class="fg__n">Scope</p>
+        </div>
+        <div class="sc">
+          ${rows}
+          <div class="sc__sum"><b>1<small>/6</small></b><span>시스템이 맡는 구간. 나머지 다섯은 사람의 전·후처리로 남는다</span></div>
+        </div>
+        <table class="sr">
+          <caption>광택 공정 단계별 담당</caption>
+          <thead><tr><th>단계</th><th>공정</th><th>담당</th></tr></thead>
+          <tbody>${P.map(([t, , who], i) =>
+            `<tr><th scope="row">${String(i + 1).padStart(2, '0')}</th><td>${t}</td><td>${KO[who]}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  },
+
+  /* ── 로봇 3D ── 실제 배포 모델을 그대로 띄운다 ──
+     assets/models/robot_arm.opt.glb (Doosan M0609, meshopt 압축 596KB).
+     웹 UI 화면이 쓰는 것과 같은 파일이라 자산이 늘지 않는다.
+     조명·톤매핑은 console-src/viewport.js 에서 검증된 값을 그대로 옮겼다 —
+     키 1 + 좌우 림 2, ACES, PMREM 환경맵. 빼면 금속이 금속이 아니다. */
+  robot3d: () => `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">힘을 만드는 쪽은 결국 이 팔이다</p>
+          <p class="fg__n">Doosan M0609</p>
+        </div>
+        <div class="rb">
+          <div class="rb__stage" id="rb-stage">
+            <p class="rb__ph" id="rb-ph"><b>로봇 팔 불러오는 중</b><span>Doosan M0609 · 6축</span></p>
+          </div>
+          <div class="rb__hud">
+            <div><span class="rb__v">6<small>축</small></span><span class="rb__k">회전 관절</span></div>
+            <div><span class="rb__v">1.5<small>N</small></span><span class="rb__k">목표 접촉력</span></div>
+            <div><span class="rb__v">813<small>개</small></span><span class="rb__k">경로 웨이포인트</span></div>
+            <div><span class="rb__v">3<small>대</small></span><span class="rb__k">동시 제어 — 천장·측면·레일</span></div>
+          </div>
+        </div>
+      </div>`,
+
+  /*     예산 숫자만 늘어놓으면 "그래서 우리랑 무슨 상관"이 남는다. 공고가
+     내건 조건과 우리가 이미 가진 근거를 가로로 짝지어 그 답을 그림이
+     대신 하게 한다. 금액 출처는 TODO_사이트_누락콘텐츠_.md.*/
+  policyfit: () => {
+    /* [정책 축, 금액, 공고가 요구하는 것] / [우리 대응, 근거, 해당 단계] */
+    const M = [
+      [['산업부 M.AX', '1조 1,000억 원 · 2배 확대', '제조 공정에 AI 를 넣어 실증할 것'],
+       ['재질별 파라미터 프로파일', '차체에서 세운 절차를 유리·금형으로 이식', '2단계']],
+      [['중기부 제조AI 스마트공장', '800억 원 · 400개 과제', '중소 제조 현장에 적용할 것'],
+       ['숙련공 실측 데이터 연계', '검증 리포트 250만 원 — 지원 한도 안', '3단계']],
+      [['피지컬 AI 정책금융', '약 16조 원', '로봇이 물리 세계를 다룰 것'],
+       ['접촉력·마찰까지 계산하는 힘 제어', '목표 1.5 N 추종 · 과압 0회', '1단계 · 완료']],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">공고가 내건 조건과 우리가 이미 가진 것이 같은 자리에 있다</p>
+          <p class="fg__n">Policy Fit</p>
+        </div>
+        <div class="pf">
+          <div class="pf__hd" aria-hidden="true">
+            <span>2026 정책 기조</span>
+            <span>폴리트윈이 대는 것</span>
+          </div>
+          ${M.map(([[pol, won, ask], [ours, why, stage]]) => `
+            <div class="pf__r">
+              <div>
+                <p class="pf__k">${pol}</p>
+                <p class="pf__n"><b>${won}</b></p>
+                <p class="pf__d">${ask}</p>
+              </div>
+              <div>
+                <p class="pf__k">${ours}</p>
+                <p class="pf__n">${stage}</p>
+                <p class="pf__d">${why}</p>
+              </div>
+            </div>`).join('')}
+          <div class="pf__sum">
+            <b>3 / 3</b>
+            <span>세 축 모두 우리가 이미 만든 것 또는 로드맵에 올린 것과 맞물린다</span>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /* ── 도장면 단면과 연마 깊이 한계 ──
+     광택은 클리어코트 한 층 안에서 끝나는 작업이다. 그 아래로 내려가면
+     연마로 되돌릴 수 없고 도색으로 넘어간다 — 접촉력 상한의 근거다.
+     층 두께는 비율을 보이기 위한 도해값이고 실측 치수가 아니다.
+     층 구성·손상 3단계·판정은 숙련공 교육자료 「자동차 광택」 기준. */
+  paint: () => {
+    /* 이름, 부기, 도해 두께, 클래스, 연마 대상 여부 */
+    const LY = [
+      ['클리어코트', '연마 대상',   67, 'clear',  1],
+      ['베이스코트', '색상 층',     48, 'base',   0],
+      ['프리머',     '방청 · 밀착', 44, 'primer', 0],
+      ['차체 패널',  '강판',        89, 'panel',  0],
+    ];
+    /* 손상 이름, 도달 층 인덱스, 그 층 안에서의 깊이 비율, 판정 상태, 판정 */
+    const DM = [
+      ['스월 · 잔스크래치', 0, 0.62, 'done', '광택으로 제거'],
+      ['부분 손상',         1, 0.55, 'part', '일부만 가능'],
+      ['깊은 손상',         3, 0.28, 'no',   '도색 영역'],
+    ];
+    /* viewBox 폭 740 = 스텝 도해 렌더 폭. 배율 ≈ 1 이라 좌표가 곧 화면 px 다 */
+    const W = 740, TOP = 80, SR = 540, LX = 558;
+    let acc = TOP;
+    const top = LY.map(([, , th]) => { const t = acc; acc += th; return t; });
+    const H = acc + 14;
+
+    const bands = LY.map(([ko, sub, th, cls, tgt], i) => `
+      <rect class="s-${cls}${tgt ? ' is-t' : ''}" x="0" y="${top[i]}" width="${SR}" height="${th}"/>
+      <text class="t-l${tgt ? ' is-t' : ''}" x="${LX}" y="${top[i] + th / 2 - 3}">${ko}</text>
+      <text class="t-s${tgt ? ' is-t' : ''}" x="${LX}" y="${top[i] + th / 2 + 12}">${sub}</text>`).join('');
+
+    /* 자국은 위에서 아래로 파인다. 깊을수록 넓게 벌어진다 */
+    const marks = DM.map(([, li, fr, ], i) => {
+      const x = 107 + i * 170, hw = 11 + i * 6;
+      const d = (top[li] + LY[li][2] * fr).toFixed(1);
+      const no = String(i + 1).padStart(2, '0');
+      return `
+        <path class="cut d${i + 1}" d="M${x - hw} ${TOP} L${x} ${d} L${x + hw} ${TOP}"/>
+        <line class="lead d${i + 1}" x1="${x}" y1="${TOP - 6}" x2="${x}" y2="${TOP - 20}"/>
+        <text class="t-n d${i + 1}" x="${x}" y="${TOP - 26}" text-anchor="middle">${no}</text>`;
+    }).join('');
+
+    const rows = DM.map(([name, li, , st, verdict], i) => `
+      <div>
+        <span class="pl__no">${String(i + 1).padStart(2, '0')}</span>
+        <p class="pl__t">${name}<small>${LY[li][0]}까지 도달</small></p>
+        <span class="st s-${st}">${verdict}</span>
+      </div>`).join('');
+
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">광택이 되돌릴 수 있는 깊이는 클리어코트까지다</p>
+          <p class="fg__n">Cross-section</p>
+        </div>
+        <div class="pl">
+          <svg viewBox="0 0 ${W} ${H}" role="img"
+               aria-label="도장면 단면도. 위에서부터 클리어코트, 베이스코트, 프리머, 차체 패널 네 층이고 연마 대상은 클리어코트 한 층이다. 손상 01 스월·잔스크래치는 클리어코트 안에서 멈춰 광택으로 제거되고, 02 부분 손상은 베이스코트까지 내려가 일부만 가능하며, 03 깊은 손상은 차체 패널까지 닿아 도색 영역이다.">
+            ${bands}
+            <line class="surf" x1="0" y1="${TOP}" x2="${SR}" y2="${TOP}"/>
+            ${marks}
+          </svg>
+          <div class="pl__v">${rows}</div>
+          <table class="sr">
+            <caption>손상 깊이별 판정</caption>
+            <thead><tr><th>손상</th><th>도달 층</th><th>판정</th></tr></thead>
+            <tbody>${DM.map(([name, li, , , verdict]) =>
+              `<tr><th scope="row">${name}</th><td>${LY[li][0]}</td><td>${verdict}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  },
+
+  /* ── 제조업 근로자 연령대별 비중 ── */
+  aging: () => {
+    const D = [
+      ['청년층', '15–29세', 21.6, 15.7],
+      ['30대', '', 35.1, 27.8],
+      ['40대', '', 27.7, 26.9],
+      ['50대 이상', '', 15.7, 30.1],
+    ];
+    /* viewBox 폭 740 = 스텝 도해 렌더 폭. 배율 ≈ 1 이라 좌표가 곧 화면 px 다 */
+    const W = 740, H = 320, L = 44, R = 12, T = 46, B = 52;
+    const pw = W - L - R, ph = H - T - B, max = 40;
+    const y = (v) => T + ph - (v / max) * ph;
+    /* 하이픈이 아니라 마이너스 기호(U+2212). 자릿수 폭이 숫자와 맞는다 */
+    const pp = (n) => (n < 0 ? '–' : '+') + Math.abs(n).toFixed(1) + '%p';
+    const gw = pw / D.length, bw = Math.min(40, gw * 0.26);
+
+    const ticks = [0, 10, 20, 30, 40].map((t) =>
+      `<line class="grid" x1="${L}" y1="${y(t)}" x2="${W - R}" y2="${y(t)}"/>
+       <text class="t-ax" x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${t}%</text>`).join('');
+
+    const groups = D.map(([name, sub, a, b], i) => {
+      const cx = L + gw * i + gw / 2;
+      const up = b > a;
+      return `
+        <rect class="b-old" x="${cx - bw - 4}" y="${y(a)}" width="${bw}" height="${ph - (y(a) - T)}"/>
+        <rect class="b-new" x="${cx + 4}" y="${y(b)}" width="${bw}" height="${ph - (y(b) - T)}"/>
+        <text class="t-val" x="${cx - bw / 2 - 4}" y="${y(a) - 6}" text-anchor="middle">${a}</text>
+        <text class="t-val${up ? ' is-hi' : ''}" x="${cx + bw / 2 + 4}" y="${y(b) - 6}" text-anchor="middle">${b}</text>
+        <text class="t-d${up ? ' is-up' : ''}" x="${cx}" y="${T - 16}" text-anchor="middle">${pp(b - a)}</text>
+        <text class="t-ax" x="${cx}" y="${H - B + 22}" text-anchor="middle">${name}</text>
+        ${sub ? `<text class="t-ax" x="${cx}" y="${H - B + 38}" text-anchor="middle">${sub}</text>` : ''}`;
+    }).join('');
+
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">10년 동안 30대는 7.3%p 줄고 50대 이상은 14.4%p 늘었다</p>
+        </div>
+        <div class="bars">
+          <svg viewBox="0 0 ${W} ${H}" role="img"
+               aria-label="제조업 근로자 연령대별 비중 변화. 2010년 대비 2020년 기준으로 청년층 21.6에서 15.7퍼센트, 30대 35.1에서 27.8퍼센트, 40대 27.7에서 26.9퍼센트, 50대 이상 15.7에서 30.1퍼센트.">
+            ${ticks}${groups}
+          </svg>
+        </div>
+        <p class="lg"><span><i class="k-old"></i>2010년</span><span><i class="k-new"></i>2020년</span></p>
+        <table class="sr">
+          <caption>제조업 근로자 연령대별 비중 (%)</caption>
+          <thead><tr><th>연령대</th><th>2010년</th><th>2020년</th><th>증감</th></tr></thead>
+          <tbody>${D.map(([n, s2, a, b]) =>
+            `<tr><th scope="row">${n}${s2 ? ' ' + s2 : ''}</th><td>${a}</td><td>${b}</td><td>${pp(b - a)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  },
+
+  /* ── 시뮬레이션 3세대 ── */
+  gens: () => {
+    const G = [
+      ['1세대', '기하 · 동선', '충돌 · 도달성 · 스케줄링', '궤적 자동화', '6주 → 3일', '기아 용접 OLP 자동화', 'done', '달성'],
+      ['2세대', '공장 스케일', '다중 로봇 · 설비 · 물류 · 생산 흐름', '가상 선검증 공장', '30%', 'BMW 생산 계획 비용 절감 전망', 'done', '달성'],
+      ['3세대', '물리력', '접촉력 · 마찰 · 토크 계산 / 기록', '힘을 다루는 공정', '국내 성과 사례 확인 안 됨', '접촉 공정 적용은 빈 구간 · 선점 지점', 'open', '미도달'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">시뮬레이션이 다루는 범위</p>
+          <p class="fg__n">Generation</p>
+        </div>
+        <div class="gen">
+          ${G.map(([no, kind, ex, outcome, val, note, st, stKo]) => `
+            <div class="gen__r${st === 'open' ? ' is-open' : ''}">
+              <div class="gen__hd">
+                <span class="gen__no">${no}</span>
+                <span class="gen__t">${kind}</span>
+                <span class="st s-${st}">${stKo}</span>
+              </div>
+              <p class="gen__d">${ex}</p>
+              <p class="gen__o">${outcome} <span class="sep">—</span> <b>${val}</b> ${note}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 가상 작업장 파이프라인 ── */
+  loop: () => {
+    const S = [
+      ['04', '차체 형상 스캔', '3D 포인트 클라우드로 형상을 받는다', 0],
+      ['05', '경로 생성', '국소 평면과 법선을 추정해 경로를 깐다', 0],
+      ['06', '힘 제어 연마', '접촉력을 추종하며 표면을 따라간다', 1],
+      ['07', '숙련공의 검수', '결과를 사람이 보고 통과 여부를 정한다', 0],
+      ['10', '결과 저장', '통과한 회차의 파라미터를 자산으로 남긴다', 1],
+    ];
+    return `
+      <div class="fg">
+        <p class="flow__env"><b>가상 작업장 · NVIDIA Isaac Sim</b><span>실제와 같은 물리 조건으로 재현</span></p>
+        <div class="flow">
+          ${S.map(([n, t, d, key]) => `
+            <div class="flow__r${key ? ' is-key' : ''}">
+              <span class="flow__n">${n}</span>
+              <div>
+                <p class="flow__t">${t}</p>
+                <p class="flow__d">${d}</p>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 이송 1 사이클의 구간별 점유 ──
+     구간 이름은 pickplace 본문 그대로다 ('들어 올리고, 옮기고, 내려놓는다').
+     길이는 형태 예시다 — 사이클 타임 실측값은 기획서에 없다.
+     그래서 축에 눈금만 두고 숫자는 적지 않는다. ── */
+  cycle: () => {
+    /* [구간, 시작 %, 길이 %, 병목, 영문 예외]
+       영문 예외를 여기 두는 이유 두 가지.
+       · '이송' 은 사전에서 Feed 다 — 계측 채널의 이송속도가 그 뜻이다.
+         이 간트는 픽앤플레이스 사이클이라 여기서는 Transfer 다.
+       · '하강·해제' 의 사전 표현 Lower and release 는 129px 이고
+         라벨 열은 88px 이다. 픽앤플레이스의 표준 용어 Set down(67px)로
+         같은 뜻을 낸다. */
+    const T = [
+      ['인식',      0, 10, 0],
+      ['파지',     10, 14, 0],
+      ['상승',     24, 10, 0],
+      ['이송',     34, 34, 1, 'Transfer'],
+      ['하강·해제', 68, 13, 0, 'Set down'],
+      ['복귀',     81, 19, 0],
+    ];
+    /* 행을 템플릿 밖에서 만든다 — 템플릿 안에 주석을 두면
+       i18n-check.py 가 그 주석을 본문 문장으로 읽는다 */
+    const rows = T.map(([t, x, w, k, en]) => {
+      const ov = en ? ' data-en="' + en + '"' : '';
+      const bn = k ? ' is-bn' : '';
+      return `<p class="gantt__l"${ov}>${t}</p>` +
+        `<div class="gantt__tr">` +
+        `<span class="gantt__b${bn}" style="margin-inline-start:${x}%;width:${w}%"></span>` +
+        `</div>`;
+    }).join('');
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">이송 1 사이클의 구간별 점유</p>
+          <p class="fg__n">Shape only</p>
+        </div>
+        <div class="gantt">
+          ${rows}
+          <div class="gantt__ax"></div>
+          <p class="gantt__cap"><b data-en="Transfer">이송</b> 구간이 가장 길다. 병목 구간 리포트가 짚는 것이 이 지점이다.</p>
+        </div>
+      </div>`;
+  },
+
+  /* ── 실행 전 안전 게이트 3단 ── 기획서 4.1 [그림 16] ── */
+  safegate: () => {
+    const G = [
+      ['G1', '기하 게이트', '경로 필터링 5단계 — 가장자리·곡률·기울기·반경·도달성. 도달 불가 0개일 때만 통과', 0],
+      ['G2', '접촉 게이트', '가상 스프링 순응 접촉 — 접촉력 3–8 N 대역을 벗어나는 파라미터는 실행 자체를 차단', 0],
+      ['G3', '대조 게이트', 'FEA · 실기 F/T 2중 대조 — 동일 조건 3/5/8 N 접촉압력 대조, 오차 5% 초과 구간은 자동 승인 금지', 1],
+    ];
+    return `
+      <div class="fg">
+        <p class="flow__env"><b>실행 전 안전 게이트 3단</b><span>세 게이트를 모두 통과한 파라미터만 실물 라인으로 나간다</span></p>
+        <div class="flow">
+          ${G.map(([n, t, d, key]) => `
+            <div class="flow__r${key ? ' is-key' : ''}">
+              <span class="flow__n">${n}</span>
+              <div>
+                <p class="flow__t">${t}</p>
+                <p class="flow__d">${d}</p>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 안전 리스크 5종 ── 기획서 4.1 [표 5] ── */
+  risk5: () => {
+    const R = [
+      ['티칭 중 인체 노출', '작업자가 셀 내부에서 근접 조작 — 품종 전환마다 반복', '스캔 1회 → 웨이포인트 <b>813</b>개 자동 생성 — 셀 내부 티칭 <b>0</b>회'],
+      ['이상 거동 (과압입 · 슬램)', '실물 시운전에서 발견 — 발견 시점에 이미 노출', '가상 스프링 순응 접촉 — 접촉력 <b>3–8 N</b> 이탈 시 실행 차단'],
+      ['경로 이탈 · 도달 한계', '근접 관찰로 확인 — 급가속 구간은 사전 예측 불가', '경로 필터링 5단계 — 도달 불가 <b>0</b>개일 때만 실행 승인'],
+      ['오검증 (가상 통과 → 현실 실패)', '대조 기준 없음 — 실물이 유일한 판정자', 'FEA · 실기 F/T 2중 대조 — 오차 <b>5%</b> 초과 구간 자동 승인 금지'],
+      ['설비 · 공작물 손상', '과압입 변형·공구 파손을 실물에서 확인', '실행 전 검증 항목으로 편입 — 이상 수치 FEA 자동 플래그'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">위험 5종을 실물이 아니라 실행 전에 확인한다</p>
+          <p class="fg__n">Risk gate</p>
+        </div>
+        <div class="cmp">
+          <div class="cmp__h"><span>리스크 항목</span><span>기존 방식</span><span>폴리트윈</span></div>
+          ${R.map(([k, a, b]) => `
+            <div class="cmp__r">
+              <p class="cmp__k">${k}</p>
+              <p class="cmp__a">${a}</p>
+              <p class="cmp__b">${b}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── ISO/TS 15066 대비 작업 대역 ── 선형 축 그대로 둔다.
+     대역이 왼쪽 구석에 붙어 있는 것이 이 그림의 요점이다 ── */
+  iso15066: () => {
+    /* viewBox 폭 740 = 스텝 도해 렌더 폭. 배율 ≈ 1 이라 좌표가 곧 화면 px 다 */
+    const W = 740, H = 174, L = 22, R = 22, AX = 114;
+    const px = (n) => L + (n / 65) * (W - L - R);
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">연마 접촉력은 규격 최저 한계의 12.3% 이하에서 작동한다</p>
+          <p class="fg__n">ISO/TS 15066</p>
+        </div>
+        <div class="iso">
+          <svg viewBox="0 0 ${W} ${H}" role="img"
+               aria-label="접촉력 축 도해. 0에서 65 뉴턴 축 위에 목표 접촉력 1.5 뉴턴, 작업 대역 3에서 8 뉴턴이 왼쪽 끝에 있고, ISO TS 15066 최저 허용 한계인 안면 65 뉴턴이 오른쪽 끝에 있다.">
+            <line class="ax" x1="${L}" y1="${AX}" x2="${W - R}" y2="${AX}"/>
+            <rect class="band" x="${px(3)}" y="${AX - 18}" width="${px(8) - px(3)}" height="18"/>
+            <line class="tgt" x1="${px(1.5)}" y1="${AX - 30}" x2="${px(1.5)}" y2="${AX}"/>
+            <line class="lim" x1="${px(65)}" y1="${AX - 40}" x2="${px(65)}" y2="${AX}"/>
+            <text class="t-acc" x="${px(1.5)}" y="${AX - 36}">목표 1.5 N</text>
+            <text class="t-acc" x="${px(8) + 9}" y="${AX - 5}">작업 대역 3–8 N</text>
+            <text class="t-crit" x="${px(65)}" y="${AX - 46}" text-anchor="end">안면 허용 한계 65 N</text>
+            <text x="${L}" y="${AX + 20}">0</text>
+            <text x="${px(65)}" y="${AX + 20}" text-anchor="end">65 N</text>
+            <text x="${L}" y="${AX + 42}">인체 29개 부위 중 가장 낮은 한계(안면 65 N) 기준 — 3–8 N 은 그 4.6–12.3%</text>
+          </svg>
+        </div>
+        <table class="sr">
+          <caption>ISO/TS 15066 대비 접촉력</caption>
+          <tbody>
+            <tr><th scope="row">목표 접촉력</th><td>1.5 N — 한계의 2.3%</td></tr>
+            <tr><th scope="row">작업 대역</th><td>3–8 N — 한계의 4.6–12.3%</td></tr>
+            <tr><th scope="row">규격 최저 허용 한계</th><td>안면 65 N (ISO/TS 15066:2016 Annex A)</td></tr>
+          </tbody>
+        </table>
+      </div>`;
+  },
+
+  /* ── 오류 대비 · 복구 ── 제출본 3.5 ── */
+  recover: () => {
+    const R = [
+      ['시뮬레이션 비정상 종료', '처음부터 다시 실행', '스캔 / 경로 생성 / 실행 로그를 단계별로 분리 저장 — <b>중단 지점부터 재개</b>'],
+      ['통신 두절', '영상이 끊기면 제어도 멈춤', '제어 통신과 시각화 통신 분리 — 영상 오류가 <b>제어에 영향 없음</b>'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">멈춰도 처음으로 돌아가지 않는다</p>
+          <p class="fg__n">Recovery</p>
+        </div>
+        <div class="cmp">
+          <div class="cmp__h"><span>상황</span><span>대비 없을 때</span><span>폴리트윈</span></div>
+          ${R.map(([k, a, b]) => `
+            <div class="cmp__r">
+              <p class="cmp__k">${k}</p>
+              <p class="cmp__a">${a}</p>
+              <p class="cmp__b">${b}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 수익 모델 3종 ── 기획서 4.3 [표 7] ── */
+  pricing3: () => {
+    const P = [
+      ['중견기업', '월 구독 (SaaS) — 1차 유료 고객', '월 33만 원 · 연 396만 원', '라인을 자주 바꿔야 하나 실패를 감당하기 어려운 구간 — 발주 전 구성안 반복 검증', 1],
+      ['중소기업', '건당 과금', '검증 리포트 1건 250만 원', '설비 확보가 어려워 실물 검증 곤란 — 발주 전 투자 판단', 0],
+      ['대기업', '프로젝트 컨설팅', '프로젝트 단위 협의', '자체 R&D 조직 보유 — 신차 R&D 공정적용 부서 대상', 0],
+      ['공통', '초기 셋업비 (별도)', '120만 원', '차종 모델 등록·좌표계 정렬 — 특급기술자 3일', 0],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">기업 규모별 3종 — 전부 공개 가격이다</p>
+          <p class="fg__n">Pricing</p>
+        </div>
+        <div class="gen">
+          ${P.map(([who, form, price, why, key]) => `
+            <div class="gen__r${key ? ' is-open' : ''}">
+              <div class="gen__hd">
+                <span class="gen__t">${who}</span>
+                <span class="st s-${key ? 'sys' : 'man'}">${form}</span>
+              </div>
+              <p class="gen__o"><b>${price}</b></p>
+              <p class="gen__d">${why}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 리포트 1건 가격 산정 ── 기획서 4.3 [표 8] ── */
+  calc250: () => {
+    const C = [
+      ['엔지니어 공수', '특급기술자 401,407원 × 3일 — 엔지니어링업체 임금실태조사(국가승인통계 제372001호)', '1,204,221원'],
+      ['시뮬레이션 연산비', 'GPU 인스턴스 $1.006/h × 20h × 환율 1,390원', '28,000원'],
+      ['개발비 상각', '초기 개발비 1억 6,500만 원 ÷ 240건 (3년)', '687,500원'],
+      ['마진 30%', '제조업 평균 마크업 기준', '575,916원'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">0.2%는 근거가 아니라 산정 결과다 — 상향식 합산</p>
+          <p class="fg__n">Cost build-up</p>
+        </div>
+        <div class="cal">
+          ${C.map(([k, d, v]) => `
+            <div class="cal__r">
+              <p class="cal__k">${k}</p>
+              <p class="cal__d">${d}</p>
+              <p class="cal__v">${v}</p>
+            </div>`).join('')}
+          <div class="cal__r is-sum">
+            <p class="cal__k">리포트 1건 판매가</p>
+            <p class="cal__d">설비투자(평균 18억 원)의 0.2% 미만 — 수억 원 설비의 발주 전 판단 비용</p>
+            <p class="cal__v">약 250만 원</p>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /* ── 유사 서비스 대비 ── 기획서 4.3 [표 10] ── */
+  compete: () => {
+    const R = [
+      ['도입 비용', '상용 OLP 라이선스 $15,000–100,000', '월 <b>33만 원</b> — 약 <b>1/40</b>'],
+      ['힘 제어 검증', '미지원 — 경로만 다룬다', '<b>지원</b> — 접촉력 검증까지 포함'],
+      ['곡면 경로 생성', '수동 티칭 병행', '스캔 기반 <b>자동 생성</b>'],
+      ['로봇 브랜드', '전용 또는 제한적 지원', '무관'],
+      ['적용 가능 기업', '대기업 중심', '중소 ~ 대기업'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">어디로 갈지(경로)는 다들 다룬다. 얼마나 누를지(힘)는 우리만 다룬다</p>
+          <p class="fg__n">vs. OLP</p>
+        </div>
+        <div class="cmp">
+          <div class="cmp__h"><span>비교 항목</span><span>상용 OLP · SI 용역</span><span>폴리트윈</span></div>
+          ${R.map(([k, a, b]) => `
+            <div class="cmp__r">
+              <p class="cmp__k">${k}</p>
+              <p class="cmp__a">${a}</p>
+              <p class="cmp__b">${b}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── TAM · SAM · SOM ── 수치는 랜딩·제출본과 같은 세트를 쓴다 ── */
+  market: () => {
+    const M = [
+      ['TAM', '로봇 기반 표면처리 시장 전체', '31.8억 달러', '하드웨어를 포함한 최대 범위', 0],
+      ['SAM', '연마·샌딩 공정 — 검증 SW 레이어', '3.5억 달러', '폴리트윈이 접근 가능한 영역', 0],
+      ['SOM', '초기 진입 목표 구간', '25만 달러', 'SAM 의 0.07% — 통상 기준(1–5%) 대비 보수적 적용', 1],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">시장 규모 — 2026년 기준</p>
+          <p class="fg__n">TAM · SAM · SOM</p>
+        </div>
+        <div class="gen">
+          ${M.map(([no, kind, val, note, key]) => `
+            <div class="gen__r${key ? ' is-open' : ''}">
+              <div class="gen__hd">
+                <span class="gen__no">${no}</span>
+                <span class="gen__t">${kind}</span>
+              </div>
+              <p class="gen__o"><b>${val}</b> <span class="sep">—</span> ${note}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 확장 로드맵 4단계 ── 기획서 4.5 [표 4] ── */
+  roadmap4: () => {
+    const S = [
+      ['1단계', '자동차 차체 연마', '스캔 → 경로 → 힘 제어 → 리포트 통합 — 웨이포인트 813개 · 접촉력 3–8 N 유지', 'done', '구현 완료'],
+      ['2단계', '유리 · 위생도기 · 케이스 · 금형', '재질별 Preston 계수 k 를 시험 가공으로 캘리브레이션한 뒤 파라미터 프로파일로 등록', 'open', '개발 예정'],
+      ['3단계', '숙련공 실측 데이터 연계', '모션캡처 실측 / Isaac Sim 대조 검증 — 재현 오차가 허용 범위에 수렴해야 성립', 'open', '개발 예정'],
+      ['4단계', '적응형 자율 연마 · 타 공정', '표면 상태 입력 → 파라미터 자동 조정 — 디버링 · 샌딩 · 도장 · 실링으로 확장', 'open', '개발 예정'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">가장 어려운 공정에서 절차를 세우고, 접촉하는 공정 전반으로 넓힌다</p>
+          <p class="fg__n">Roadmap</p>
+        </div>
+        <div class="gen">
+          ${S.map(([no, t, d, st, stKo]) => `
+            <div class="gen__r${st === 'done' ? ' is-open' : ''}">
+              <div class="gen__hd">
+                <span class="gen__no">${no}</span>
+                <span class="gen__t">${t}</span>
+                <span class="st s-${st}">${stKo}</span>
+              </div>
+              <p class="gen__d">${d}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 숙련 기술 전승 방식 비교 ── 기획서 4.3 사회 [표 7] ── */
+  transfer: () => {
+    const R = [
+      ['전수 매체', '어깨너머 구전·시범 — 말로 옮기면 수치가 남지 않음', '<b>17열</b> 물리량 로그가 곧 교재 — 접촉력·이송 속도·자세·체류 시간'],
+      ['숙련 소요', '신입 숙련까지 3–5년 — 숙련공 이탈 시 처음부터 재시작', '정답 파라미터가 이미 등록됨 — 경험 의존 구간 축소'],
+      ['실습 환경', '실물 설비 필요 — 수억 원대 투자', '시뮬레이션에서 전 과정 실습 — 스캔·경로·힘 제어·리포트'],
+      ['숙련공의 역할', '은퇴와 함께 소멸 — 재현 여부를 확인할 수단 없음', '교재의 <b>저자이자 검증 기준</b> — 매 루프에서 계속 쓰임'],
+      ['직무 성격', '분진·소음 3D 기피 직무 — 청년 유입 단절', '시뮬레이션 운영·검증 — <b>AX 엔지니어</b> 직무로 연결'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">구전 전수에서 데이터 기반 교육으로</p>
+          <p class="fg__n">Transfer</p>
+        </div>
+        <div class="cmp">
+          <div class="cmp__h"><span>비교 항목</span><span>기존 방식</span><span>폴리트윈</span></div>
+          ${R.map(([k, a, b]) => `
+            <div class="cmp__r">
+              <p class="cmp__k">${k}</p>
+              <p class="cmp__a">${a}</p>
+              <p class="cmp__b">${b}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 데이터 보안 4단계 ── 제출본 3.4 [그림 11] ── */
+  security4: () => {
+    const S = [
+      ['01', '정보자산 식별 · 위험평가', '핵심 기술 로그와 운영 이벤트 로그를 자산으로 등록하고 위험을 평가한다', 0],
+      ['02', '정보보호 정책 수립', '로그 이원화·역할별 권한(조회/설정/실행) 등 통제 항목을 정책으로 고정한다', 0],
+      ['03', '내부 심사', '정책 대비 운영 실태를 자체 점검한다', 0],
+      ['04', '인증 심사', 'ISO 27001 Annex A 통제항목 기준 외부 심사', 1],
+    ];
+    return `
+      <div class="fg">
+        <p class="flow__env"><b>데이터 보안 대응 4단계</b><span>ISO 27001 Annex A 통제항목 기준</span></p>
+        <div class="flow">
+          ${S.map(([n, t, d, key]) => `
+            <div class="flow__r${key ? ' is-key' : ''}">
+              <span class="flow__n">${n}</span>
+              <div>
+                <p class="flow__t">${t}</p>
+                <p class="flow__d">${d}</p>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 팀 구성 및 역할 ── 기획서 5.2 [표 7] ── */
+  team4: () => {
+    const T = [
+      ['김두용', '팀장 — 기획·사업화 / 힘 제어·제거량 모델', '가상 스프링·감쇠 순응 접촉 설계(k=500) · Preston 제거량 모듈 · Ansys FEA 이중 검증 · 접촉력 1.5 N 추종 오차 검증'],
+      ['신현호', '로봇 협동 제어 / 네트워크 통신', '레일·측면(SL/SR)·천장(C) 배치와 담당 영역 자동 배분 · ROS 2–rosbridge 실시간 통신 · RMPFlow 추종 지연 보정 · 기획서 구조 개편'],
+      ['부승언', 'UI / 대시보드 · 데이터 시각화', '실행 전·중·완료 3화면 대시보드 · 실시간 접촉력 그래프·제거량 히트맵 · Blind Spot 커버리지 뷰 · 17열 로깅·CSV 내보내기'],
+      ['정용준', '3D 스캔 · 경로 계획', '9시점 깊이 카메라 배치 · 포인트 클라우드 ICP 정합 · 표면 법선 추정 · 래스터 경로 813 웨이포인트 자동 생성·필터링 5단계'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">넷이서 스캔부터 힘 제어까지 — 역할 경계는 절대적이지 않다</p>
+          <p class="fg__n">Team CACADACA</p>
+        </div>
+        <div class="gen">
+          ${T.map(([name, role, work]) => `
+            <div class="gen__r">
+              <div class="gen__hd">
+                <span class="gen__t">${name}</span>
+                <span class="st s-man">${role}</span>
+              </div>
+              <p class="gen__d">${work}</p>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+
+  /* ── 숙련공 대조 결과 ── 숙련공 대조 리포트.
+     잘 나온 수치와 남은 과제를 같은 표에 둔다 — 숨기면 약점이 되고
+     밝히면 강점이 된다는 것이 그 리포트의 결론이다 ── */
+  bench: () => {
+    const B = [
+      ['정상상태 힘 변동계수 CV', '3.23%', '합성 숙련공 기준(9.96%)의 약 1/3', 'done', '상회'],
+      ['목표대역 체류율 (1.2–1.8 N)', '100.00%', '정상 폴리싱 구간 기준', 'done', '상회'],
+      ['과압(>1.8 N) 발생', '0.00%', '도장면 손상 위험이 구조적으로 0', 'done', '상회'],
+      ['전이구간 CV (진입·이탈)', '71.85%', '접촉의 11.3% — 가장자리 품질 편차로 이어질 구간', 'open', '남은 과제'],
+      ['접촉 유지율', '73.6%', '작업 시간의 1/4은 접촉이 끊겨 있었다', 'open', '남은 과제'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">연마 중 힘 제어는 기준을 상회한다 — 남은 과제는 진입·이탈이다</p>
+          <p class="fg__n">Benchmark</p>
+        </div>
+        <div class="gen">
+          ${B.map(([k, v, note, st, stKo]) => `
+            <div class="gen__r${st === 'done' ? ' is-open' : ''}">
+              <div class="gen__hd">
+                <span class="gen__t">${k}</span>
+                <span class="st s-${st}">${stKo}</span>
+              </div>
+              <p class="gen__o"><b>${v}</b> <span class="sep">—</span> ${note}</p>
+            </div>`).join('')}
+        </div>
+        <p class="fg__n">대조 기준은 문헌 기반 합성 참조선 — 폴리싱 숙련공의 접촉력 공개 데이터셋은 존재하지 않는다 (2026-08 기준)</p>
+      </div>`;
+  },
+
+  /* ══ 아래 아홉은 기획서 크롭(JPG)을 같은 내용의 마크업으로 옮긴 것이다
+     . 값은 크롭 화면에 찍혀 있던 값 그대로다 — 새로 지어낸
+     수치는 없다. 원본 이미지는 assets/img/_unused/ 에 그대로 남겨 뒀다.
+
+     왜 옮겼나: 표를 그림으로 넣으면 글자가 선택도 검색도 안 되고,
+     스크린리더가 못 읽고, .p-fig img 의 max-height 460px 에 걸려
+     모바일에서 통째로 줄어든다. 그리고 번역이 불가능하다. ══ */
+
+  /* ── 로그 이원화 ── 기획서 crop_security ── */
+  logsplit: () => {
+    const OPEN = [
+      ['9:00:04 AM', 'PATH_LOAD'],
+      ['9:00:11 AM', 'POLISH_START'],
+      ['9:00:16 AM', 'CONTACT'],
+      ['9:01:18 AM', 'DECONTACT'],
+    ];
+    /* 음수는 하이픈이 아니라 en dash — 서브셋에 U+2212 가 없다 */
+    const SHUT = [
+      ['21', '3.16', '–2.97', '35.62'],
+      ['22', '2.09', '27.05', '–20.17'],
+      ['23', '2.87', '–22.52', '53.09'],
+      ['24', '1.20', '42.21', '53.37'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">같은 공정에서 나오는 로그를 둘로 나눈다</p>
+          <p class="fg__n">Log Split</p>
+        </div>
+
+        <div class="gen">
+          <div class="gen__r is-open">
+            <div class="gen__hd">
+              <span class="gen__t">공유 가능 데이터</span>
+              <span class="st s-done">협력사·경쟁사에 공유</span>
+            </div>
+            <p class="gen__d">공정 중 발생한 이벤트 관련 기록</p>
+          </div>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>이벤트 로그 — status 0 은 정상</caption>
+            <thead><tr><th scope="col">timestamp</th><th scope="col">event</th><th scope="col" class="n">status</th></tr></thead>
+            <tbody>${OPEN.map(([t, e]) =>
+              `<tr><th scope="row">${t}</th><td>${e}</td><td class="n">0</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="gen">
+          <div class="gen__r">
+            <div class="gen__hd">
+              <span class="gen__t">공유 불가 데이터</span>
+              <span class="st s-open">고객사의 자산</span>
+            </div>
+            <p class="gen__d">관절 각도, 궤적 등 민감 정보 기록</p>
+          </div>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>스텝 로그 — 접촉력과 관절각은 밖으로 나가지 않는다</caption>
+            <thead><tr><th scope="col" class="n">step</th><th scope="col" class="n">contact_force_N</th><th scope="col" class="n">joint1_deg</th><th scope="col" class="n">joint2_deg</th></tr></thead>
+            <tbody>${SHUT.map(([s, f, j1, j2]) =>
+              `<tr><th scope="row" class="n">${s}</th><td class="n">${f}</td><td class="n">${j1}</td><td class="n">${j2}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  },
+
+  /* ── 자산화 ── 기획서 crop_rl_asset ── */
+  rlasset: () => {
+    const A = [
+      ['#07', '85.6', 1], ['#12', '91.7', 1], ['#19', '76.2', 0],
+      ['#23', '95.0', 1], ['#31', '86.3', 1],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">통과 정책만 기술 자산으로 등록</p>
+          <p class="fg__n">04 자산화</p>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>전문가 점수와 판정 — 조합 5종</caption>
+            <thead><tr><th scope="col">조합</th><th scope="col" class="n">전문가 점수</th><th scope="col">판정</th></tr></thead>
+            <tbody>${A.map(([id, sc, ok]) => `
+              <tr>
+                <th scope="row">${id}</th>
+                <td class="n">${sc}</td>
+                <td><span class="gr ${ok ? 'is-y' : 'is-n'}">${ok ? '등록' : '제외'}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="gen">
+          <div class="gen__r is-open">
+            <div class="gen__hd"><span class="gen__t">공정별 정책 · 조건 DB 등록</span></div>
+            <p class="gen__d">재사용 가능한 디지털 자산 구축</p>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /* ── 접근 권한 역할별 분리 ── 기획서 crop_rbac ── */
+  rbac: () => {
+    /* [역할, 조회, 설정, 제어] */
+    const R = [
+      ['협력사 A', 1, 0, 0],
+      ['협력사 B', 1, 1, 0],
+      ['관리자',   1, 1, 1],
+    ];
+    const cell = (v) => `<td class="c"><span class="gr ${v ? 'is-y' : 'is-n'}">${v ? '허용' : '차단'}</span></td>`;
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">조회 / 설정 / 제어 권한을 나눠 상황에 따라 범위를 조절한다</p>
+          <p class="fg__n">Access Control</p>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>권한 관리 예시</caption>
+            <thead><tr><th scope="col">역할</th><th scope="col" class="c">조회</th><th scope="col" class="c">설정</th><th scope="col" class="c">제어</th></tr></thead>
+            <tbody>${R.map(([name, a, b, c]) =>
+              `<tr><th scope="row">${name}</th>${cell(a)}${cell(b)}${cell(c)}</tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  },
+
+  /* ── 환경 생성 ── 기획서 crop_rl_env. 3 × 4 × 4 = 48 ── */
+  rlenv: () => {
+    const AX = [
+      ['3종', '표면 형상', ['평면', '곡면', '복합면']],
+      ['4단계', '압력 범위 (N)', ['0.5', '1.0', '1.5', '2.0']],
+      ['4단계', '속도 범위 (RPM)', ['500', '800', '1200', '1500']],
+    ];
+    const col = ([n, k, vs]) => `
+      <div class="mul__c">
+        <div class="mul__h"><span class="mul__n">${n}</span><span class="mul__k">${k}</span></div>
+        ${vs.map((v) => `<span class="mul__v">${v}</span>`).join('')}
+      </div>`;
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">폴리싱 환경의 변수를 조합해 학습 환경을 늘린다</p>
+          <p class="fg__n">01 환경 생성</p>
+        </div>
+        <div class="mul">
+          ${col(AX[0])}<span class="mul__op" aria-hidden="true">×</span>
+          ${col(AX[1])}<span class="mul__op" aria-hidden="true">×</span>
+          ${col(AX[2])}<span class="mul__op" aria-hidden="true">→</span>
+          <div class="mul__c is-sum">
+            <div class="mul__h"><span class="mul__n">48개</span><span class="mul__k">총 환경 수</span></div>
+            <div class="mul__v dots" aria-hidden="true">${'<i></i>'.repeat(48)}</div>
+            <span class="mul__k">3 × 4 × 4 = 48</span>
+          </div>
+        </div>
+        <p class="fg__n">총 48개 환경에서 강화학습 데이터 수집 및 모델 학습 수행</p>
+      </div>`;
+  },
+
+  /* ── 정책 학습 ── 기획서 crop_rl_policy ── */
+  rlpolicy: () => {
+    /* 감쇠 곡선 — 학습이 진행될수록 검증 오차가 줄어든다.
+       형태 예시다. 회차별 오차 실측값은 기획서에 없다 */
+    const W = 200, H = 40, N = 40;
+    const pts = Array.from({ length: N }, (_, i) => {
+      const t = i / (N - 1);
+      const x = t * W;
+      /* SVG 의 y 는 아래로 늘어난다. 오차가 줄어드는 곡선이므로
+         왼쪽이 위(작은 y), 오른쪽이 아래(큰 y)여야 한다 */
+      const y = 4 + (H - 8) * (1 - Math.exp(-3.1 * t));
+      return x.toFixed(1) + ' ' + y.toFixed(1);
+    });
+    const line = 'M' + pts.join('L');
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">48개 환경에서 보상을 최대화하는 정책을 학습한다</p>
+          <p class="fg__n">02 정책 학습</p>
+        </div>
+        <div class="rl">
+          <div class="rl__row">
+            <div class="rl__b is-key"><span class="rl__t">정책</span><span class="rl__s">Agent</span></div>
+            <span class="rl__ar">행동 a →</span>
+            <div class="rl__b"><span class="rl__t">폴리트윈 환경</span><span class="rl__s">48종</span></div>
+          </div>
+          <p class="rl__back">← 상태 s · 보상 r</p>
+          <p class="rl__eq">보상 함수 &nbsp;<b>R</b> = 접촉력 + 표면 거칠기 목표 – 사이클 타임</p>
+          <div class="rl__curve">
+            <svg viewBox="0 0 ${W} ${H}" role="img" preserveAspectRatio="none"
+                 aria-label="학습 회차가 늘수록 숙련공 대비 검증 오차가 가파르게 줄다가 완만해지는 감쇠 곡선. 형태 예시이며 회차별 실측값은 아니다.">
+              <path class="fl" d="${line}L${W} ${H}L0 ${H}Z"/>
+              <path class="ln" d="${line}"/>
+            </svg>
+            <p>학습이 진행될수록 숙련공 대비 검증 오차 ↓ — 곡선은 형태 예시다</p>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  /* ── 전문가 평가 ── 기획서 crop_rl_eval ── */
+  rleval: () => {
+    const C = ['경로 적절성', '연마 균일성', '접촉 안정성', '작업 품질'];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">숙련공이 연마 결과를 보고 평가한다</p>
+          <p class="fg__n">03 전문가 평가</p>
+        </div>
+        <div class="gen">
+          ${C.map((k) => `
+            <div class="gen__r">
+              <div class="gen__hd"><span class="gr is-y">${k}</span></div>
+            </div>`).join('')}
+        </div>
+        <p class="fg__n">네 항목을 모두 통과한 정책만 자산화 단계로 넘어간다</p>
+      </div>`;
+  },
+
+  /* ── 잔여 버 리포트 ── 기획서 crop_deburr_report.
+     생성 도해에서 옮겼다 — 수치는 실측이 아니고 리포트 형식 예시다 ── */
+  burr: () => {
+    const SUM = [
+      ['검사 지점', '4', 'n'], ['양호', '3', 'y'],
+      ['잔여 버 있음', '1', 'w'], ['재검 필요', '0', 'n'],
+    ];
+    const ITEMS = [
+      ['상단 좌측 홀 내부 모서리', 1], ['좌측 수직 모서리', 1],
+      ['하단 좌측 홀 모서리', 1], ['중앙 큰 홀 모서리', 1],
+      ['우측 외곽 홀 모서리', 0],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">검사 지점 4곳 중 1곳에 버가 남았다</p>
+          <p class="fg__n">로드맵 4단계 · 형식 예시</p>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>검사 결과 요약</caption>
+            <thead><tr><th scope="col">항목</th><th scope="col" class="n">지점 수</th></tr></thead>
+            <tbody>${SUM.map(([k, v, s]) =>
+              `<tr><th scope="row"><span class="gr is-${s}">${k}</span></th><td class="n">${v}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>세부 검사 목록</caption>
+            <thead><tr><th scope="col">검사 지점</th><th scope="col">판정</th></tr></thead>
+            <tbody>${ITEMS.map(([k, ok]) => `
+              <tr><th scope="row">${k}</th>
+                  <td><span class="gr ${ok ? 'is-y' : 'is-w'}">${ok ? '양호' : '잔여 버 있음'}</span></td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p class="fg__n">리포트 형식은 폴리싱과 공유한다 — 수치는 실측이 아니다</p>
+      </div>`;
+  },
+
+  /* ── 실시간 공정 확인 ── 기획서 crop_monitor.
+     수치는 크롭 화면 그대로다. 파형만 형태 예시이고 캡션에 적는다 ── */
+  runlive: () => {
+    const PANEL = [['패널 1', 57], ['패널 2', 19], ['패널 3', 10], ['패널 4', 46]];
+    const CH = [
+      ['Z-힘 추이', 'N', 'saw', 13, '68.3'],
+      ['토크 추이', 'Nm', 'saw', 29, '12.6'],
+    ];
+    const META = [
+      ['공정 ID', 'P-2026-0601-001'], ['로봇', 'R1'], ['툴', 'POL-125'],
+      ['소재', 'Al6061'], ['패드', 'P-3M-150'], ['속도', '1200 rpm'], ['하중', '30 N'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">폴리싱 중 — 현재 진행률 11% · 경과 시간 02:44</p>
+          <p class="fg__n">05 실시간 공정 확인</p>
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>패널별 커버리지</caption>
+            <thead><tr><th scope="col">패널</th><th scope="col" class="n">커버리지</th></tr></thead>
+            <tbody>${PANEL.map(([k, v]) =>
+              `<tr><th scope="row">${k}</th><td class="n">${v}%</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="ch">
+          ${CH.map(([k, u, kind, seed, v]) => `
+            <div class="ch__r">
+              <span class="ch__k">${k}<small>${u}</small></span>
+              <span class="ch__w"><svg viewBox="0 0 200 26" preserveAspectRatio="none" aria-hidden="true">
+                <path d="${spark(kind, seed)}" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
+              <span class="ch__v">${v}<small>${u}</small></span>
+            </div>`).join('')}
+        </div>
+        <div class="tbw">
+          <table class="tb">
+            <caption>실행 조건</caption>
+            <tbody>${META.map(([k, v]) =>
+              `<tr><th scope="row">${k}</th><td class="n">${v}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p class="fg__n">현재값은 기획서 화면의 값이다. 파형은 형태 예시다</p>
+      </div>`;
+  },
+
+  /* ── 두 시장의 성장률 ── 기획서 wide_market 왼쪽 절반.
+     오른쪽 절반(TAM·SAM·SOM)은 이미 market 도해가 같은 값을 담고 있다 ── */
+  cagr: () => {
+    /* [시장, 부문, CAGR %] */
+    const M = [
+      ['산업용 로봇 시장', '하드웨어', 11.7, 0],
+      ['디지털 트윈 시장', '검증 소프트웨어', 37.6, 1],
+    ];
+    /* 이 도해는 본문 폭을 다 쓰는 띠에 들어간다.
+       viewBox 폭 1120 = 띠 도해 렌더 폭. 배율 ≈ 1 이라 좌표가 곧 화면 px 다 */
+    const W = 1120, H = 176, L = 350, R = 112, T = 24;
+    const pw = W - L - R, max = 40, rh = 52;
+    const ticks = [0, 10, 20, 30, 40].map((t) => {
+      const x = L + (t / max) * pw;
+      return `<line class="grid" x1="${x}" y1="${T - 10}" x2="${x}" y2="${H - 24}"/>
+              <text class="t-ax" x="${x}" y="${H - 8}" text-anchor="middle">${t}%</text>`;
+    }).join('');
+    const rows = M.map(([name, part, v, hi], i) => {
+      const y = T + i * (rh + 24);
+      const w = (v / max) * pw;
+      return `
+        <text class="t-ax" x="${L - 14}" y="${y + 16}" text-anchor="end">${name}</text>
+        <text class="t-ax" x="${L - 14}" y="${y + 33}" text-anchor="end">${part}</text>
+        <rect class="${hi ? 'b-new' : 'b-old'}" x="${L}" y="${y + 6}" width="${w}" height="24"/>
+        <text class="t-val${hi ? ' is-hi' : ''}" x="${L + w + 10}" y="${y + 23}">${v}%</text>`;
+    }).join('');
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">검증 소프트웨어가 로봇 하드웨어보다 3.2배 빠르게 큰다</p>
+          <p class="fg__n">CAGR</p>
+        </div>
+        <div class="bars">
+          <svg viewBox="0 0 ${W} ${H}" role="img"
+               aria-label="연평균 성장률 비교. 산업용 로봇 시장 하드웨어 11.7퍼센트, 디지털 트윈 시장 검증 소프트웨어 37.6퍼센트로 약 3.2배.">
+            ${ticks}${rows}
+          </svg>
+        </div>
+        <p class="fg__n">로봇 표면처리 시장은 31.8억 달러로 이미 크다. 폴리트윈은 그 위에서 더 빠르게 크는 쪽에 있다</p>
+      </div>`;
+  },
+
+  /* ── 접촉력 추종 ── 기획서 crop_force 의 그래프만 잘라 쓴다.
+     선은 실측이라 다시 그리지 않는다. 축 숫자는 언어 중립이고,
+     한글이던 제목과 범례만 마크업으로 올렸다 ── */
+  force: () => {
+    const f = 'crop_force.webp';
+    const [w, h] = DIM[f];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">접촉력은 목표 1.5 N 을 넘지 않고 대역 안에 머문다</p>
+          <p class="fg__n">Force Tracking</p>
+        </div>
+        <img src="assets/img/${f}?v=${ASSET_V}" width="${w}" height="${h}" loading="lazy"
+             style="display:block;width:100%;height:auto"
+             alt="초기 실행 984 스텝의 접촉력 추이. 시작 직후 1.0 N 대로 올라와 목표선 1.5 N 아래에서 대체로 1.0에서 1.5 N 사이를 오가고, 300스텝 부근에서 0.45 N 까지 한 번 떨어진다.">
+        <p class="lg">
+          <span><i class="k-new"></i>접촉력</span>
+          <span><i class="k-tgt"></i>목표 1.5 N</span>
+          <span>x축 — 초기 실행 984 스텝</span>
+        </p>
+      </div>`;
+  },
+
+  /* ── 충돌 가능성 확인 ── 기획서 crop_collision.
+     구워져 있던 「충돌 위험」 글자는 지우고 같은 자리에 마크업으로 얹었다.
+     퍼센트는 원본 1200×675 에서 실측한 라벨 중심이다 ── */
+  collision: () => ovFig('crop_collision.webp',
+    '두 팔의 작업 반경이 겹치는 지점을 실행 전에 표시한다',
+    '로봇 팔 두 대가 마주 보고 같은 패널을 연마하는 장면. 두 팔의 작업 반경이 만나는 가운데 지점에 표적 표시가 있다.',
+    [[53.4, 44.7, '충돌 위험', 'is-warn']]),
+
+  /* ── Preston 방정식 ── 기획서 crop_preston. 위와 같은 방식 ── */
+  preston: () => ovFig('crop_preston.webp',
+    '제거량은 접촉 압력과 상대 속도의 곱에 비례한다',
+    '회전하는 연마 패드가 원판 위를 누르는 도해. 누르는 힘 P 와 상대 속도 V 가 표시되고 아래에 MRR = kp · P · V 식이 있다.',
+    [[85.5, 20.9, '연마 패드', ''], [9.9, 80.6, '연마 대상', '']]),
+
+  /* ── Blind Spot 진단 ── 기획서 wide_blindspot ── */
+  blind: () => {
+    const R = [
+      ['임계 곡률반경', '75', 'mm', '패드 반경과 같다'],
+      ['미도달 면적', '43.1', '%', '진단 대상 면 기준'],
+      ['검출 부위', '4', '곳', '실행 전 좌표로 특정'],
+    ];
+    return `
+      <div class="fg">
+        <div class="fg__hd">
+          <p class="fg__t">곡률이 급한 부위의 연마 난이도를 역이용해 미연마 위험 부위를 실행 전에 특정한다</p>
+          <p class="fg__n">Blind Spot</p>
+        </div>
+        <p class="rl__eq">패드 지름 150 mm — 표면 곡률반경이 패드 반경(<b>75 mm</b>)보다 작으면 패드가 오목·엣지 구간에 걸쳐 떠서 닿지 않는다. 그 좌표를 Blind Spot 으로 기록한다</p>
+        <div class="cal">
+          ${R.map(([k, v, u, d]) => `
+            <div class="cal__r">
+              <span class="cal__k">${k}</span>
+              <span class="cal__d">${d}</span>
+              <span class="cal__v">${v} <small>${u}</small></span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  },
+};
+
+const PAGES = {
+  /* ── 기업소개 ─────────────────────────────── */
+  goal: {
+    group: '기업소개', title: '숙련공의 노하우를 물리량으로 남긴다',
+    lede: '"이 정도 힘으로 눌러" 는 기록이 아니다. 접촉력·이송속도·공구 자세·체류 시간 — 노하우의 실체는 측정할 수 있는 물리량이고, 디지털 트윈에서는 그 값이 남는다.',
+    steps: [
+      { t: '현장의 기록은 말로만 남는다', d: '사람이 연마할 때는 센서를 부착한 채 작업하지 않는다. 작업이 끝난 뒤 남는 측정값은 0개다.',
+        b: ['"손끝에 걸리는 느낌이 사라질 때까지"', '"곡면에서는 살살, 평면은 쫙"', '작업 종료 후 남는 물리량 0개'],
+        f: FIG('knowhow', '작업 종료 후 남는 물리량 — 수치는 기획서 기록값, 파형은 형태 예시') },
+      { t: '숙련 인력은 줄고, 대체는 오지 않는다', d: '제조업 근로자 중 50대 이상 비중은 10년 사이 15.7%에서 30.1%로 늘었다. 한국 제조업 평균연령 상승세는 주요국 중 가장 가파르다.',
+        b: ['50대 이상 비중 15.7% → 30.1% (2010→2020)', '30대 비중 –7.3%p', '한·미·일 중 고령화 속도 1위'],
+        f: FIG('aging', '제조업 근로자 연령대별 비중 · 2010 → 2020 · 산업통상부 보도자료(2026-04-28)') },
+      { t: '시뮬레이션은 아직 힘을 다루지 못한다', d: '움직임 검증(1세대)과 공장 규모 시뮬레이션(2세대)은 성과가 확인됐다. 접촉력·마찰까지 재현하는 3세대는 국내 성과 사례가 확인되지 않은 빈 구간이다.',
+        b: ['1세대 궤적 자동화 — 달성', '2세대 가상 선검증 공장 — 달성', '3세대 힘을 다루는 공정 — 선점 지점'],
+        f: FIG('gens', '시뮬레이션 세대별 범위와 국내 성과 — 3세대는 확인된 사례 없음') },
+      { t: '그 빈 구간이 PolyTwin의 자리다', d: '물리 조건을 재현한 가상 작업장에서 폴리싱을 실행하고, 잘 된 회차의 파라미터를 저장해 다음 공정에서 다시 꺼낸다.',
+        b: ['작업 종료 후 남는 물리량 17개', '접촉력 중앙값 1.50 N 단위로 기록', '공정별 정책·조건 DB로 자산화'],
+        f: FIG('loop', '가상 작업장 파이프라인 — 10단계 중 04·05·06·07·10') },
+    ],
+  },
+  values: {
+    group: '기업소개', title: '우리의 가치관',
+    lede: '팀 CACADACA. 넷이서 스캔부터 힘 제어까지, 한 공정을 끝까지 파고든다.',
+    frame: IMG('wide_docs.webp', '남는 것은 문서와 값이다 — 팀 CACADACA'),
+    steps: [
+      { t: '고객사의 공정은 고객사의 것이다', d: '같은 실행에서 나온 로그라도 성격이 다르다. 언제 무엇을 했는지는 나눌 수 있지만, 어떤 각도로 얼마의 힘을 줬는지는 공정 그 자체다. 저장하는 단계에서부터 둘을 갈라 놓는다.',
+        b: ['이벤트 로그는 공유, 접촉력·관절각은 분리 보관', '조회·설정·제어 3단계 권한 · ISO 27001 기준 대응'],
+        f: FIG('logsplit', '로그 이원화 설계 — 공유 가능 데이터와 고객사 자산') },
+      { t: '검증 없이는 주장하지 않는다', d: '시뮬레이션 파라미터는 Ansys 물리 환경과 교차 검증하고, 스캔→경로→폴리싱 엔드투엔드를 헤드리스로 교차검증한다.',
+        b: ['Ansys FEA 교차 검증 파이프라인', '엔드투엔드 통합 실행 검증'],
+        f: IMG('crop_ansys.webp', '기획서 — Ansys 사전 검증') },
+      { t: '숙련공이 최종 심사위원이다', d: 'AI 가 만든 정책도 숙련공이 연마 결과를 보고 평가한다. 통과한 정책만 기술 자산으로 등록된다.',
+        b: ['경로 적절성·연마 균일성·접촉 안정성·작업 품질 평가', '기준 미달 정책은 제외'],
+        f: FIG('rleval', '전문가 평가 단계') },
+      { t: '팀 CACADACA', d: '정용준·신현호·부승언·김두용. 언젠가 실물 로봇 팔에도 적용해 볼 생각이다.',
+        b: ['스캔·정합 / 경로 생성 / 힘제어·물리 / 협동 제어·UI 분담'],
+        f: IMG('pdf_20_1746x1361.jpg', '팀 CACADACA') },
+    ],
+    detail: [FIG('team4', '팀 구성 및 역할 — 기획서 5.2 [표 7] · 소스코드는 팀 GitHub(ddoo0922/rokey_Corp3)에서 공동 관리')],
+  },
+  results: {
+    group: '기업소개', title: '우리의 성과',
+    lede: '사람이 연마하고 나면 남는 측정값은 0개다. 같은 공정을 트윈에서 돌려 17열을 남겼다 — 정상 구간 접촉력 변동계수 3.23%, 목표대역 체류 100%, 과압 0회. 합성 숙련공 기준선(9.96%)의 약 1/3이다. 2026년 7–9월, 대표 항목 22개 중 완료 12 · 진행 5 · 예정 5. 수치는 전부 실측이다.',
+    frame: IMG('wide_result.webp', '결과 분석 — 도달 영역 · 예상 공정 시간 · 권장 파라미터'),
+    stats: [
+      ['813', '개', '자동 생성 웨이포인트'],
+      ['72→48', '초', 'RMPFlow 3대 동시 실행 –33%'],
+      ['1.5', 'N', '힘 제어 목표 접촉력'],
+      ['17', '열', '전 스텝 폴리싱 로깅 체계'],
+    ],
+    steps: [
+      { t: '스캔·정합 — 완료', d: '9시점 깊이 카메라 배치·ICP 정합, 배경 제거와 표면 복원까지. 정합 오차·누락면(Blind Spot) 검출을 검증했다.',
+        b: ['9시점 포인트 클라우드 정합', 'Blind Spot 검출 검증'],
+        f: IMG('crop_scan.webp', '스캔 — 3D 포인트 클라우드') },
+      { t: '경로 생성 — 완료', d: '패드 간격 산정(0.09/0.05/0.03 m)과 래스터 경로 자동 생성. 경로 필터링 5단계와 기하·IK 도달성·충돌 간섭을 검증했다.',
+        b: ['웨이포인트 813개 자동 생성', '150 mm 패드 40% 중첩 기준'],
+        f: IMG('crop_path.webp', '차체 국소 평면·법선 추정') },
+      { t: '힘 제어·물리 — 검증 진행', d: '가상 스프링·감쇠 순응 접촉과 Preston 제거량 모델을 구현하고 Ansys FEA 와 교차 검증했다. 임계값 튜닝이 진행 중이다.',
+        b: ['Preston 모델 F = k·침투 – c·속도, k=500', '목표 1.5 N / 유지 3–8 N 검증 중'],
+        f: FIG('force', '접촉력 추종 — 초기 실행 984 스텝, 목표 1.5 N') },
+      { t: '협동 제어·모니터링 — 완료', d: '레일·측면·천장 로봇 배치와 로봇별 담당 영역 자동 배분, ROS 2 실시간 통신. 3대 동시 실행 병렬화로 사이클을 33% 줄였다.',
+        b: ['RMPFlow 72초 → 48초 (–33%)', '실시간 접촉력·제거량 히트맵 대시보드'],
+        f: FIG('runlive', '실시간 공정 확인 — 수치는 기획서 화면 값, 파형은 형태 예시') },
+      { t: '숙련공 대조 — 정상 구간은 기준의 1/3', d: '문헌 기반 합성 숙련공 기준선과 힘 균일성으로 대조했다. 실제 연마가 일어나는 정상 구간의 변동계수는 3.23%로 기준(9.96%)의 약 1/3이고, 진입·이탈 구간과 접촉 유지율은 남은 과제로 그대로 공개한다.',
+        b: ['정상상태 CV 3.23% · 목표대역 체류 100% · 과압 0회', '전이구간 CV 71.85% · 접촉 유지율 73.6% — 남은 과제', '실측 숙련공 공개 데이터셋 부재 — 합성 참조선 기준임을 명시'],
+        f: FIG('bench', '힘 균일성 대조 — 숙련공 대조 리포트 2026-08-05 · 합성 기준선은 문헌 기반 가정치') },
+    ],
+  },
+
+  pricing: {
+    group: '기업소개', title: '가격 정책',
+    lede: '엔터프라이즈 디지털 트윈 툴은 전부 "견적 문의"다. 우리는 가격을 공개한다 — 설비투자(평균 18억 원)의 0.2% 수준으로, 로봇이 아니라 발주 전 판단 근거를 판다.',
+    stats: [
+      ['33', '만 원/월', '중견기업 구독 — 연 396만 원'],
+      ['250', '만 원/건', '중소기업 검증 리포트'],
+      ['1/40', '', '상용 OLP 라이선스 대비 도입 비용'],
+      ['82', '%', '품종 전환 연 4회 기준 연간 운영비 절감'],
+    ],
+    frame: FIG('pricing3', ''),
+    steps: [
+      { t: '가격은 상향식으로 산정했다', d: '인건비·연산비·개발비 상각을 공표 통계 기준으로 합산했다. 설비투자 대비 0.2%라는 비율은 목표가 아니라 이 합산의 결과다.',
+        b: ['특급기술자 일 단가 — 국가승인통계 제372001호 (2026년 적용)', '도입 1개월 내 투자 회수 — 품종 전환 연 4회 기준'],
+        f: FIG('calc250', '') },
+      { t: '힘 제어 검증은 폴리트윈만 지원한다', d: '상용 OLP 는 어디로 갈지(경로)는 다루지만 얼마나 누를지(힘)는 다루지 않는다. 연마는 접촉력이 품질을 결정하는 공정이라, 이 지점이 기존 솔루션의 공백이다.',
+        b: ['힘 제어 검증 포함 + 상용 라이선스 대비 약 1/40 가격', '적용 범위를 중소기업까지 확장'],
+        f: FIG('compete', '') },
+      { t: '시장과 결제 경로', d: '하드웨어(로봇)보다 검증 소프트웨어 레이어가 빠르게 큰다. 국내에서는 스마트공장 구축 지원사업이 실질적 결제 수단이고, 우리 가격은 그 예산 한도 안에 여유 있게 들어간다.',
+        b: ['정부형 지원 최대 2억 원 · 상생형 AI 트랙 최대 5억 원', '구독·리포트 모두 지원사업 예산 한도 이내', '설비 발주 전에 검증부터 — 영업 메시지도 이 한 줄이다'],
+        f: FIG('cagr', '두 시장의 연평균 성장률 — 로봇 하드웨어 11.7% 대 검증 소프트웨어 37.6%') },
+    ],
+    /* 성장률(단계 03)을 읽은 뒤에 규모를 본다. 순서가 뒤집히면
+       "얼마짜리 시장인가" 가 "왜 이 레이어인가" 보다 먼저 나온다 */
+    detail: [FIG('market', '시장 규모 — 출처: Fortune Business Insights(2026) · Allied Market Research(2026)')],
+  },
+
+  /* ── SOLUTION ────────────────────────────── */
+  polishing: {
+    group: 'SOLUTION', title: '폴리싱',
+    lede: '차체 표면을 스캔하고, 경로를 만들고, 일정한 힘으로 연마하고, 결과를 리포트로 남긴다. 파라미터만 바꿔 다시 실행할 수 있다.',
+    /* 원본은 3분짜리다. 여기서는 구간만 반복한다 — start·end 만 바꾸면 된다 */
+    /* 원본이 Isaac Sim 뷰포트 화면 녹화라 앱 UI 가 같이 찍혔다.
+       1210x666 원본에서 실측한 테두리: 좌 6 · 상 34 · 우 34 · 하 2 px.
+       (오른쪽은 뷰포트 패널 경계라 왼쪽보다 훨씬 두껍다 — 대칭이 아니다)
+       여기에 2px 씩 여유를 얹었다 */
+    video: VID('polishing.webm', '가상 작업장 폴리싱 실행',
+               { start: 0, end: 20, w: 1210, h: 666, crop: [8, 34, 36, 4] }),
+    frame: FIG('scope', '광택 공정 6단계와 자동화 범위 — 공정 구분은 숙련공 교육자료 「자동차 광택」 3장'),
+    /* 단계를 읽은 뒤에 보는 상세. 앞에 두면 단계보다 먼저 읽힌다 */
+    detail: [
+      IMG('wide_path.webp', '경로 생성 6단계 — 작동 범위 · 법선 추정 · 연속성 · 경계 · 회전 범위 · 충돌 · 05 패널의 축은 원본 실행 6,704점 기준'),
+      FIG('blind', 'Blind Spot 진단 — 판정 원리와 진단 결과'),
+    ],
+    stats: [
+      ['9', '시점', '깊이 카메라 스캔'],
+      ['813', '개', '자동 생성 웨이포인트'],
+      ['1.5', 'N', '목표 접촉력'],
+      ['4', '종', '사전 검증 리포트'],
+    ],
+    steps: [
+      { t: '차체 형상 스캔', d: '9시점 깊이 카메라로 차체를 촬영하고 포인트 클라우드를 ICP 로 정합한다. 배경을 제거하고 표면을 복원해 작업 대상 형상을 확정한다.',
+        b: ['9시점 촬영 · ICP 정합', '정합 오차·누락면 검출'],
+        f: IMG('crop_scan.webp', '01 스캔 — 3D 포인트 클라우드') },
+      { t: '경로 생성', d: 'KDTree 기반으로 국소 평면과 법선을 추정해 연마 도구가 표면에 직교하도록 래스터 경로를 만든다. 차량 경계·IK 도달성·충돌을 검증해 경로를 확정한다.',
+        b: ['패드 간격 자동 산정 (150 mm 패드 40% 중첩)', '경로 필터링 5단계 · 웨이포인트 813개'],
+        f: IMG('crop_path.webp', '02 경로 — 국소 평면·법선 추정') },
+      { t: '연마 깊이 한계', d: '광택은 도장면 최상층인 클리어코트만 깎아내는 작업이다. 그 아래 베이스코트를 건드리면 연마로는 되돌릴 수 없고 도색으로 넘어간다. 접촉력 상한과 패스 구성은 이 한 층의 두께 안에서 정해진다.',
+        b: ['연마 대상 = 클리어코트 한 층', '손상 3단계 — 제거 가능 / 일부 가능 / 도색 영역', '클리어코트 두께 50–70 µm · 1회 광택당 제거 약 5 µm — 숙련공 인터뷰 채록 (2026-08-28)'],
+        f: FIG('paint', '도장면 단면과 손상 깊이 — 층 두께는 도해 비율, 판정 기준은 숙련공 교육자료 「자동차 광택」') },
+      { t: '힘 제어 연마', d: '가상 스프링·감쇠 순응 접촉으로 목표 접촉력을 유지하며 연마한다. 제거량은 Preston 모델로 계산하고 Ansys 물리 환경과 교차 검증했다.',
+        b: ['목표 접촉력 1.5 N 추종 · 유지 범위 3–8 N 검증 중', 'Preston 제거량 모델 (MRR = k<sub>p</sub>·P·V)'],
+        f: FIG('force', '03 힘 제어 — 접촉력 추종, 초기 실행 984 스텝') },
+      { t: '검증·리포트', d: '곡률이 급해 패드가 닿지 못하는 Blind Spot 을 실행 전에 좌표로 특정하고, 도달 영역·제거량 히트맵 등 사전 검증 리포트 4종을 산출한다.',
+        b: ['Blind Spot 좌표 특정 (임계 곡률반경 = 패드 반경)', '발주 전 사전 검증 리포트 4종'],
+        f: IMG('crop_blindspot.webp', '04 검증 — Blind Spot 진단') },
+    ],
+  },
+  deburring: {
+    group: 'SOLUTION', title: '디버링',
+    lede: '가공 후 남은 버(burr)를 모서리를 따라 제거한다. 폴리싱과 같은 스캔·경로·힘 제어 파이프라인 위에서 동작하며, 현재 공정 확장 로드맵에 있다.',
+    steps: [
+      { t: '스캔 · 엣지 검출', d: '부품을 스캔해 포인트 클라우드를 만들고, 곡률 변화가 급한 모서리에서 버 발생 후보 구간을 검출한다.',
+        b: ['다시점 스캔 · 정합', '곡률 기반 엣지 후보 추출'],
+        f: IMG('crop_scan.webp', '스캔 파이프라인 — 폴리싱과 공유') },
+      { t: '엣지 경로 생성', d: '검출된 모서리를 따라 공구 자세를 유지하는 경로를 만들고, 도달성과 충돌을 사전 검증한다.',
+        b: ['모서리 추종 경로', 'IK 도달성·충돌 검증'],
+        f: IMG('crop_boundary.webp', '경계를 따르는 경로 생성') },
+      { t: '힘 제어 디버링', d: '버 크기에 따라 제거 저항이 달라지므로, 순응 제어로 접촉력을 일정하게 유지하며 제거한다.',
+        b: ['순응 접촉 힘 제어', '구간별 이송 속도 조절'],
+        f: IMG('crop_deburr_run.webp', '디버링 실행 — 공구 앞은 버, 뒤는 챔퍼 · 로드맵 4단계') },
+      { t: '검증 · 리포트', d: '엣지 잔여 구간을 좌표로 리포트하고, 통과 기준을 만족한 파라미터를 프리셋으로 저장한다.',
+        b: ['잔여 버 좌표 리포트', '파라미터 프리셋 저장'],
+        f: FIG('burr', '엣지·홀 모서리별 잔여 버 판정 — 리포트 형식 예시, 수치는 실측이 아니다') },
+    ],
+  },
+  sanding: {
+    group: 'SOLUTION', title: '샌딩',
+    lede: '도장 전 표면을 단계별 입도로 고르게 갈아낸다. 실제 샌딩 킷 3D 자산이 준비되어 있으며, 폴리싱 파이프라인을 공유한다.',
+    steps: [
+      { t: '스캔 · 영역 분할', d: '표면을 스캔하고 곡률·부위 기준으로 작업 영역을 분할한다. 영역마다 요구 거칠기가 다르다.',
+        b: ['부위별 영역 분할', '영역별 목표 거칠기 설정'],
+        f: IMG('crop_scan.webp', '스캔 · 영역 분할 — 스캔 파이프라인은 폴리싱과 공유') },
+      { t: '영역별 경로 생성', d: '분할된 영역마다 패드 중첩률과 이송 속도를 달리한 래스터 경로를 만든다.',
+        b: ['영역별 래스터 경로', '중첩률·속도 개별 설정'],
+        f: IMG('crop_path.webp', '국소 평면·법선 추정 — 영역별 경로의 기준면') },
+      { t: '단계별 연마', d: '거친 입도에서 고운 입도로 단계를 올려가며 같은 경로를 반복한다. 각 단계의 접촉력을 힘 제어로 유지한다.',
+        b: ['입도 단계별 반복 실행', '단계별 접촉력 프로파일'],
+        f: IMG('crop_sand_grit.webp', '입도 단계별 연마 — 거친 입도에서 고운 입도로, 도장 전이라 무광을 유지한다 · 로드맵 4단계') },
+      { t: '표면 품질 검증', d: '단계 종료마다 표면 상태를 확인하고, 미달 영역만 골라 재실행한다.',
+        b: ['영역 단위 품질 판정', '미달 영역 선택 재실행'],
+        f: IMG('crop_sand_quality.webp', '영역 단위 품질 판정 — 미달 영역만 재실행 · 로드맵 4단계') },
+    ],
+  },
+  pickplace: {
+    group: 'SOLUTION', title: 'Pick & Place',
+    lede: '연마 공정 전후의 부품 이송을 같은 가상 작업장 안에서 다룬다. 표면처리 셀과 이송 셀을 하나의 시뮬레이션으로 검증하는 것이 목표다.',
+    steps: [
+      { t: '대상 인식', d: '작업대 위 부품의 위치와 자세를 인식한다. 스캔 파이프라인의 포인트 클라우드 처리를 재사용한다.',
+        b: ['위치·자세 추정', '포인트 클라우드 처리 재사용'],
+        f: IMG('crop_pose.webp', '위치·자세 추정 — 포인트 클라우드와 부품별 좌표계 · 스캔 파이프라인 재사용') },
+      { t: '파지 계획', d: '부품 형상에서 파지 후보를 만들고, 도달성과 충돌을 검증해 파지 자세를 확정한다.',
+        b: ['파지 후보 생성', 'IK 도달성·충돌 검증'],
+        f: FIG('collision', '충돌 가능성 확인 — 파이프라인 공유') },
+      { t: '이송 실행', d: '들어 올리고, 옮기고, 내려놓는다. 경로는 주변 설비와의 간섭을 피해 생성된다.',
+        b: ['간섭 회피 이송 경로', '셀 간 연계 시퀀스'],
+        f: VID('pick-place.mp4', '이송 실행 — 들어 올리고, 옮기고, 내려놓는다 (21초, 소리 있음)') },
+      { t: '사이클 검증', d: '이송을 포함한 전체 사이클 타임을 계측하고, 병목 구간을 리포트한다.',
+        b: ['사이클 타임 계측', '병목 구간 리포트'],
+        f: FIG('cycle', '사이클 타임 계측 — 구간 이름은 이송 실행 절차 그대로, 길이는 형태 예시') },
+    ],
+  },
+
+  roadmap: {
+    group: 'SOLUTION', title: '확장 로드맵',
+    lede: '이식되는 것은 결과물이 아니라 절차다. 계측 → 재현 → 판정 3단계가 성립하면 대상 공정·설비·품목은 교체할 수 있다. 곡면 차체는 접촉 공정 중 가장 까다로운 대상이라, 여기서 세운 절차는 평판·저접촉 공정으로 갈수록 요구 조건이 완화된다.',
+    frame: FIG('roadmap4', ''),
+    steps: [
+      { t: '다음 단계는 이미 목록에 있다', d: '현직 광택 숙련공 인터뷰(2026-08-28)에서 확보한 항목이 강화학습 확장 과제로 등록돼 있다. 예산은 클리어코트 한 층의 두께다.',
+        b: ['도막 예산 — 클리어코트 50–70 µm · 1회 제거 약 5 µm · 누적 40 µm 초과 경고', '온도(마찰열) 상태변수 — 낮으면 연마가 안 되고 100 °C 에 가까우면 도장이 상한다', 'RPM 을 고정값(3,000)에서 가변 행동변수로 · 엣지 구간 규칙 분리'],
+        f: FIG('paint', '도장면 단면 — 확장 과제의 예산은 클리어코트 한 층 안에 있다') },
+      { t: '2·3·4단계를 굴릴 재원이 밖에 있다', d: '확장 단계는 재질 시험 가공과 모션캡처 실측을 요구한다 — 우리 자체 예산으로는 감당할 수 없는 항목이다. 2026년 정부 AI 예산이 9.9조 원으로 전년의 3배가 되면서, 그 비용을 댈 과제 공고가 우리가 가려는 방향과 같은 곳을 겨냥하고 있다.',
+        b: ['산업부 M.AX 1조 1,000억 원(2배 확대) — 2단계 재질별 프로파일 확장이 여기 걸린다', '중기부 제조AI 특화 스마트공장 800억 원 · 400개 과제 — 3단계 숙련공 실측 연계의 현장 확보처', '피지컬 AI 정책금융 약 16조 원 — 4단계 타 공정 확장의 자금 경로'],
+        f: FIG('policyfit', '') },
+    ],
+  },
+
+  /* ── 기술혁신 ─────────────────────────────── */
+  'physical-ai': {
+    group: '기술혁신', title: 'Physical AI',
+    lede: '움직임만 흉내 내는 시뮬레이션이 아니라, 접촉력·마찰·제거량까지 계산하는 물리 기반 가상 작업장이다. NVIDIA Isaac Sim 위에서 ROS 2 로 명령과 측정값이 실시간으로 오간다.',
+    frame: IMG('wide_system.webp', '전체 구성 — 작업자 Web UI 와 가상 작업장'),
+    steps: [
+      { t: '물리 엔진 위의 작업장', d: '실제와 같은 물리 조건으로 차체·로봇·연마 도구를 재현한다. 6축 로봇 팔은 실제 Doosan M0609 의 링크 길이를 그대로 쓰고, 명령과 측정값은 ROS 2 통신망으로 실시간 왕복한다.',
+        b: ['NVIDIA Isaac Sim 물리 환경', 'ROS 2 실시간 통신', '실제 로봇 형상 그대로 — 아래 모델은 시뮬레이터가 쓰는 것과 같은 파일이다'],
+        f: FIG('robot3d', '') },
+      { t: '접촉을 수식으로 다룬다', d: '연마 패드와 표면의 접촉은 가상 스프링·감쇠 모델로, 제거량은 Preston 방정식으로 계산한다. 회전 속도·이동 속도·누르는 힘이 전부 변수다.',
+        b: ['순응 접촉 모델 F = k·침투 – c·속도', 'Preston 제거량 MRR = k<sub>p</sub>·P·V'],
+        f: FIG('preston', '시뮬레이션 적용 — Preston 방정식') },
+      { t: '외부 물리 환경과 교차 검증', d: '시뮬레이션 파라미터를 Ansys 물리 환경에서 접촉력 기준으로 비교 검증한다. 자체 수치가 아니라 검증된 수치를 쓴다.',
+        b: ['Ansys FEA 교차 검증 파이프라인', '패널 변형량 대조'],
+        f: IMG('crop_ansys.webp', 'Ansys 사전 검증') },
+      { t: '일정한 힘을 유지한다', d: '목표 접촉력을 넘지 않으면서 표면에 일정하게 힘을 가하도록 힘 제어를 구현했다. 결과는 시간축 그래프로 남는다.',
+        b: ['목표 1.5 N 추종 · 유지 범위 3–8 N 검증 중', '경로 전 구간 접촉력 시간축 기록'],
+        f: FIG('force', '힘 제어 — 접촉력 유지, 초기 실행 984 스텝') },
+    ],
+  },
+  rl: {
+    group: '기술혁신', title: '강화학습',
+    lede: '스캔 한 번이 48개의 학습 환경으로 불어난다. 추가 스캔 없이 조건만 바꿔 데이터셋을 늘리고, 보상을 최대화하는 정책을 학습시킨다.',
+    frame: IMG('wide_rl_overview.webp', '스캔 1회 → 학습 환경 48개 — 환경 생성부터 자산화까지'),
+    stats: [
+      ['48', '개', '스캔 1회로 만드는 학습 환경'],
+      ['3', '종', '경로 패턴 (오비탈·스파이럴·리니어)'],
+      ['4', '단계', '이송 속도 30–60%'],
+      ['4', '단계', '누름 강도 1.0–2.5 N'],
+    ],
+    steps: [
+      { t: '환경 생성', d: '한 번의 스캔에 경로 패턴 3종 × 이송 속도 4단계 × 누름 강도 4단계를 조합해 48개 학습 환경을 만든다.',
+        b: ['3 × 4 × 4 = 48개 환경', '깊이 카메라 9시점 포인트 클라우드 정합'],
+        f: FIG('rlenv', '01 환경 생성 — 표면 형상 3종 × 압력 4단계 × 속도 4단계') },
+      { t: '정책 학습', d: '48개 환경에서 보상을 최대화하는 정책을 학습한다. 보상은 접촉력과 표면 거칠기 목표에서 사이클 타임을 뺀 값이다.',
+        b: ['R = 접촉력 + 표면 거칠기 목표 – 사이클 타임', '학습이 진행될수록 숙련공 대비 검증 오차 감소'],
+        f: FIG('rlpolicy', '02 정책 학습 — 보상 함수와 검증 오차 추이') },
+      { t: '전문가 평가', d: '숙련공이 연마 결과를 보고 평가한다. 경로 적절성·연마 균일성·접촉 안정성·작업 품질 네 항목이다. 피드백은 보상 재설계로 되돌아간다.',
+        b: ['숙련공 4항목 평가', '피드백 → 파라미터 보정·보상 재설계 → 재학습'],
+        f: FIG('rleval', '03 전문가 평가 — 숙련공이 보는 네 항목') },
+      { t: '자산화', d: '통과한 정책만 기술 자산으로 등록한다. 전문가 점수 기준 미달은 제외된다.',
+        b: ['통과 정책만 등록 (#07 85.6 · #12 91.7 · #23 95.0 …)', '공정별 정책·조건 DB 등록'],
+        f: FIG('rlasset', '04 자산화 — 조합별 전문가 점수와 판정') },
+    ],
+  },
+  'expert-db': {
+    group: '기술혁신', title: '숙련공 DB',
+    lede: '검증을 통과한 정책과 조건이 재사용 가능한 디지털 자산으로 쌓인다. 숙련공의 판단 기준이 다음 공정의 출발점이 된다.',
+    frame: IMG('wide_loop.webp', '공정 6단계 — 파라미터 설정에서 기술 보존까지'),
+    steps: [
+      { t: '노하우가 물리량으로 남는다', d: '사람이 연마할 때 남는 측정값은 0개다. 디지털 트윈에서 같은 작업을 하면 접촉력·이송속도·공구 자세·체류 시간이 시간 단위 숫자로 남는다.',
+        b: ['작동 시간에 따라 17개 물리량 누적', '접촉력 중앙값 1.50 N · 체류 시간 중앙값 4.0 초'],
+        f: FIG('knowhow', '노하우 → 물리량 — 수치는 기획서 기록값, 파형은 형태 예시') },
+      { t: '숙련공이 등록을 결정한다', d: '강화학습이 만든 정책도 숙련공 평가를 통과해야 DB 에 들어간다. 점수 미달 조합은 제외된다.',
+        b: ['전문가 점수 기준 등록/제외 판정', '공정별 정책·조건 DB'],
+        f: FIG('rlasset', '통과 정책만 자산으로 등록') },
+      { t: '등록된 데이터는 교재가 된다', d: '어깨너머 구전에 의존하던 전수가 수치·화면 기반 훈련으로 옮겨간다. 숙련공은 교재의 저자이자 검증 기준으로 계속 쓰이고, 실물 설비가 없는 중소 협력사도 통과 구성안 프로파일을 공유받아 자사 공정을 확인한다.',
+        b: ['신입 숙련 3–5년 → 정답 파라미터가 이미 등록됨', '분진·소음 3D 기피 직무 → AX 엔지니어 직무로 연결'],
+        f: FIG('transfer', '숙련 기술 전승 방식 비교 — 기획서 4.3 사회 [표 7]') },
+      { t: '민감 데이터는 분리 보관한다', d: '공유 가능한 이벤트 로그와, 관절 각도·궤적 같은 민감 정보를 이원화한다. 민감 데이터는 고객사의 자산이다.',
+        b: ['로그 이원화 — 공유 가능 / 공유 불가', '이벤트 타임스탬프 기록'],
+        f: FIG('logsplit', '로그 이원화') },
+      { t: '권한으로 접근을 나눈다', d: '조회·설정·제어 권한을 역할별로 분리한다. 협력사는 조회만, 관리자는 제어까지 — 상황에 따라 범위를 조절한다.',
+        b: ['조회 / 설정 / 제어 3단계 권한', '역할별 접근 분리'],
+        f: FIG('rbac', '접근 권한 역할별 분리') },
+      { t: '인증 심사까지 계획에 있다', d: '로그 이원화와 권한 분리는 통제 항목의 앞 단계다. ISO 27001 Annex A 통제항목 기준으로 정보자산 식별부터 인증 심사까지 4단계로 진행한다.',
+        b: ['정보자산 식별·위험평가 → 정책 수립 → 내부 심사 → 인증 심사', 'ISO 27001 Annex A 통제항목 기준'],
+        f: FIG('security4', '데이터 보안 대응 4단계 — 제출본 3.4 [그림 11]') },
+    ],
+  },
+
+  safety: {
+    group: '기술혁신', title: '안전 검증',
+    lede: '위험은 가상이 아니라 실물에 있다. 폴리트윈의 산출물은 실기 로봇에서 실행되는 경로·파라미터다 — 그래서 검증되지 않은 구간은 통과시키지 않고, 좌표와 함께 미검증으로 표기한다.',
+    stats: [
+      ['0', '회', '셀 내부 티칭 — 스캔 1회로 경로 자동 생성'],
+      ['3–8', 'N', '연마 접촉력 — 대역 이탈 시 실행 차단'],
+      ['12.3', '%', 'ISO/TS 15066 최저 한계(안면 65 N) 대비 상한'],
+      ['5', '종', '실행 전 차단 항목'],
+    ],
+    frame: FIG('safegate', ''),
+    steps: [
+      { t: '리스크 5종을 실행 전에 차단한다', d: '기존 방식의 위험은 전부 실물에서 발견됐다 — 발견 시점에 이미 노출된 뒤다. 폴리트윈은 다섯 항목 모두를 실행 전 검증으로 옮긴다.',
+        b: ['도입 기업은 이 판정 결과를 ISO/TS 15066 위험성 평가의 사전 검증 자료로 그대로 제출', '검증 안 된 구간은 통과가 아니라 미검증으로 표기'],
+        f: FIG('risk5', '') },
+      { t: '규격 기준선 — ISO/TS 15066', d: '연마는 사람과 같은 공간에서 이뤄지는 협동로봇 공정이다. 정상 작업 대역 3–8 N 은 규격이 정한 인체 허용 한계에서 한 자릿수 배율만큼 떨어져 있다. 실제 위험은 이상 상황 — 과압입·경로 이탈·급가속 — 이고, 그것이 앞의 게이트가 걸러내는 대상이다.',
+        b: ['인체 29개 부위별 한계 — 안면 65 N · 손 140 N · 하완 160 N', '숙련공이 겪던 사고 — 케이블 말림·마찰 화상 — 는 셀 분리로 구조적으로 제거 (인터뷰 채록 2026-08-28)'],
+        f: FIG('iso15066', '규격 허용 한계 대비 연마 접촉력 — ISO/TS 15066:2016 Annex A') },
+      { t: '멈춰도 이어서 간다', d: '오류는 없앨 수 없으니 복구를 설계한다. 로그를 단계별로 분리 저장해 중단 지점부터 재개하고, 제어와 시각화 통신을 분리해 영상 오류가 로봇 제어를 건드리지 못하게 한다.',
+        b: ['스캔 / 경로 생성 / 실행 로그 단계별 분리 저장', '제어 통신 / 시각화 통신 분리'],
+        f: FIG('recover', '') },
+    ],
+  },
+
+  /* ── PR ──────────────────────────────────── */
+  news: {
+    group: 'PR', title: 'News', lede: '보도자료와 소식. 최신순.',
+    posts: [
+      ['2026-08-28', '숙련공 인터뷰 — 도막 예산과 열 관리가 목록에 올랐다',
+       '현직 광택 숙련공 인터뷰에서 클리어코트 두께 50–70 µm, 1회 광택당 제거 약 5 µm, 엣지 가압 규칙, RPM 가변, 마찰열 관리 등 반영 항목을 확보했다. 강화학습 정책과 발표 자료 양쪽의 확장 과제로 등록됐다.'],
+      ['2026-08-23', '제8회 K-디지털 트레이닝 해커톤 보도자료 발행',
+       '"연마 숙련공의 기술을 따라하는 가상 로봇 팔" — 3D 스캔부터 경로 생성, 힘 제어 폴리싱, 검증 리포트까지 전 과정을 자동화한 공정 디지털 트윈으로 소개됐다. 사람이 정하는 값은 차종·부위·목표 접촉력뿐이다.'],
+      ['2026-08-10', '예선 심사과제 제출 — 팀 CACADACA',
+       '폴리트윈(PolyTwin): Isaac Sim · ROS 2 기반 숙련공 암묵지 재현 디지털 트윈 플랫폼. 정용준·신현호·부승언·김두용 4인. 첫 적용 공정은 연마이고, 여기서 세운 절차를 제조 공정 전반으로 확장한다.'],
+    ],
+  },
+  media: {
+    group: 'PR', title: 'Media', lede: '영상과 시연 자료. 실행 화면 둘은 녹화 원본이고, 히어로 필름 하나만 연출 컷이다.',
+    frame: [
+      VID('polishing.webm', '가상 작업장 폴리싱 실행 — Isaac Sim 화면 녹화 · 로봇 3대 협동',
+          { w: 1210, h: 666, crop: [8, 34, 36, 4] }),
+      VID('pick-place.mp4', '이송 실행 — 가상 작업장 시뮬레이션 (21초, 소리 있음)'),
+      VID('hero.mp4', '랜딩 히어로 필름 — 시네마틱 프로덕트 컷'),
+    ],
+  },
+  blog: {
+    group: 'PR', title: 'Blog', lede: '개발 과정의 기록. 잘 된 것보다 안 됐던 것을 먼저 적는다.',
+    posts: [
+      ['2026-08-27', '접촉이 가짜였다 — 폴리싱 v5 힘 제어 디버깅기',
+       '패드가 차체에 닿지 않는데 접촉력이 잡히던 원인은 "투명 가상 스프링"이었다. 가상 힘이 실제 패드 위치가 아니라 명령값 기준으로 계산돼 제어기를 속이고 있었다. 실측 센서가 잡힐 때만 힘 제어로 전환하고 어드미턴스 댐핑을 이식해, SR 로봇의 무한 스킵 루프를 0회로 줄였다.'],
+      ['2026-08-20', '패드는 왜 통통 튀는가',
+       '강체끼리의 접촉에는 순응이 없다. PhysX 순응 접촉이 동작하지 않는 조건에서 접촉 순간 raw 물리력이 수백 N 까지 튀는 이유와, 임계감쇠 튜닝·마찰 제거로 그것을 억눌러 온 과정. 남은 답은 soft-body 패드다.'],
+      ['2026-08-05', '경로 간격은 눈대중이 아니다',
+       '줄 간격 = 패드 지름 × (1 – 오버랩). 150 mm 패드에 40% 오버랩이면 9 cm. 이 한 줄이 커버리지와 사이클 타임을 동시에 정하고, 로봇별 엔드이펙터에 따라 0.09 / 0.05 / 0.03 m 로 갈린다.'],
+    ],
+  },
+  faq: {
+    group: 'PR', title: 'FAQ', lede: '심사와 커피챗에서 받았거나 준비한 질문. 답은 짧게, 근거는 수치로.',
+    qa: [
+      ['숙련공 데이터는 실측인가?',
+       '아직 아니다. 폴리싱 숙련공의 접촉력 공개 데이터셋은 존재하지 않아(2026-08 조사 기준), 문헌에 보고된 숙련공 특성으로 만든 합성 참조선과 대조한다. 모션캡처 실측 연계가 로드맵 3단계다 — 이 구분을 숨기지 않는 것이 원칙이다.'],
+      ['시뮬레이션과 현실의 차이는 어떻게 메우나?',
+       '같은 접촉 조건을 Ansys 물리 환경에 넣어 교차 검증하고, 오차 5% 초과 구간은 자동 승인을 금지한다. 그래도 남는 차이 — RMPFlow 추종 지연, 강체 슬램 — 는 남은 과제로 명시한다.'],
+      ['왜 하필 연마인가?',
+       '2023년 연간 설치 기준 가공·연마 담당 로봇은 6천 대, 전체의 2%다(IFR World Robotics). 로봇에게 유독 까다로운 공정이라는 뜻이고, 접촉력이 품질을 결정하는 공정이라 3세대(물리력) 시뮬레이션이 아니면 검증할 수 없다.'],
+      ['기존 OLP 툴과 뭐가 다른가?',
+       '상용 OLP 는 경로(어디로 갈지)만 다룬다. 폴리트윈은 힘(얼마나 누를지) 검증까지 포함하고, 가격은 상용 라이선스의 약 1/40 이다.'],
+      ['가격 근거는 무엇인가?',
+       '상향식 합산이다. 특급기술자 공수(국가승인통계 단가) + GPU 연산비 + 개발비 상각 + 마진 30% = 리포트 1건 약 250만 원. 설비투자 대비 0.2%라는 비율은 목표가 아니라 이 합산의 결과다.'],
+      ['숙련공을 대체하는 것 아닌가?',
+       '반대다. 숙련공이 최종 심사위원이다. 강화학습이 만든 정책도 숙련공 평가를 통과해야 DB 에 등록되고, 그 데이터는 신입 교육 교재가 된다. 은퇴와 함께 사라지던 판단 기준을 남기는 쪽이다.'],
+      ['핵심 데이터 보안은?',
+       '운영 이벤트 로그와 핵심 기술 로그를 분리 저장하고(로그 이원화), 조회·설정·제어 권한을 역할별로 나눈다. ISO 27001 Annex A 통제항목 기준 인증 심사까지 4단계 계획이 있다.'],
+      ['다음 단계는?',
+       '숙련공 인터뷰(2026-08-28)에서 확보한 항목들 — 도막 잔량 기반 종료 조건, 온도(마찰열) 상태변수, RPM 가변, 엣지 구간 규칙 — 을 강화학습 정책에 반영하는 것. 그 다음이 유리·위생도기·금형으로의 재질 확장이다.'],
+    ],
+  },
+};
+
+/* ══ 렌더 ══ */
+(function () {
+  const slug = new URLSearchParams(location.search).get('p') || 'polishing';
+  const page = PAGES[slug] || PAGES.polishing;
+
+  document.title = page.title + ' — PolyTwin';
+  /* 슬러그 15종이 같은 설명을 달고 나가지 않게 — 리드문을 그대로 쓴다 */
+  if (page.lede) document.querySelector('meta[name="description"]')?.setAttribute('content', page.lede);
+  document.getElementById('crumbGroup').textContent = page.group;
+  document.getElementById('crumbPage').textContent = page.title;
+  document.getElementById('pageTitle').textContent = page.title;
+  document.getElementById('pageLede').textContent = page.lede || '';
+
+  /* 메뉴에서 현재 페이지 표시 + 해당 그룹 펼침 */
+  document.querySelectorAll('.m-sub a').forEach((a) => {
+    if (a.getAttribute('href') === 'sub.html?p=' + slug) {
+      a.setAttribute('aria-current', 'page');
+      a.closest('.m-group').open = true;
+    }
+  });
+
+  const body = document.getElementById('pageBody');
+  /* 구간이 있으면 #t= 로 알려준다 — 브라우저가 그 지점부터 Range 로 받아온다.
+     끝 지점 강제는 아래 재생 스크립트가 맡는다 (브라우저마다 편차가 있다) */
+  const videoTag = (f, cls) => {
+    const [vw, vh] = f.dim;
+    const frag = f.start != null ? '#t=' + f.start + (f.end != null ? ',' + f.end : '') : '';
+    const win = f.start != null ? ` data-start="${f.start}"` + (f.end != null ? ` data-end="${f.end}"` : '') : '';
+    /* 구간 반복은 스크립트가 한다. loop 속성과 겹치면 브라우저마다 다르게 논다 */
+    const tag = `<video class="${cls}" src="${f.vid}${frag}" width="${vw}" height="${vh}"${win}` +
+      (f.start == null ? ' loop' : '') +
+      ` controls muted playsinline preload="metadata" aria-label="${esc(f.cap)}"></video>`;
+    if (!f.crop) return tag;
+    /* 남길 영역 기준으로 비율을 잡고, 영상을 그만큼 키워 밀어넣는다.
+       퍼센트는 컨테이너 기준이라 어떤 폭에서도 같은 자리가 잘린다 */
+    const [cl, ct, cr, cb] = f.crop;
+    const kw = vw - cl - cr, kh = vh - ct - cb;
+    return `<div class="vcrop" style="` +
+      `aspect-ratio:${kw}/${kh};` +
+      `--vw:${(vw / kw) * 100}%;--vh:${(vh / kh) * 100}%;` +
+      `--vx:${(-cl / kw) * 100}%;--vy:${(-ct / kh) * 100}%">${tag}</div>`;
+  };
+  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = '';
+
+  if (page.stats) {
+    html += '<section class="stats" aria-label="핵심 수치"><div class="stats__grid">' +
+      page.stats.map(([v, u, l]) =>
+        `<div><span class="stats__v">${esc(v)}<small>${esc(u)}</small></span><span class="label">${esc(l)}</span></div>`
+      ).join('') + '</div></section>';
+  }
+
+  /* 공정을 문장으로 쪼개기 전에 실제로 어떻게 도는지 한 번 보여준다 */
+  if (page.video) {
+    const v = page.video;
+    const dur = v.start != null && v.end != null ? Math.round(v.end - v.start) + '초 구간 반복' : '';
+    html += `<figure class="lead">${videoTag(v, '')}` +
+      `<figcaption><b>${esc(v.cap)}</b>${dur ? `<span>${dur}</span>` : ''}</figcaption></figure>`;
+  }
+
+  /* 본문 폭을 다 쓰는 도해 띠. 네이티브 도해(FIG)와 기획서 도해(IMG)를
+     같이 받고, 한 장도 여러 장도 받는다.
+     frame 은 단계 앞 — 범위를 먼저 밝힌다.
+     detail 은 단계 뒤 — 단계를 읽은 뒤에 보는 상세다 */
+  const band = (src, label) => {
+    if (!src) return '';
+    return `<section class="frame" aria-label="${label}">` + [].concat(src).map((f) => {
+      /* cap 이 비면 캡션 줄을 아예 만들지 않는다 — 도해가 스스로 제목을 달고 있는 경우다 */
+      const cap = f.cap ? `<figcaption>${esc(f.cap)}</figcaption>` : '';
+      if (f.fig) return `<figure class="p-fig p-fig--wide">${FIGS[f.fig]()}${cap}</figure>`;
+      if (f.vid) return `<figure class="p-fig p-fig--wide">${videoTag(f, '')}${cap}</figure>`;
+      const [w, h] = f.dim || [1200, 800];
+      /* 세로가 긴 그림까지 띠 폭을 다 주면 좌우가 전부 레터박스가 된다 */
+      const tall = h > w ? ' p-fig--tall' : '';
+      return `<figure class="p-fig p-fig--wide${tall}">` +
+        `<img src="${f.img}" alt="${esc(f.cap || label)}" loading="lazy" width="${w}" height="${h}">${cap}</figure>`;
+    }).join('') + `</section>`;
+  };
+  html += band(page.frame, '개요 도해');
+
+  if (page.steps) {
+    html += '<section class="proc" aria-label="프로세스">' + page.steps.map((s, i) => {
+      const no = String(i + 1).padStart(2, '0');
+      const [w, h] = s.f.dim || [1200, 800];   /* img 경로에서만 쓴다 */
+      /* band() 와 같은 규칙 — cap 이 비면 캡션 줄을 만들지 않는다.
+         도해가 스스로 제목을 달고 있으면 아래 한 줄은 같은 말의 반복이다 */
+      const sCap = s.f.cap ? `<figcaption>${esc(s.f.cap)}</figcaption>` : '';
+      const fig = s.f.fig
+        /* 네이티브 도해 — 마크업이라 캡션도 텍스트로 붙는다 */
+        ? `<figure class="p-fig">${FIGS[s.f.fig]()}${sCap}</figure>`
+        : s.f.vid
+        /* 자동재생은 붙이지 않는다. 아래에서 reduced-motion 을 보고 정한다.
+           controls 는 항상 둔다 — 움직이는 것은 멈출 수 있어야 한다 */
+        ? `<figure class="p-fig">${videoTag(s.f, '')}${sCap}</figure>`
+        : s.f.img
+        ? `<figure class="p-fig"><img src="${s.f.img}" alt="${esc(s.f.cap || s.t)}" loading="lazy" width="${w}" height="${h}">` +
+          `${sCap}</figure>`
+        : `<figure class="p-fig"><div class="ph"><span class="label">${esc(s.f.ph)}</span></div></figure>`;
+      return `<article class="p-step">
+        <div class="p-txt">
+          <span class="p-no"><b>${no}</b><span class="label">Process</span></span>
+          <h2>${esc(s.t)}</h2>
+          <p>${esc(s.d)}</p>
+          <ul>${s.b.map((x) => `<li>${x}</li>`).join('')}</ul>
+        </div>
+        ${fig}
+      </article>`;
+    }).join('') + '</section>';
+  }
+
+  html += band(page.detail, '상세 도해');
+
+  /* 게시물 목록 — News · Blog. 날짜는 세로로 정렬되므로 tabular-nums (CSS) */
+  if (page.posts) {
+    html += '<section class="posts" aria-label="게시물">' + page.posts.map(([d, t, x]) =>
+      `<article class="post"><time datetime="${d}">${d}</time><h2>${esc(t)}</h2><p>${esc(x)}</p></article>`
+    ).join('') + '</section>';
+  }
+
+  /* 문답 — 질문을 한 번에 다 펼치지 않는다 */
+  if (page.qa) {
+    html += '<section class="qa" aria-label="자주 묻는 질문">' + page.qa.map(([q, a]) =>
+      `<details><summary>${esc(q)}</summary><p class="qa__a">${esc(a)}</p></details>`
+    ).join('') + '</section>';
+  }
+
+  if (page.empty) {
+    html += `<section class="empty">
+      <h2>${esc(page.title)}</h2>
+      <p>${esc(page.empty)}</p>
+      <a class="btn btn--ghost" href="index.html">홈으로 돌아가기</a>
+    </section>`;
+  }
+
+  html += `<div class="next">
+    <a class="btn btn--ghost" href="index.html">홈으로</a>
+    <a class="btn btn--ghost" href="console.html">콘솔 열기</a>
+  </div>`;
+
+  body.innerHTML = html;
+
+  /* ── 영상 ──────────────────────────────────────────────────
+     화면에 들어오면 틀고 벗어나면 멈춘다. 페이지를 열자마자
+     아래쪽 영상까지 재생하면 대역폭만 쓰고 아무도 안 본다.
+     ──────────────────────────────────────────────────────── */
+  const vids = body.querySelectorAll('video');
+  if (vids.length) {
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    /* 구간 반복 — 3분짜리 원본에서 필요한 20초만 돈다.
+       #t= 만으로는 끝 지점을 지키지 않는 브라우저가 있어서 여기서 강제한다 */
+    vids.forEach((v) => {
+      const a = parseFloat(v.dataset.start);
+      if (Number.isNaN(a)) return;
+      const b = parseFloat(v.dataset.end);
+      const rewind = () => { if (v.currentTime < a - 0.25 || (b && v.currentTime >= b)) v.currentTime = a; };
+      if (v.readyState >= 1) rewind(); else v.addEventListener('loadedmetadata', rewind, { once: true });
+      if (b) v.addEventListener('timeupdate', () => { if (v.currentTime >= b) v.currentTime = a; });
+    });
+
+    /* 화면에 들어오면 틀고 벗어나면 멈춘다. 페이지를 열자마자 아래쪽
+       영상까지 재생하면 대역폭만 쓰고 아무도 안 본다.*/
+    const io = 'IntersectionObserver' in window && new IntersectionObserver((rows) => {
+      rows.forEach((row) => {
+        const v = row.target;
+        if (row.isIntersecting && !still.matches) {
+          v.muted = true;                 /* 정책상 무음이어야 자동재생된다 */
+          v.play().catch(() => {});       /* 막히면 controls 로 틀면 된다 */
+        } else if (!v.paused) {
+          v.pause();
+        }
+      });
+    }, { threshold: 0.4 });
+    vids.forEach((v) => { if (io) io.observe(v); });
+
+    /* 중간에 설정을 바꾸면 즉시 따른다 */
+    still.addEventListener('change', () => {
+      if (still.matches) vids.forEach((v) => v.pause());
+    });
+  }
+})();
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/vendor/three.module.js",
+    "three/addons/": "./assets/vendor/"
+  }
+}
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════
+
+     이 페이지의 나머지 도해는 전부 마크업이다. three.js 는 #rb-stage
+     가 실제로 있을 때만 import 한다 — 다른 하위 페이지에서는
+     벤더 코드를 아예 받지 않는다.
+
+     카메라는 바운딩 스피어로 자동 프레이밍한다. 모델 스케일이 화면마다
+     다르므로 고정 좌표를 쓰면 안 된다.
+     ══════════════════════════════════════════════════════════════ -->
+<script type="module">
+(async () => {
+  const stage = document.getElementById('rb-stage');
+  if (!stage) return;                       /* 다른 페이지면 여기서 끝 */
+
+  const ph = document.getElementById('rb-ph');
+  const fail = (why) => {
+    if (ph) ph.innerHTML = '<b>로봇 팔을 불러오지 못했다</b><span>' + why + '</span>';
+  };
+
+  let THREE, GLTFLoader, MeshoptDecoder;
+  try {
+    THREE = await import('three');
+    ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
+    ({ MeshoptDecoder } = await import('./assets/vendor/meshopt_decoder.mjs'));
+  } catch (e) {
+    fail('WebGL 모듈을 읽지 못했다');
+    return;
+  }
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  /* 이 셋은 빼먹으면 즉시 티가 난다 —*/
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+
+  /* 환경맵 — 없으면 금속이 금속이 아니다.
+     밝은 띠 몇 개짜리 최소 스튜디오. 곡면이 각도를 훑으므로 낮은 앙각을 덮는다 */
+  const envScene = new THREE.Scene();
+  const panel = (x, y, z, w, h, i) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    m.material.color.multiplyScalar(i);
+    m.position.set(x, y, z);
+    m.lookAt(0, 0, 0);
+    envScene.add(m);
+  };
+  envScene.background = new THREE.Color(0x0b0d10);
+  panel(-3, 3.2, 2.5, 6, 3, 2.6);
+  panel(3.4, 1.6, -2.2, 5, 2.4, 1.5);
+  panel(0, 1.0, 4.2, 5, 2.0, 1.1);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.03).texture;
+
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 100);
+
+  /* 키 1 + 좌우 림 2, 강한 명암 대비 — 형상보다 조명이 중요하다 */
+  const key = new THREE.DirectionalLight(0xffffff, 3.0);
+  key.position.set(2.4, 6.5, 3.2);
+  const rimL = new THREE.DirectionalLight(0xbcd4ff, 1.5);
+  rimL.position.set(-7, 3.4, -4.5);
+  const rimR = new THREE.DirectionalLight(0xffd9c2, 1.1);
+  rimR.position.set(7.5, 2.6, -3.5);
+  const hemi = new THREE.HemisphereLight(0x8496ad, 0x080a0d, 0.5);
+  scene.add(key, rimL, rimR, hemi);
+
+  const pivot = new THREE.Group();
+  scene.add(pivot);
+
+  let gltf;
+  try {
+    gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+      .loadAsync('./assets/models/robot_arm.opt.glb');
+  } catch (e) {
+    fail('모델 파일을 읽지 못했다');
+    return;
+  }
+
+  const arm = gltf.scene;
+  /* 바운딩 스피어 기준 자동 프레이밍. 모델 스케일이 3자릿수 넘게
+     차이나므로 고정 좌표를 쓰면 안 된다 */
+  const box = new THREE.Box3().setFromObject(arm);
+  const sph = box.getBoundingSphere(new THREE.Sphere());
+  arm.position.sub(sph.center);             /* 원점으로 끌어온다 */
+  pivot.add(arm);
+
+  const fit = sph.radius / Math.sin((camera.fov * Math.PI) / 360);
+  camera.position.set(fit * 0.62, fit * 0.42, fit * 0.72);
+  camera.lookAt(0, 0, 0);
+  camera.near = fit / 100;
+  camera.far = fit * 12;
+  camera.updateProjectionMatrix();
+
+  stage.appendChild(renderer.domElement);
+  if (ph) ph.remove();
+
+  const resize = () => {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  };
+  resize();
+  addEventListener('resize', resize);
+
+  /* 모션 정지 — 예외 없음. 정지 상태에서도 한 프레임은 그린다 */
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  let raf = 0, spinning = false;
+  const draw = () => renderer.render(scene, camera);
+  const tick = () => { pivot.rotation.y += 0.0022; draw(); raf = requestAnimationFrame(tick); };
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; spinning = false; };
+  const start = () => {
+    if (raf || still.matches) { draw(); return; }
+    spinning = true; tick();
+  };
+
+  /* 화면 밖이면 돌리지 않는다 — 안 보이는 캔버스에 GPU 를 쓰지 않는다 */
+  const io = 'IntersectionObserver' in window
+    ? new IntersectionObserver((rows) => {
+        rows.forEach((r) => (r.isIntersecting ? start() : stop()));
+      }, { threshold: 0.15 })
+    : null;
+  io ? io.observe(stage) : start();
+
+  still.addEventListener('change', () => { if (still.matches) { stop(); draw(); } });
+})();
+</script>
+
+<!-- 본문 사전이 먼저 실려야 i18n.js 가 집어 간다 -->
+<script src="/assets/js/i18n-sub.js?v=2026-09-01c"></script>
+<script src="/assets/js/i18n.js?v=2026-09-01b"></script>
+<script src="/assets/js/auth-client.js?v=2026-09-01"></script>
+
+</body>
+</html>

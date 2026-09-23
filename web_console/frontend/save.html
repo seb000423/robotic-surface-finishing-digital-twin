@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(function () {
+  var u = function (p) { return new URL(p, location.href).href; };
+  window.__resources = {
+    three: u('/assets/vendor/three.module.js'),
+    gltfLoader: u('/assets/vendor/loaders/GLTFLoader.js'),
+    orbitControls: u('/assets/vendor/controls/OrbitControls.js'),
+    bufferGeometryUtils: u('/assets/vendor/utils/BufferGeometryUtils.js'),
+    'https://unpkg.com/react@18.3.1/umd/react.production.min.js': u('/assets/vendor/react.production.min.js'),
+    'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js': u('/assets/vendor/react-dom.production.min.js')
+  };
+})();
+</script>
+<script src="/assets/vendor/page-runtime.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  /* 이 화면에는 @font-face 가 없어서 Pretendard 를 부르기만 하고
+     실어 오지는 않았다. 시스템 폰트로 떨어지고 있었다. */
+  @font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+  /* 토큰 -
+     (1) 웹 UI. (4) 라이브러리와 같은 선언이다.*/
+  :root {
+    /* 표면 */
+    --bg-void:    #08090B;
+    --bg-void-ch: 8 9 11;
+    --bg-base:    #0E1216;
+    --bg-base-ch: 14 18 22;
+    --bg-panel:   #14181D;
+    --bg-raised:  #1A1E24;
+    /* 경계 */
+    --line:       #232830;
+    --line-hi:    #3B424C;
+    /* 텍스트 */
+    --text-hi:    #F2F4F7;
+    --text-mid:   #A8B0BA;
+    --text-lo:    #5F6873;
+    /* 액센트 - 1개 */
+    --accent:     #9BC33A;
+    --accent-ch:  155 195 58;
+    --accent-dim: #59721A;
+    /* 의미색 - 상태 전용 */
+    --ok:         #3DD68C;
+    --warn:       #FFB74D;
+    --warn-ch:    255 183 77;
+    --crit:       #E8232A;
+    --crit-ch:    232 35 42;
+
+    --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    /*  — mono 를 버리고 Pretendard 로 일원화했다.
+       IBM Plex Mono 는 선언만 있고 woff2 가 없어서 Consolas 로 떨어졌고,
+       Consolas 에 한글이 없어 한글은 다시 OS 기본꼴로 떨어졌다.
+       한 줄 안에서 글꼴이 셋으로 갈렸다. 자릿수 정렬은 body 의*/
+    --f-mono: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+    --r-sm: 2px;
+    --r-md: 4px;
+
+    --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --e-in:  cubic-bezier(0.4, 0, 1, 1);
+    --t-fast: 120ms;
+    --t-base: 200ms;
+    --t-slow: 400ms;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-void); overflow: hidden; }
+  body { font-family: var(--f-sans); -webkit-font-smoothing: antialiased; }
+  /* 숫자가 세로로 쌓이는 화면이다. 자릿수가 흔들리면 그것 하나로 아마추어가 된다 */
+  body { font-variant-numeric: tabular-nums; }
+  a { color: var(--text-mid); text-decoration: none; }
+  a:hover { color: var(--text-hi); }
+  input, textarea { font-family: inherit; }
+  input[type="text"], textarea { background: transparent; border: 1px solid var(--line); color: var(--text-hi); outline: none; }
+  input[type="text"]:focus, textarea:focus { border-color: var(--text-lo); }
+  input[type="range"].ahp { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; cursor: ew-resize; position: relative; z-index: 2; }
+  input[type="range"].ahp::-webkit-slider-runnable-track { height: 26px; background: transparent; }
+  input[type="range"].ahp::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: 6px; border-radius: 50%; background: var(--text-hi); box-shadow: 0 0 0 4px rgb(var(--bg-void-ch) / 0.9), 0 0 14px rgb(var(--accent-ch) / 0.45); }
+  input[type="range"].ahp:hover::-webkit-slider-thumb { background: var(--accent); }
+  input[type="range"].ahp::-moz-range-track { height: 26px; background: transparent; }
+  input[type="range"].ahp::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--text-hi); }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--bg-raised); }
+  /* 인터랙티브 요소의 포커스 링 */
+  a:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  /* 한글은 어절 단위로 끊는다 */
+  body { word-break: keep-all; }
+
+  @keyframes ptToast { 0% { opacity: 0; transform: translateY(10px); } 12%, 82% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(0); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* 토스트는 정보다. 움직임만 죽이고 표시는 남긴다 */
+    @keyframes ptToast { 0%, 82% { opacity: 1; } 100% { opacity: 0; } }
+    * { transition-duration: 1ms !important; }
+  }
+</style>
+<link rel="stylesheet" href="assets/css/pt-header.css?v=2026-09-01e">
+
+</helmet>
+<div style="position: fixed; inset: 0; display: grid; grid-template-columns: 1fr clamp(400px, 34vw, 500px); grid-template-rows: 64px 1fr; background: var(--bg-void); color: var(--text-hi)">
+
+  <header class="pt-hdr" style="grid-column: 1 / -1">
+    <div class="pt-hdr__in">
+      <div class="pt-hdr__start">
+        <div class="pt-hdr__sub">이번 런 요약</div>
+      </div>
+
+      <a class="pt-hdr__mark" href="index.html" aria-label="PolyTwin 홈">
+        <svg class="pt-hdr__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+          <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+          <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+        </svg>
+        <span>POLY<b>TWIN</b></span>
+      </a>
+
+      <div class="pt-hdr__end">
+        <nav class="pt-hdr__nav" aria-label="화면">
+          <sc-for list="{{ nav }}" as="n" hint-placeholder-count="4">
+            <sc-if value="{{ n.href }}">
+              <a href="{{ n.href }}" title="{{ n.name }}">{{ n.no }} {{ n.name }}</a>
+            </sc-if>
+            <sc-if value="{{ n.here }}">
+              <span aria-current="page" title="{{ n.name }}">{{ n.no }} {{ n.name }}</span>
+            </sc-if>
+          </sc-for>
+        </nav>
+        <div class="pt-hdr__sep"></div>
+        <div class="pt-hdr__stat">읽기 전용</div>
+      </div>
+    </div>
+  </header>
+
+  <main data-screen-label="03 Run summary" style="overflow-y: auto; padding: 22px 30px 34px">
+
+    <div style="display: flex; gap: 22px; align-items: stretch; margin-bottom: 30px">
+      <div style="width: 190px; flex: none; border: 1px solid var(--bg-panel); background: var(--bg-base); display: flex; align-items: center; justify-content: center; position: relative">
+        <div style="width: 130px; height: 40px; border-radius: 20px 24px 9px 9px; background: var(--line)"></div>
+        <div style="position: absolute; bottom: 10px; left: 12px; font-family: var(--f-mono); font-size: 12px; color: var(--line-hi)">HOOD · 후드</div>
+      </div>
+      <div style="flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--bg-panel)">
+        <sc-for list="{{ meta }}" as="m" hint-placeholder-count="6">
+          <div style="background: var(--bg-void); padding: 15px 16px">
+            <div style="font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">{{ m.label }}</div>
+            <div style="font-family: var(--f-mono); font-size: 20px; color: var(--text-hi); margin-top: 7px">{{ m.value }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 13px">결과 지표</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--bg-panel); margin-bottom: 30px">
+      <sc-for list="{{ results }}" as="r" hint-placeholder-count="6">
+        <div style="background: var(--bg-base); padding: 18px 18px 16px">
+          <div style="display: flex; align-items: baseline; gap: 8px">
+            <div style="font-family: var(--f-mono); font-size: 30px; font-weight: 300; letter-spacing: -0.02em; color: var(--text-hi); line-height: 1">{{ r.value }}</div>
+            <div style="font-size: 16px; color: var(--text-mid)">{{ r.unit }}</div>
+          </div>
+          <div style="font-size: 16px; color: var(--text-mid); margin-top: 12px">{{ r.label }}</div>
+          <div style="font-size: 14px; color: {{ r.noteColor }}; margin-top: 5px">{{ r.note }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr clamp(240px, 30%, 320px); gap: 26px; align-items: start">
+      <div>
+        <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 13px">사용 파라미터</div>
+        <div style="border-top: 1px solid var(--bg-panel)">
+          <sc-for list="{{ params }}" as="p" hint-placeholder-count="10">
+            <div style="display: flex; align-items: baseline; gap: 14px; padding: 9px 2px; border-bottom: 1px solid var(--bg-panel)">
+              <div style="font-size: 16px; color: var(--text-mid); flex: 1">{{ p.label }}</div>
+              <div style="font-family: var(--f-mono); font-size: 16px; color: var(--text-hi)">{{ p.value }}</div>
+              <div style="font-family: var(--f-mono); font-size: 13px; color: var(--text-lo); width: 42px">{{ p.unit }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 13px">제거량 히트맵</div>
+        <div style="display: grid; grid-template-columns: repeat(24, 1fr); gap: 1px; border: 1px solid var(--bg-panel); padding: 5px">
+          <sc-for list="{{ heat }}" as="c" hint-placeholder-count="240">
+            <div style="aspect-ratio: 1; background: {{ c.bg }}"></div>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-family: var(--f-mono); font-size: 12px; color: var(--text-lo)">
+          <span>0.4</span>
+          <div style="flex: 1; height: 3px; background: linear-gradient(90deg, var(--accent-dim), var(--accent))"></div>
+          <span>2.1 µm</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside data-screen-label="03 Save form" style="border-left: 1px solid var(--bg-panel); background: var(--bg-base); display: flex; flex-direction: column; overflow: hidden">
+    <div style="padding: 22px 24px 15px; border-bottom: 1px solid var(--bg-panel)">
+      <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo)">SAVE AS RECIPE</div>
+    </div>
+
+    <div style="flex: 1; overflow-y: auto; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 24px">
+      <section style="border: 1px solid var(--line); background: var(--bg-base); padding: 18px 18px 20px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px">
+          <div style="font-size: 16px; font-weight: 600; color: var(--text-hi)">숙련공 평가</div>
+          <div style="font-family: var(--f-mono); font-size: 13px; color: var(--text-lo)">AHP · 쌍대비교</div>
+        </div>
+        <div style="font-size: 16px; line-height: 1.6; color: var(--text-lo); margin-bottom: 20px">두 지표 중 어느 쪽이 더 중요했는지 손잡이를 옮겨 기록한다. 가운데가 동등이다.</div>
+
+        <sc-for list="{{ pairs }}" as="p" hint-placeholder-count="4">
+          <div style="margin-bottom: 22px">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 3px">
+              <div style="font-size: 16px; color: {{ p.leftColor }}; transition: color 200ms cubic-bezier(0.4,0,0.2,1)">{{ p.left }}</div>
+              <div style="font-size: 16px; color: {{ p.rightColor }}; text-align: right; transition: color 200ms cubic-bezier(0.4,0,0.2,1)">{{ p.right }}</div>
+            </div>
+            <div style="position: relative; height: 26px">
+              <div style="position: absolute; left: 7px; right: 7px; top: 12px; height: 1px; background: var(--line)"></div>
+              <div style="position: absolute; left: 7px; right: 7px; top: 8px; height: 9px; display: flex; justify-content: space-between">
+                <sc-for list="{{ ticks }}" as="k" hint-placeholder-count="17">
+                  <div style="width: 1px; height: {{ k.h }}; background: {{ k.bg }}"></div>
+                </sc-for>
+              </div>
+              <div style="position: absolute; top: 12px; height: 1px; left: {{ p.barLeft }}; width: {{ p.barWidth }}; background: var(--accent)"></div>
+              <input class="ahp" type="range" min="-8" max="8" step="1" value="{{ p.value }}" sc-camel-on-input="{{ p.set }}">
+            </div>
+            <div style="font-family: var(--f-mono); font-size: 14px; color: var(--text-lo); margin-top: 3px; text-align: center">{{ p.verdict }}</div>
+          </div>
+        </sc-for>
+
+        <div style="border-top: 1px solid var(--bg-panel); padding-top: 17px">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px">
+            <div style="font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">산출 가중치</div>
+            <div style="font-family: var(--f-mono); font-size: 14px; color: {{ crColor }}">CR {{ cr }} — {{ crLabel }}</div>
+          </div>
+          <sc-for list="{{ weights }}" as="w" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 7px">
+              <div style="width: 84px; flex: none; font-size: 14px; color: var(--text-mid); text-align: right">{{ w.label }}</div>
+              <div style="flex: 1; height: 8px; background: var(--bg-panel)">
+                <div style="width: {{ w.pct }}; height: 100%; background: {{ w.bg }}; transition: width 260ms cubic-bezier(0.4,0,0.2,1)"></div>
+              </div>
+              <div style="width: 42px; flex: none; font-family: var(--f-mono); font-size: 16px; color: var(--text-hi); text-align: right">{{ w.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <div>
+        <div style="font-size: 14px; color: var(--text-mid); margin-bottom: 8px">레시피 이름</div>
+        <input type="text" value="{{ name }}" sc-camel-on-input="{{ setName }}" style="width: 100%; padding: 11px 12px; font-size: 16px">
+      </div>
+
+      <div>
+        <div style="font-size: 14px; color: var(--text-mid); margin-bottom: 9px">태그</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{ tags }}" as="t" hint-placeholder-count="8">
+            <div sc-camel-on-click="{{ t.toggle }}" style="padding: 6px 11px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; font-size: 14px; color: {{ t.color }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-in), border-color var(--t-fast) var(--e-in), color var(--t-fast) var(--e-in)">{{ t.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 14px; color: var(--text-mid); margin-bottom: 8px">메모</div>
+        <textarea rows="3" sc-camel-on-input="{{ setMemo }}" placeholder="후드 좌측 끝단에서 미세 채터 관측. 다음 런은 이송 0.028로." style="width: 100%; padding: 11px 12px; font-size: 16px; line-height: 1.6; resize: vertical"></textarea>
+      </div>
+
+
+      <div sc-camel-on-click="{{ toggleStandard }}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid {{ stdBorder }}; background: {{ stdBg }}; cursor: pointer; transition: background-color var(--t-fast) var(--e-in), border-color var(--t-fast) var(--e-in), color var(--t-fast) var(--e-in)">
+        <div>
+          <div style="font-size: 16px; color: var(--text-hi)">이 설정을 표준으로 지정</div>
+          <div style="font-size: 14px; color: var(--text-lo); margin-top: 3px">동일 차종·부위의 기본값이 됩니다</div>
+        </div>
+        <div style="width: 34px; height: 18px; flex: none; border: 1px solid {{ stdTrack }}; position: relative; transition: border-color 200ms cubic-bezier(0.4,0,0.2,1)">
+          <div style="position: absolute; top: 2px; left: {{ stdKnob }}; width: 12px; height: 12px; background: {{ stdKnobBg }}; transition: left 200ms cubic-bezier(0.4,0,0.2,1), background 200ms cubic-bezier(0.4,0,0.2,1)"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="border-top: 1px solid var(--bg-panel); padding: 16px 24px 22px">
+      <div sc-camel-on-click="{{ save }}" style="padding: 18px 0; border: 1px solid var(--accent); background: rgb(var(--accent-ch) / 0.14); font-size: 16px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-hi); text-align: center; cursor: pointer; transition: background-color var(--t-base) var(--e-in), border-color var(--t-base) var(--e-in), color var(--t-base) var(--e-in)" style-hover="background: rgb(var(--accent-ch) / 0.24)">저장</div>
+    </div>
+  </aside>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 14px; padding: 15px 22px; border: 1px solid var(--line); background: rgb(var(--bg-base-ch) / 0.96); animation: ptToast 2600ms cubic-bezier(0.4,0,0.2,1) forwards">
+      <div style="width: 6px; height: 6px; background: var(--accent)"></div>
+      <div style="font-size: 16px; color: var(--text-hi)">{{ toastText }}</div>
+      <div style="font-family: var(--f-mono); font-size: 15px; color: var(--text-lo)">라이브러리 {{ savedCount }}건</div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+// AHP over five quality metrics. Four representative pairs are exposed in the
+// mockup; the remaining six comparisons stay at "equal" (ratio 1).
+const METRICS = ['힘 일관성', '표면 커버리지', '과압 회피', '공정 시간', '마감 균일도'];
+const PAIRS = [
+  { i: 0, j: 1, left: '힘이 일정한 것', right: '골고루 닦는 것' },
+  { i: 0, j: 2, left: '힘이 일정한 것', right: '도장면을 안 누르는 것' },
+  { i: 1, j: 4, left: '골고루 닦는 것', right: '결이 고르게 남는 것' },
+  { i: 2, j: 3, left: '도장면을 안 누르는 것', right: '빨리 끝내는 것' },
+];
+const RI5 = 1.12;
+const BAR = ['var(--accent)',
+             'rgb(var(--accent-ch) / 0.70)',
+             'rgb(var(--accent-ch) / 0.52)',
+             'rgb(var(--accent-ch) / 0.38)',
+             'rgb(var(--accent-ch) / 0.26)'];
+
+// slider -8..8 -> Saaty 1/9..9
+const ratio = (v) => (v >= 0 ? 1 + v : 1 / (1 - v));
+
+function ahp(values) {
+  const n = 5;
+  const A = Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => (r === c ? 1 : 0)));
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (r !== c && A[r][c] === 0) A[r][c] = 1;
+  PAIRS.forEach((p, k) => {
+    // positive slider favours the LEFT metric, so a_ij grows
+    const a = ratio(values[k]);
+    A[p.i][p.j] = a;
+    A[p.j][p.i] = 1 / a;
+  });
+  // geometric-mean priority vector
+  const gm = A.map((row) => Math.pow(row.reduce((s, x) => s * x, 1), 1 / n));
+  const total = gm.reduce((s, x) => s + x, 0);
+  const w = gm.map((x) => x / total);
+  // consistency: lambda_max from the row sums of A·w
+  let lambda = 0;
+  for (let r = 0; r < n; r++) {
+    const aw = A[r].reduce((s, x, c) => s + x * w[c], 0);
+    lambda += aw / w[r];
+  }
+  lambda /= n;
+  const cr = Math.max(0, (lambda - n) / (n - 1) / RI5);
+  return { w, cr };
+}
+
+class Component extends DCLogic {
+  state = {
+    name: 'BMW Z4 · 후드 · 08-25 14:32',
+    memo: '',
+    tags: ['BMW Z4', '후드', '클리어코트'],
+    pairs: [3, 2, 0, -1],
+    standard: false,
+    toast: false,
+    savedCount: 6,
+  };
+
+  componentWillUnmount() { clearTimeout(this._toastTimer); }
+
+  setPair(k) {
+    return (e) => {
+      const v = parseInt(e.target.value, 10);
+      this.setState((s) => {
+        const pairs = s.pairs.slice();
+        pairs[k] = v;
+        return { pairs };
+      });
+    };
+  }
+
+  toggleTag(label) {
+    this.setState((s) => ({
+      tags: s.tags.includes(label) ? s.tags.filter((t) => t !== label) : [...s.tags, label],
+    }));
+  }
+
+  save() {
+    clearTimeout(this._toastTimer);
+    this.setState((s) => ({ toast: true, savedCount: s.savedCount + 1 }));
+    this._toastTimer = setTimeout(() => this.setState({ toast: false }), 2600);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const { w, cr } = ahp(s.pairs);
+
+    const order = w.map((x, i) => ({ i, x })).sort((a, b) => b.x - a.x);
+    // order 는 이미 내림차순이다. 여기서 지표별 순위를 뽑아 둔다
+    const rank = [];
+    order.forEach((o, k) => { rank[o.i] = k; });
+
+    const allTags = ['BMW Z4', '벤츠 쿠페', '후드', '루프', '펜더', '클리어코트', '무광', '거울급', '표준급'];
+
+    return {
+      name: s.name,
+      memo: s.memo,
+      setName: (e) => this.setState({ name: e.target.value }),
+      setMemo: (e) => this.setState({ memo: e.target.value }),
+
+      nav: [
+        ['01', '파라미터',   'console.html'],
+        ['02', '공정 감시',  'monitor.html'],
+        ['03', '데이터 저장', ''],
+        ['04', '불러오기',   'library.html'],
+      ].map(([no, name, href]) => ({
+        no, name,
+        // 현재 화면은 링크가 아니다. 제자리로 가는 링크는 링크가 아니라 함정이다
+        href: href || null,
+        // sc-else 가 없는 프레임워크다. 배타 조건을 값으로 들고 있는다
+        here: !href,
+      })),
+
+      meta: [
+        { label: '차종', value: 'BMW Z4' },
+        { label: '부위', value: '후드' },
+        { label: '소재', value: '클리어코트' },
+        { label: '실행', value: '08-25 14:32' },
+        { label: '소요', value: '04:12' },
+        { label: '로봇', value: '3대' },
+      ],
+
+      results: [
+        { value: '3.23', unit: '%', label: '힘 변동계수 CV', note: '숙련공 기준의 1/3', noteColor: 'var(--ok)' },
+        { value: '96.2', unit: '%', label: '표면 커버리지', note: '미달 구간 없음', noteColor: 'var(--ok)' },
+        { value: '0', unit: '회', label: '과압 발생', note: '도장면 손상 0', noteColor: 'var(--ok)' },
+        { value: '5.62', unit: 'N', label: '평균 접촉력', note: '목표 5.6 N', noteColor: 'var(--text-lo)' },
+        { value: '0.42', unit: 'N', label: '최대 편차', note: '허용 0.60 N', noteColor: 'var(--text-lo)' },
+        { value: '1.34', unit: 'µm', label: '평균 제거량', note: '좌측 끝단 편차 관측', noteColor: 'var(--warn)' },
+      ],
+
+      params: [
+        { label: '패드 지름', value: '110', unit: 'mm' },
+        { label: '오버랩', value: '40', unit: '%' },
+        { label: '경로 간격', value: '66', unit: 'mm' },
+        { label: '이송속도', value: '0.030', unit: 'm/s' },
+        { label: '패드 회전수', value: '3000', unit: 'RPM' },
+        { label: '패드 강성 k', value: '520', unit: 'N/m' },
+        { label: '감쇠비 ζ', value: '1.00', unit: '' },
+        { label: '접촉력 · 상면 평탄', value: '5.6', unit: 'N' },
+        { label: '접촉력 · 상면 급경사', value: '5.0', unit: 'N' },
+        { label: '접촉력 · 측면 평탄', value: '4.6', unit: 'N' },
+        { label: '접촉력 · 측면 급경사', value: '3.8', unit: 'N' },
+      ],
+
+      // deterministic removal-depth field: more material off the crown, less at the edges
+      heat: Array.from({ length: 240 }, (_, k) => {
+        const x = (k % 24) / 23, y = Math.floor(k / 24) / 9;
+        const crown = Math.sin(Math.PI * x) * Math.sin(Math.PI * y);
+        const grain = 0.12 * Math.sin(x * 21 + y * 9) * Math.cos(y * 17);
+        const v = Math.max(0, Math.min(1, crown * 0.86 + grain + 0.06));
+        return { bg: `color-mix(in oklab, var(--accent) ${(v * 100).toFixed(0)}%, var(--bg-base))` };
+      }),
+
+      tags: allTags.map((label) => {
+        const on = s.tags.includes(label);
+        return {
+          label,
+          border: on ? 'var(--accent)' : 'var(--line)',
+          bg: on ? 'rgb(var(--accent-ch) / 0.09)' : 'transparent',
+          color: on ? 'var(--text-hi)' : 'var(--text-lo)',
+          toggle: () => this.toggleTag(label),
+        };
+      }),
+
+      ticks: Array.from({ length: 17 }, (_, i) => ({
+        h: i === 8 ? '9px' : (i % 4 === 0 ? '5px' : '3px'),
+        bg: i === 8 ? 'var(--text-lo)' : 'var(--line)',
+      })),
+
+      pairs: PAIRS.map((p, k) => {
+        const v = s.pairs[k];
+        const mag = ratio(Math.abs(v));
+        const pct = 50 + (v / 8) * 50;
+        return {
+          left: p.left,
+          right: p.right,
+          value: v,
+          leftColor: v > 0 ? 'var(--text-hi)' : 'var(--text-lo)',
+          rightColor: v < 0 ? 'var(--text-hi)' : 'var(--text-lo)',
+          barLeft: v >= 0 ? '50%' : `${pct}%`,
+          barWidth: `${Math.abs(pct - 50)}%`,
+          verdict: v === 0 ? '동등' : `${mag.toFixed(0)}× ${v > 0 ? p.left : p.right}`,
+          set: this.setPair(k),
+        };
+      }),
+
+      weights: METRICS.map((label, i) => ({
+        label,
+        pct: `${(w[i] * 100).toFixed(1)}%`,
+        text: `${(w[i] * 100).toFixed(1)}`,
+        // 지표 순서가 아니라 가중치 순위로 농도를 준다.
+        // 배열 순서대로 칠하면 색이 아무 의미도 못 나른다.
+        bg: BAR[rank[i]],
+      })),
+      cr: cr.toFixed(2),
+      crLabel: cr < 0.1 ? '양호' : '재검토',
+      crColor: cr < 0.1 ? 'var(--text-lo)' : 'var(--warn)',
+
+      standard: s.standard,
+      stdBorder: s.standard ? 'var(--accent)' : 'var(--line)',
+      stdBg: s.standard ? 'rgb(var(--accent-ch) / 0.06)' : 'transparent',
+      stdTrack: s.standard ? 'var(--accent)' : 'var(--line)',
+      stdKnob: s.standard ? '18px' : '2px',
+      stdKnobBg: s.standard ? 'var(--accent)' : 'var(--text-lo)',
+      toggleStandard: () => this.setState((p) => ({ standard: !p.standard })),
+
+      toast: s.toast,
+      toastText: `저장됨 · ${s.name}`,
+      savedCount: String(s.savedCount),
+      save: () => this.save(),
+    };
+  }
+}
+</script>
+
+
+</body></html>

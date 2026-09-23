@@ -1,0 +1,18 @@
+{
+  "name": "surface-finishing-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "차체 폴리싱 디지털 트윈 관제·설정 웹 콘솔",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node backend/server.js",
+    "seed": "node scripts/seed-admin.mjs",
+    "seed:data": "node scripts/seed-datasets.mjs"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.0"
+  }
+}

@@ -1,0 +1,2072 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PolyTwin — 로봇 폴리싱 공정 디지털 트윈</title>
+<meta name="description" content="차체 폴리싱 로봇 공정을 실시간으로 관제하고, 숙련공이 만든 파라미터를 한 벌로 저장해 다음 차종에 그대로 불러온다.">
+<meta name="theme-color" content="#08090B">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PolyTwin — 로봇 폴리싱 공정 디지털 트윈">
+<meta property="og:description" content="공정을 지켜보고, 잘 된 설정을 저장하고, 다음 공정에서 다시 꺼내 쓴다.">
+<meta property="og:image" content="assets/img/wide_system.webp">
+<link rel="icon" href="assets/favicon.svg">
+
+<link rel="preload" href="assets/fonts/Pretendard-300.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Pretendard-500.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Pretendard-700.subset.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   폰트 — 서브셋을 먼저 싣고, 서브셋에 없는 글자만 full-ko로 흘린다.
+   CSS 폰트 폴백은 글자 단위라 full-ko는 실제로 필요할 때만 내려받는다.
+   ══════════════════════════════════════════════════════════════ */
+@font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+  src:url("assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+  src:url("assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+  src:url("assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+  src:url("assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+  src:url("assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+  src:url("assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+/* ══════════════════════════════════════════════════════════════
+   토큰 —
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  /* 표면 */
+  --bg-void:   #08090B;
+  --bg-void-ch: 8 9 11;   /* 위 --bg-void 의 채널값. 스크림 알파용, 새 색 아님 */
+  --bg-base:   #0E1216;
+  --bg-panel:  #14181D;
+  --bg-raised: #1A1E24;
+  /* 경계 */
+  --line:      #232830;
+  --line-hi:   #3B424C;
+  /* 텍스트 */
+  --text-hi:   #F2F4F7;
+  --text-mid:  #A8B0BA;
+  --text-lo:   #5F6873;
+  /* 액센트 — 1개 */
+  --accent:     #9BC33A;
+  --accent-dim: #59721A;
+  /* 의미색 — 상태 전용 */
+  --ok:   #3DD68C;
+  --warn: #FFB74D;
+  --crit: #E8232A;
+
+  --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+  --r-sm: 2px;
+  --r-md: 4px;
+
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-in:  cubic-bezier(0.4, 0, 1, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 400ms;
+
+  --header-h: 64px;
+  --rail-w: 68px;
+  --rail-gap: 20px;   /* 독이 화면 끝에서 떨어진 거리 */
+  --gutter: 24px;
+}
+@media (min-width: 768px)  { :root { --gutter: 40px; } }
+@media (min-width: 1280px) { :root { --gutter: 64px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  /* 메뉴를 열면 html 에 overflow:hidden 이 걸리면서 스크롤바가 사라진다.
+     뷰포트가 그만큼 넓어지므로 가운데 정렬된 .mark 가 스크롤바 폭의 절반만큼
+     오른쪽으로 튄다. 자리를 늘 비워 두면 열고 닫아도 로고가 움직이지 않는다. */
+  scrollbar-gutter: stable;
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--bg-void);
+  color: var(--text-mid);
+  font-family: var(--f-sans);
+  font-weight: 300;
+  font-size: 17px;
+  line-height: 1.7;
+  word-break: keep-all;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, figure, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+img, video, canvas { display: block; max-width: 100%; }
+
+a { color: inherit; text-decoration: none; }
+
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.wrap { max-width: 1280px; margin: 0 auto; padding-inline: var(--gutter); }
+/* 레일이 있는 폭에서는 본문이 그 자리를 침범하지 않게 한다.
+   헤더용 같은 규칙은 .hdr__in 정의 바로 뒤에 둔다 — 미디어쿼리는
+   특이도를 올리지 않아 뒤에 오는 선언에 덮이기 때문이다. */
+@media (min-width: 1024px) {
+  .wrap { padding-inline-end: calc(var(--gutter) + var(--rail-w) + var(--rail-gap)); }
+}
+
+.skip {
+  position: absolute; left: var(--gutter); top: -100px; z-index: 1000;
+  background: var(--bg-panel); color: var(--text-hi);
+  border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  padding: 12px 20px; font-size: 16px;
+  transition: top var(--t-fast) var(--e-out);
+}
+.skip:focus { top: 12px; }
+
+/* 라벨 — 11px / 500 / 0.12em 대문자*/
+.label {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; line-height: 1.3; color: var(--text-lo);
+}
+/* 수치 — Pretendard 를 그대로 쓴다. 기본 숫자가 가변폭이라 tnum 없이는
+   실시간 값에서 자릿수가 40px 가까이 흔들린다. 숫자가 나오는 자리는 전부 여기 묶는다. */
+.num, .readout__v, .metrics .v, .spec__v, .step__no, .panel__bar, .tbl, .fake-input, .chip {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.num { font-weight: 500; }
+
+/* ══════════════════════════════════════════════════════════════
+   헤더 — 검은색 고정 바
+   ══════════════════════════════════════════════════════════════ */
+.hdr {
+  position: fixed; inset: 0 0 auto; z-index: 100;
+  height: var(--header-h);
+  background: var(--bg-void);
+  border-bottom: 1px solid var(--line);
+}
+.hdr__in {
+  height: 100%;
+  padding-inline: clamp(16px, 2.2vw, 40px);   /* 컨트롤을 화면 양 끝으로 */
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 16px; min-width: 0;
+}
+.mark {
+  grid-column: 2; justify-self: center;
+  display: inline-flex; align-items: center; gap: 12px;
+  font-size: 20px; font-weight: 500; letter-spacing: 0.3em;
+  color: var(--text-hi); text-transform: uppercase; white-space: nowrap;
+  padding-block: 8px;
+  /* 자간은 마지막 글자 뒤에도 붙는다. 그만큼 왼쪽을 채워야 광학적으로 가운데다 */
+  padding-inline-start: 0.3em;
+}
+.mark b { font-weight: 700; color: var(--accent); }
+/* 심벌 — 육각 두 면. 왼쪽 면은 바탕을 따라 뒤집히고(다크 = 흰색, 반전 = 검정),
+   오른쪽 면은 어느 바탕에서나 브랜드 연두다. */
+.mark__sig { flex: none; width: 40px; height: 24px; }
+.mark__sig .a { fill: currentColor; }
+.mark__sig .b { fill: var(--accent); }
+
+/* ── 오른쪽 플로팅 독 ────────────────────────────────────────
+   화면을 선으로 가르지 않고 콘텐츠 위에 떠 있는다.
+   떠 있는 느낌은 그림자가 아니라 배경 한 단계 + 1px 선 + 여백으로 만든다*/
+.rail { display: none; }
+@media (min-width: 1024px) {
+  .rail {
+    display: block;
+    position: fixed; z-index: 90;
+    right: var(--rail-gap); top: 50%; transform: translateY(-50%);
+    max-height: calc(100dvh - var(--header-h) - 2 * var(--rail-gap));
+    overflow-y: auto;
+    width: var(--rail-w);
+    background: var(--bg-panel);
+    border: 1px solid var(--line-hi);
+    border-radius: var(--r-md);
+    overflow: hidden;              /* 활성 표식이 모서리를 넘지 않게 */
+  }
+}
+.rail__end { border-top: 1px solid var(--line); }
+
+.rail a {
+  position: relative;
+  display: grid; justify-items: center; align-content: center; gap: 7px;
+  min-height: 66px; padding: 12px 4px;
+  color: var(--text-mid);
+  transition: color var(--t-fast) var(--e-out),
+              background-color var(--t-fast) var(--e-out);
+}
+.rail__list a + a { border-top: 1px solid var(--line); }
+.rail a:hover { color: var(--text-hi); background: var(--bg-raised); }
+
+/* 현재 위치 — 색만으로 알리지 않고 왼쪽 표식을 함께 둔다 */
+.rail a::before {
+  content: ""; position: absolute; inset-block: 0; inset-inline-start: 0;
+  width: 2px; background: var(--accent); opacity: 0;
+  transition: opacity var(--t-fast) var(--e-out);
+}
+.rail a[aria-current="true"] { color: var(--text-hi); background: var(--bg-raised); }
+.rail a[aria-current="true"]::before { opacity: 1; }
+
+.rail svg { width: 20px; height: 20px; display: block; }
+.rail span {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.06em; line-height: 1;
+  white-space: nowrap;
+}
+/* 한글 라벨은 2자(24px)라 60px 상자가 넉넉했다. 영문은 Features 가
+   58.4px — 웹폰트가 오기 전 대체 폰트에서는 이미 넘는다. 좌우 여백을
+   2px 로 줄여 64px 을 확보한다. 레일 폭 자체는 .wrap 의 padding 계산에
+   물려 있어 건드리지 않는다. */
+html[lang="en"] .rail a { padding-inline: 2px; }
+/* 창이 아주 낮으면 세로 중앙이 헤더 아래로 파고든다. 그때는 위에 붙인다. */
+@media (min-width: 1024px) and (max-height: 560px) {
+  .rail { top: calc(var(--header-h) + var(--rail-gap)); transform: none; }
+}
+
+.hdr__end { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.lang { display: none; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; letter-spacing: 0.06em; }
+.lang span { color: var(--line-hi); }
+.lang a { color: var(--text-lo); padding: 12px 2px; transition: color var(--t-fast) var(--e-out); }
+.lang a[aria-current="true"] { color: var(--text-hi); }
+.lang a:hover { color: var(--text-mid); }
+@media (min-width: 768px) { .lang { display: flex; } }
+.hdr__cta { display: none; }
+/* 3분할 그리드로 바뀌며 자리가 생겼다. 320px 급만 제외하고 노출한다 */
+@media (min-width: 380px) { .hdr__cta { display: inline-flex; } }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 20px;
+  font-family: inherit; font-size: 16px; font-weight: 500; letter-spacing: 0.04em;
+  border-radius: var(--r-sm); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--e-out),
+              border-color var(--t-fast) var(--e-out),
+              filter var(--t-fast) var(--e-out),
+              color var(--t-fast) var(--e-out);
+}
+.btn--ghost { background: transparent; color: var(--text-hi); border: 1px solid var(--line-hi); }
+.btn--ghost:hover { background: var(--bg-raised); border-color: var(--text-lo); }
+.btn--solid { background: var(--accent); color: var(--bg-void); border: 1px solid var(--accent); font-weight: 700; }
+.btn--solid:hover { filter: brightness(1.12); }
+.btn--lg { min-height: 52px; padding: 0 28px; font-size: 16px; }
+/* 영문 대문자 라벨만 자간을 넓힌다. 한글 본문 자간은 0*/
+.hdr__cta { letter-spacing: 0.1em; }
+
+
+.hdr__auth { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr__who {
+  display: none; align-items: baseline; gap: 7px;
+  font-size: 15px; color: var(--text-lo); min-width: 0;
+}
+@media (min-width: 560px) { .hdr__who { display: flex; } }
+.hdr__role {
+  flex: none;
+  padding: 2px 5px; border: 1px solid var(--accent-dim); border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.1em; color: var(--accent);
+}
+[data-menu="open"] .hdr__who { color: rgb(var(--bg-void-ch) / 0.45); }
+[data-menu="open"] .hdr__role { color: var(--accent-dim); border-color: rgb(var(--bg-void-ch) / 0.3); }
+
+.fld__opt { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-lo); }
+
+.menu-btn {
+  grid-column: 1; justify-self: start;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; margin-inline-start: -10px;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--text-hi); cursor: pointer;
+  transition: background-color var(--t-fast) var(--e-out);
+}
+.menu-btn:hover { background: var(--bg-raised); }
+
+/* ══════════════════════════════════════════════════════════════
+   메뉴 오버레이 — 열리면 화면 전체가 반전된다.
+   새 색은 쓰지 않는다. 기존 토큰의 역할만 뒤집는다:
+     면   = --text-hi   (#F2F4F7)
+     글자 = --bg-void   (#08090B) → 18.1:1
+     보조 = --text-lo   (#5F6873) →  5.1:1
+     강조 = --accent-dim(#59721A) →  4.9:1
+   --accent 는 이 면 위에서 1.9:1 로 미달이라 쓰지 않는다.
+   ══════════════════════════════════════════════════════════════ */
+.drawer {
+  --hair: rgb(var(--bg-void-ch) / 0.14);
+  position: fixed; inset: 0; z-index: 99;
+  background: var(--text-hi);
+  overflow-y: auto; overscroll-behavior: contain;
+  animation: menuIn var(--t-base) var(--e-out);
+}
+@keyframes menuIn { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.drawer[hidden] { display: none; }
+
+.drawer__in {
+  max-width: 1280px; margin-inline: auto;
+  min-height: 100dvh;   /* 바닥 줄이 화면 아래에 앉게 — 여백이 의도로 읽힌다 */
+  padding: calc(var(--header-h) + 56px) var(--gutter) 56px;
+  display: grid; gap: 56px;   /* align-content 를 주면 행이 늘지 않아 바닥 줄이 안 내려간다 */
+}
+@media (min-width: 900px) {
+  .drawer__in { grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: 80px; }
+}
+
+/* 왼쪽 — 사이트 구조. <details> 를 쓰면 키보드·상태 표시가 기본으로 붙는다 */
+.menu-col { display: grid; grid-template-rows: auto 1fr auto; }
+.menu-main { display: grid; align-content: start; }
+.menu-foot {
+  align-self: end; padding-top: 40px;
+  font-size: 15px; letter-spacing: 0.02em; color: var(--text-lo);
+}
+
+.m-group { border-bottom: 1px solid var(--hair); }
+.m-group > summary {
+  display: flex; align-items: center; gap: 14px;
+  padding-block: 22px; cursor: pointer;
+  list-style: none;                      /* 기본 삼각형 제거 */
+  font-size: clamp(22px, 3vw, 34px); font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.02em; color: var(--bg-void);
+  /* SOLUTION·PR 은 원래 대문자다. 영어로 바뀌는 COMPANY·TECHNOLOGY 만
+     소문자로 남으면 네 줄이 따로 논다. 한글은 대소문자가 없어
+     한국어 화면은 이 규칙에 영향을 받지 않는다 */
+  text-transform: uppercase;
+  transition: color var(--t-fast) var(--e-out);
+}
+.m-group > summary::-webkit-details-marker { display: none; }
+.m-group > summary:hover { color: var(--accent-dim); }
+.m-chev {
+  width: 18px; height: 18px; flex: none; color: var(--text-lo);
+  transition: transform var(--t-base) var(--e-out);
+}
+.m-group[open] > summary .m-chev { transform: rotate(180deg); }
+
+.m-sub { display: grid; padding-bottom: 18px; }
+.m-sub a {
+  padding: 13px 0 13px 2px;
+  font-size: 21px; color: var(--text-lo);
+  transition: color var(--t-fast) var(--e-out);
+}
+.m-sub a:hover { color: var(--bg-void); }
+.m-group[open] > .m-sub { animation: subIn var(--t-base) var(--e-out); }
+@keyframes subIn { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .m-group[open] > .m-sub { animation: none; } }
+
+/* 이 페이지 — 레일이 없는 폭에서만 낸다.
+   같은 목적지를 레일과 드로어 두 곳에 두면 어느 쪽을 눌러야 할지 알 수 없다.
+   반대로 1024px 아래에서는 레일이 사라져 여기가 유일한 통로다. */
+.menu-page { display: grid; gap: 12px; padding-block-end: 30px; }
+.menu-page h2 {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-lo);
+}
+.menu-page__list { display: flex; flex-wrap: wrap; gap: 8px; }
+.menu-page__list a {
+  display: inline-flex; align-items: center; min-height: 42px; padding: 0 15px;
+  border: 1px solid var(--hair); border-radius: var(--r-sm);
+  font-size: 18px; font-weight: 500; color: var(--bg-void);
+  transition: border-color var(--t-fast) var(--e-out),
+              background-color var(--t-fast) var(--e-out);
+}
+.menu-page__list a:hover { border-color: var(--text-lo); background: rgb(var(--bg-void-ch) / 0.04); }
+@media (min-width: 1024px) { .menu-page { display: none; } }
+
+/* 오른쪽 — 바로 가기 */
+.menu-side { display: grid; align-content: start; gap: 12px; }
+.menu-side h2 {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-lo); margin-bottom: 4px;
+}
+.menu-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 64px; padding: 0 18px;
+  border: 1px solid var(--hair); border-radius: var(--r-md);
+  font-size: 19px; font-weight: 500; color: var(--bg-void);
+  transition: border-color var(--t-fast) var(--e-out),
+              background-color var(--t-fast) var(--e-out);
+}
+.menu-card:hover { border-color: var(--text-lo); background: rgb(var(--bg-void-ch) / 0.04); }
+.menu-card svg { width: 16px; height: 16px; color: var(--text-lo); flex: none; }
+
+/* ── 메뉴가 열린 동안 상단바도 함께 반전된다 ─────────────── */
+[data-menu="open"] .hdr {
+  background: var(--text-hi);
+  border-bottom-color: rgb(var(--bg-void-ch) / 0.14);
+}
+[data-menu="open"] .mark { color: var(--bg-void); }
+/* 로고는 반전면에서도 브랜드 원색을 쓴다. WCAG 1.4.3 은 로고타입을 대비
+   요건에서 제외한다 — 흰 면 위 1.9:1 이지만 이건 글이 아니라 상표다.
+   심벌만 원색으로 올리고 TWIN 을 내리면 두 초록이 어긋나 고장난 것처럼 보인다.
+   로고 밖의 글자(대제목 hover, 역할 배지)는 그대로 --accent-dim 을 쓴다. */
+[data-menu="open"] .mark b { color: var(--accent); }
+[data-menu="open"] .mark__sig .b { fill: var(--accent); }
+[data-menu="open"] .menu-btn { color: var(--bg-void); }
+[data-menu="open"] .menu-btn:hover { background: rgb(var(--bg-void-ch) / 0.06); }
+[data-menu="open"] .lang a { color: var(--text-lo); }
+[data-menu="open"] .lang a[aria-current="true"] { color: var(--bg-void); }
+[data-menu="open"] .lang span { color: rgb(var(--bg-void-ch) / 0.3); }
+[data-menu="open"] .btn--ghost { color: var(--bg-void); border-color: rgb(var(--bg-void-ch) / 0.3); }
+[data-menu="open"] .btn--ghost:hover { background: rgb(var(--bg-void-ch) / 0.06); }
+[data-menu="open"] .rail { display: none; }
+[data-menu="open"] { overflow: hidden; }
+
+/* 햄버거 ↔ X 교체 */
+.menu-btn .ico-x { display: none; }
+[data-menu="open"] .menu-btn .ico-bars { display: none; }
+[data-menu="open"] .menu-btn .ico-x { display: block; }
+
+/* ══════════════════════════════════════════════════════════════
+   히어로 — 영상이 있으면 영상, 없으면 3D 스캔 씬
+   ══════════════════════════════════════════════════════════════ */
+.hero {
+  position: relative;
+  min-height: 100dvh;
+  padding-top: var(--header-h);
+  display: grid; align-items: center;
+  overflow: hidden;
+  background: var(--bg-void);
+}
+.hero__media { position: absolute; inset: 0; z-index: 0; }
+.hero__media video,
+.hero__media canvas { width: 100%; height: 100%; object-fit: cover; }
+
+/* 원본 영상이 어둡게 촬영돼 스크림을 얹으면 형상이 묻는다.
+   재인코딩 대신 표시 단계에서 올린다 — 값은 여기 한 곳에서만 조정한다.
+   contrast 를 같이 올리지 않으면 밝기만 뜨면서 화면이 뿌옇게 죽는다.
+   3D 폴백(canvas)은 자체 톤매핑을 쓰므로 제외한다. */
+.hero__media video { filter: brightness(1.34) contrast(1.06) saturate(1.04); }
+
+/* 스크림 — 영상 위 텍스트 대비 확보 (좌측 강, 우측 약) */
+.hero__scrim {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(90deg,
+      rgb(var(--bg-void-ch) / 0.90) 0%,
+      rgb(var(--bg-void-ch) / 0.66) 42%,
+      rgb(var(--bg-void-ch) / 0.10) 100%),
+    linear-gradient(180deg,
+      rgb(var(--bg-void-ch) / 0.70) 0%,
+      rgb(var(--bg-void-ch) / 0) 32%,
+      rgb(var(--bg-void-ch) / 0.80) 100%);
+}
+.hero__in { position: relative; z-index: 2; width: 100%; padding-block: 96px 120px; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 28px;
+}
+.eyebrow::before { content: ""; width: 28px; height: 1px; background: var(--accent); }
+
+.hero h1 {
+  font-size: clamp(32px, 6.4vw, 68px);
+  font-weight: 700; line-height: 1.18; letter-spacing: -0.02em;
+  color: var(--text-hi);
+  text-wrap: balance;
+  max-width: 16ch;
+}
+.hero h1 em { font-style: normal; font-weight: 300; color: var(--text-mid); display: block; }
+
+.hero__sub {
+  margin-top: 24px; max-width: 46ch;
+  font-size: clamp(16px, 1.7vw, 19px); line-height: 1.7; color: var(--text-mid);
+}
+.hero__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+
+.scroll-cue {
+  position: absolute; z-index: 2; left: var(--gutter); bottom: 32px;
+  display: flex; align-items: center; gap: 12px;
+}
+.scroll-cue__rail { width: 1px; height: 40px; background: var(--line-hi); position: relative; overflow: hidden; }
+.scroll-cue__rail::after {
+  content: ""; position: absolute; inset-inline: 0; height: 14px; background: var(--accent);
+  animation: railDrop 2.2s var(--e-out) infinite;
+}
+@keyframes railDrop { 0% { transform: translateY(-16px); } 60%,100% { transform: translateY(42px); } }
+
+/* ══════════════════════════════════════════════════════════════
+   스크롤 진입 — transform / opacity 만
+   ══════════════════════════════════════════════════════════════ */
+.rise { opacity: 0; transform: translateY(20px); }
+.rise.is-in {
+  opacity: 1; transform: none;
+  transition: opacity var(--t-slow) var(--e-out), transform var(--t-slow) var(--e-out);
+  transition-delay: var(--d, 0ms);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   섹션 공통
+   ══════════════════════════════════════════════════════════════ */
+section { position: relative; scroll-margin-top: var(--header-h); }
+/* 인상 > 작업 > 참조 순으로 여백을 차등한다 */
+.sec--impress { padding-block: clamp(128px, 22vh, 260px); }   /* 문장 하나 */
+.sec          { padding-block: clamp(96px, 14vh, 176px); }    /* 공정·기능 */
+.sec--tight   { padding-block: clamp(56px, 7vh, 88px); }      /* 결과 */
+.sec + .sec { border-top: 1px solid var(--line); }
+
+.sec-head { display: grid; gap: 16px; margin-bottom: 56px; max-width: 62ch; }
+.sec-head h2 {
+  font-size: clamp(24px, 3.2vw, 38px); font-weight: 700; line-height: 1.3;
+  letter-spacing: -0.015em; color: var(--text-hi); text-wrap: balance;
+}
+.sec-head p { text-wrap: pretty; }
+.sec-head p { font-size: 17px; color: var(--text-mid); max-width: 54ch; }
+/* 결과 스트립처럼 수치가 주인공인 섹션. 제목이 수치와 같은 크기면 둘 다 안 읽힌다 */
+.sec-head--tight { margin-bottom: 28px; gap: 10px; }
+.sec-head--tight h2 { font-size: clamp(18px, 2vw, 22px); font-weight: 500; letter-spacing: -0.005em; }
+
+/* ── 문장 하나 (여백 과잉) ───────────────────────── */
+.statement { background: var(--bg-void); }
+.statement__grid { display: grid; gap: 40px; }
+@media (min-width: 900px) {
+  .statement__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 34ch); gap: 80px; align-items: end; }
+}
+.statement blockquote {
+  margin: 0; max-width: 22ch;
+  font-size: clamp(26px, 4.6vw, 52px); font-weight: 300; line-height: 1.36;
+  letter-spacing: -0.02em; color: var(--text-hi); text-wrap: balance;
+}
+.statement blockquote b { font-weight: 700; color: var(--accent); }
+.statement footer { max-width: 44ch; color: var(--text-mid); font-size: 17px; }
+.statement footer::before {
+  content: ""; display: block; width: 40px; height: 1px;
+  background: var(--line-hi); margin-bottom: 20px;
+}
+
+/* ── 3D 스캔 ─────────────────────────────────────── */
+.scan { background: var(--bg-base); }
+.scan__stage {
+  position: relative;
+  /* width 를 명시하지 않으면 min-height 가 aspect-ratio 를 통해 폭으로 되먹임돼
+     좁은 화면에서 스테이지가 뷰포트보다 넓어진다. */
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-void);
+  overflow: hidden;
+}
+@media (min-width: 640px) { .scan__stage { aspect-ratio: 16 / 9; } }
+.scan__stage canvas { width: 100%; height: 100%; }
+
+.scan__hud {
+  position: absolute; z-index: 2; left: 16px; bottom: 16px; right: 16px;
+  display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px;
+  pointer-events: none;
+}
+.scan__readout { display: flex; gap: 24px; flex-wrap: wrap; }
+.readout { display: grid; gap: 4px; }
+.readout__v {
+  font-size: clamp(22px, 3vw, 34px); font-weight: 300; line-height: 1;
+  letter-spacing: -0.03em; color: var(--text-hi);
+}
+.readout__v small { font-size: 15px; font-weight: 500; color: var(--text-lo); margin-inline-start: 4px; letter-spacing: 0.06em; }
+.readout__v.is-pass { color: var(--accent); }
+.readout--ref .readout__v { color: var(--text-lo); }
+.scan__hud .btn { pointer-events: auto; }
+
+.scan__note {
+  position: absolute; z-index: 3; inset: 0;
+  display: grid; place-content: center; gap: 12px; text-align: center;
+  padding: 32px; background: var(--bg-void); color: var(--text-mid); font-size: 16px;
+}
+.scan__note[hidden] { display: none; }
+.scan__note code {
+  font-size: 16px; color: var(--text-hi);
+  background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 4px 8px;
+}
+
+/* ── 기능 3종 — 균등 3열 금지. 번호 붙은 세로 시퀀스 ─── */
+.flow { background: var(--bg-void); }
+.step {
+  display: grid; gap: 32px;
+  padding-block: 56px;
+  border-top: 1px solid var(--line);
+  align-items: start;
+}
+.step:first-of-type { border-top: 0; padding-top: 0; }
+@media (min-width: 900px) {
+  .step { grid-template-columns: 72px minmax(0, 34ch) minmax(0, 1fr); gap: 48px; padding-block: 72px; }
+}
+.step__no {
+  font-size: 16px; font-weight: 500; letter-spacing: 0.1em; color: var(--text-lo);
+  padding-top: 6px;
+}
+.step__txt { min-width: 0; }
+.step__cat { display: block; margin-bottom: 10px; color: var(--text-mid); }
+.step__txt h3 {
+  font-size: clamp(20px, 2.4vw, 26px); font-weight: 700; line-height: 1.35;
+  color: var(--text-hi); letter-spacing: -0.01em; margin-bottom: 12px;
+  text-wrap: balance;
+}
+.step__txt p { color: var(--text-mid); font-size: 16px; }
+.step__txt ul { margin-top: 20px; display: grid; gap: 10px; }
+.step__txt li {
+  position: relative; padding-inline-start: 18px;
+  font-size: 16px; color: var(--text-mid);
+}
+.step__txt li::before {
+  content: ""; position: absolute; inset-inline-start: 0; top: 10px;
+  width: 6px; height: 1px; background: var(--accent-dim);
+}
+
+/* 이 페이지가 다루는 건 네 공정 중 하나다. 본문에서 한 번은 그렇게 말한다.
+   드로어의 SOLUTION 4종이 본문과 이어지는 유일한 지점이다. */
+.flow__more {
+  margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px;
+  font-size: 16px; color: var(--text-mid); max-width: 62ch;
+}
+.flow__more a {
+  color: var(--text-hi); white-space: nowrap;
+  padding-bottom: 1px; border-bottom: 1px solid var(--accent-dim);
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+.flow__more a:hover { border-bottom-color: var(--accent); }
+
+/* ── UI 조각(패널) ──────────────────────────────── */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.panel__bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--bg-base);
+}
+.panel__body { padding: 14px; display: grid; gap: 14px; min-width: 0; }
+.panel__body--flush { padding: 0; }
+
+.dot { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; color: var(--text-mid); }
+.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+/* 지표 행 */
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.metrics > div { background: var(--bg-panel); padding: 12px; display: grid; gap: 6px; }
+.metrics .v {
+  font-size: 20px; font-weight: 300; line-height: 1; letter-spacing: -0.02em; color: var(--text-hi);
+}
+.metrics .v small { font-size: 13px; color: var(--text-lo); margin-inline-start: 3px; letter-spacing: 0.08em; }
+
+/* 스파크라인 */
+.spark { width: 100%; height: 68px; display: block; }
+.spark path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.spark .grid { stroke: var(--line); stroke-width: 1; }
+
+/* 커버리지 바 */
+.bar-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.bar-head .num { font-size: 16px; color: var(--text-hi); }
+.bar { height: 6px; background: var(--bg-void); border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+
+/* 저장 폼 */
+.field { display: grid; gap: 6px; }
+.field > .label { font-size: 14px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); }
+.field .fake-input {
+  min-height: 40px; display: flex; align-items: center; padding: 0 10px;
+  background: var(--bg-void); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-size: 16px; color: var(--text-hi);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 9px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-void); font-size: 15px; color: var(--text-mid);
+}
+.chip .num { color: var(--text-hi); }
+.panel-note { font-size: 15px; color: var(--text-mid); margin: 0; }
+
+/* 라이브러리 표 */
+.tbl-scroll { overflow-x: auto; }
+.tbl { width: 100%; min-width: 380px; border-collapse: collapse; font-size: 16px; }
+.tbl th {
+  text-align: start; font-size: 13px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-lo);
+  padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+/* uppercase 가 µm 을 MM 으로 만든다. 단위는 원문 그대로 둔다. */
+.tbl th .u { text-transform: none; letter-spacing: 0.04em; }
+.tbl td { padding: 11px 10px; border-bottom: 1px solid var(--line); color: var(--text-mid); }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl tr[data-sel="true"] td { background: var(--bg-raised); color: var(--text-hi); }
+/* 표 안의 상태 표식 — 색과 함께 반드시 글자를 둔다*/
+.tag-on, .tag-warn {
+  display: inline-block; margin-inline-start: 8px; padding: 2px 6px;
+  border: 1px solid currentColor; border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.06em;
+  vertical-align: 1px; white-space: nowrap;
+}
+.tag-on   { color: var(--accent); }
+.tag-warn { color: var(--warn); }
+.tbl .num { color: var(--text-hi); }
+.tbl th:nth-child(n+2), .tbl td:nth-child(n+2) { text-align: end; }
+
+/* ── 결과 스트립 ─────────────────────────────────── */
+.spec { background: var(--bg-base); }
+.spec__grid {
+  display: grid; gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+@media (min-width: 900px) { .spec__grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+.spec__grid > div { background: var(--bg-base); padding: 28px 20px; display: grid; gap: 10px; }
+.spec__v {
+  font-size: clamp(28px, 3.4vw, 40px); font-weight: 300; line-height: 1;
+  letter-spacing: -0.03em; color: var(--text-hi);
+}
+.spec__v small { font-size: 16px; font-weight: 500; color: var(--text-lo); margin-inline-start: 5px; letter-spacing: 0.06em; }
+
+/* ── 마감 CTA ───────────────────────────────────── */
+.end { background: var(--bg-void); text-align: center; }
+.end h2 {
+  font-size: clamp(26px, 4vw, 44px); font-weight: 700; line-height: 1.3;
+  letter-spacing: -0.02em; color: var(--text-hi); text-wrap: balance;
+  max-width: 20ch; margin-inline: auto;
+}
+.end p { margin: 20px auto 0; max-width: 46ch; color: var(--text-mid); text-wrap: balance; }
+.end__cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 36px; }
+
+/* ── 푸터 ───────────────────────────────────────── */
+.ft { background: var(--bg-void); border-top: 1px solid var(--line); padding-block: 40px 48px; }
+.ft__in { display: grid; gap: 24px; }
+@media (min-width: 768px) { .ft__in { grid-template-columns: 1fr auto; align-items: center; } }
+.ft small { color: var(--text-lo); font-size: 15px; }
+.ft__links { display: flex; flex-wrap: wrap; gap: 4px; }
+.ft__links a { padding: 10px 12px; font-size: 15px; color: var(--text-lo); transition: color var(--t-fast) var(--e-out); }
+.ft__links a:hover { color: var(--text-mid); }
+
+/* ══════════════════════════════════════════════════════════════
+   모션 정지 — 예외 없음
+   ══════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════
+   로그인 다이얼로그
+   <dialog>를 쓴다. 포커스 가둠 · ESC 닫기 · 배경 inert 가 브라우저
+   기본으로 붙어서 직접 구현한 것보다 접근성이 정확하다.
+   스크림은 --bg-void 의 채널값에 알파를 준 것. 새 색이 아니다.
+   블러는 넣지 않는다 — 뒤가 정지 화면일 때의 블러는 장식이다.
+   ══════════════════════════════════════════════════════════════ */
+.auth {
+  width: 100%; max-width: none; height: 100%; max-height: none;
+  margin: 0; padding: 24px var(--gutter); border: 0;
+  background: rgb(var(--bg-void-ch) / 0.84);
+  color: var(--text-mid);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.auth[open] { display: flex; align-items: center; justify-content: center; }
+.auth::backdrop { background: transparent; }
+[data-modal="open"] { overflow: hidden; }
+
+.auth__box {
+  position: relative;
+  width: min(380px, 100%); margin: auto;
+  display: grid; gap: 18px;
+  padding: 34px 30px 26px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--r-md);
+  word-break: keep-all;
+  animation: authIn var(--t-base) var(--e-out);
+}
+@keyframes authIn { from { opacity: 0; transform: translateY(10px); } }
+
+.auth__x {
+  position: absolute; inset-block-start: 8px; inset-inline-end: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--text-lo); cursor: pointer;
+  transition: color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
+}
+.auth__x:hover { color: var(--text-hi); background: var(--bg-raised); }
+
+.auth__head { display: grid; gap: 6px; }
+.auth__title { font-size: 21px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.3; color: var(--text-hi); }
+.auth__sub { font-size: 13.5px; line-height: 1.6; color: var(--text-mid); }
+
+/* 오류 요약 — 실패 시 여기로 초점을 옮긴다. 각 항목은 해당 필드로 간다 */
+.auth__alert {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--crit); border-radius: var(--r-sm);
+  font-size: 13.5px; line-height: 1.55;
+}
+.auth__alert[hidden] { display: none; }
+.auth__alert svg { flex: none; margin-block-start: 1px; color: var(--crit); }
+.auth__alert b { display: block; font-weight: 500; color: var(--text-hi); }
+.auth__alert ul { display: grid; gap: 2px; margin-block-start: 4px; }
+.auth__alert a { color: var(--text-mid); text-decoration: underline; text-underline-offset: 2px; }
+.auth__alert a:hover { color: var(--text-hi); }
+.auth__alert.is-ok { border-color: var(--ok); }
+.auth__alert.is-ok svg { color: var(--ok); }
+
+.fld { display: grid; gap: 7px; }
+.fld[hidden] { display: none; }
+.fld > .label { color: var(--text-lo); }
+
+.inp {
+  width: 100%; min-height: 44px; padding: 0 12px;
+  font-family: inherit; font-size: 16px; letter-spacing: 0.01em;
+  color: var(--text-hi);
+  background: var(--bg-base);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  transition: border-color var(--t-fast) var(--e-out),
+              background-color var(--t-fast) var(--e-out);
+}
+.inp::placeholder { color: var(--text-lo); }
+.inp:hover { border-color: var(--line-hi); }
+.inp:focus { outline: none; border-color: var(--accent); background: var(--bg-raised); }
+.inp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inp[aria-invalid="true"] { border-color: var(--crit); }
+
+.inp-wrap { position: relative; display: block; }
+.inp-wrap .inp { padding-inline-end: 46px; }
+.inp-eye {
+  position: absolute; inset-inline-end: 1px; inset-block-start: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; padding: 0;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--text-lo); cursor: pointer;
+  transition: color var(--t-fast) var(--e-out);
+}
+.inp-eye:hover { color: var(--text-mid); }
+.inp-eye[aria-pressed="true"] { color: var(--accent); }
+.inp-eye .ico-off { display: none; }
+.inp-eye[aria-pressed="true"] .ico-on { display: none; }
+.inp-eye[aria-pressed="true"] .ico-off { display: block; }
+
+/* 필드별 오류 — 색만으로 알리지 않는다. 아이콘을 같이 둔다 */
+.fld__err { display: flex; align-items: center; gap: 5px; font-size: 15px; line-height: 1.4; color: var(--crit); }
+.fld__err[hidden] { display: none; }
+.fld__err svg { flex: none; }
+
+.auth__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 15px; color: var(--text-mid);
+}
+.auth__row[hidden] { display: none; }
+/* 체크박스 자체는 14px 이지만 라벨 전체가 누를 수 있는 24px 이상이 되게 한다 */
+.chk { display: inline-flex; align-items: center; gap: 7px; min-height: 24px; cursor: pointer; }
+.chk input {
+  width: 14px; height: 14px; margin: 0;
+  accent-color: var(--accent); cursor: pointer;
+}
+.auth__row a { color: var(--text-mid); transition: color var(--t-fast) var(--e-out); }
+.auth__row a:hover { color: var(--text-hi); }
+
+.auth__submit { width: 100%; position: relative; overflow: hidden; }
+/* 진행 표시 — 제품의 스캔 라인과 같은 언어. 값이 아니라 상태만 말한다 */
+.auth__submit[aria-busy="true"] { cursor: progress; }
+.auth__submit[aria-busy="true"]::after {
+  content: ""; position: absolute; inset-inline-start: 0; inset-block-end: 0;
+  width: 38%; height: 2px; background: var(--bg-void);
+  animation: authScan 880ms var(--e-out) infinite;
+}
+@keyframes authScan { from { transform: translateX(-100%); } to { transform: translateX(365%); } }
+
+.auth__foot {
+  padding-block-start: 16px; border-block-start: 1px solid var(--line);
+  font-size: 13.5px; text-align: center; color: var(--text-mid);
+}
+.auth__foot button {
+  margin-inline-start: 4px; padding: 0;
+  font-family: inherit; font-size: inherit; font-weight: 500;
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--accent); border-block-end: 1px solid var(--accent-dim);
+  transition: color var(--t-fast) var(--e-out), border-color var(--t-fast) var(--e-out);
+}
+.auth__foot button:hover { color: var(--text-hi); border-block-end-color: var(--text-hi); }
+
+@media (max-width: 380px) { .auth__box { padding: 30px 20px 22px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { opacity: 1; transform: none; transition: none; }
+  .scroll-cue__rail::after { animation: none; transform: translateY(0); }
+  .auth__box { animation: none; }
+  .auth__submit[aria-busy="true"]::after { animation: none; width: 100%; }
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="hdr">
+  <div class="hdr__in">
+    <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="drawer" aria-label="메뉴 열기">
+      <svg class="ico-bars" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M3 6h16M3 11h16M3 16h16"/>
+      </svg>
+      <svg class="ico-x" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M4 4l14 14M18 4L4 18"/>
+      </svg>
+    </button>
+
+    <a class="mark" href="#top" aria-label="PolyTwin 홈">
+      <svg class="mark__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+        <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+        <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+      </svg>
+      <span>Poly<b>Twin</b></span>
+    </a>
+
+    <div class="hdr__end">
+      <p class="lang" role="group" aria-label="언어">
+        <a href="?lang=ko" hreflang="ko" data-lang="ko" aria-current="true">KR</a>
+        <span aria-hidden="true">·</span>
+        <a href="?lang=en" hreflang="en" data-lang="en">EN</a>
+      </p>
+      <div class="hdr__auth" data-auth-slot>
+        <button class="btn btn--ghost hdr__cta" type="button" id="loginBtn" aria-haspopup="dialog">LOG IN</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── 로그인 / 회원가입 ──────────────────────────────────────── -->
+<dialog class="auth" id="authDlg" aria-labelledby="authTitle">
+  <form class="auth__box" id="authForm" novalidate>
+    <button class="auth__x" type="button" data-auth-close aria-label="닫기">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 4l10 10M14 4L4 14"/></svg>
+    </button>
+
+    <div class="auth__head">
+      <p class="label" id="authEyebrow">Console Access</p>
+      <h2 class="auth__title" id="authTitle">로그인</h2>
+      <p class="auth__sub" id="authSub">공정 콘솔에 접속하려면 계정 정보를 입력하세요.</p>
+    </div>
+
+    <div class="auth__alert" id="authAlert" role="alert" tabindex="-1" hidden>
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true">
+        <path d="M7.5 1.5L14 13.5H1L7.5 1.5zM7.5 6v3.5M7.5 11.2v.6"/>
+      </svg>
+      <div>
+        <b id="authAlertTitle">입력을 확인해 주세요</b>
+        <ul id="authAlertList"></ul>
+      </div>
+    </div>
+
+    <div class="fld" id="fldName" hidden>
+      <label class="label" for="authName">이름 <span class="fld__opt">(선택)</span></label>
+      <input class="inp" id="authName" name="name" type="text" autocomplete="name"
+             placeholder="홍길동" maxlength="40">
+    </div>
+
+    <div class="fld">
+      <label class="label" for="authId">ID</label>
+      <input class="inp" id="authId" name="id" type="text" inputmode="text"
+             autocomplete="username" autocapitalize="off" spellcheck="false"
+             placeholder="사번 또는 아이디" aria-describedby="authIdErr" required>
+      <p class="fld__err" id="authIdErr" hidden>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true"><path d="M6.5 1.5L12 11.5H1L6.5 1.5zM6.5 5.2v3M6.5 9.6v.5"/></svg>
+        <span></span>
+      </p>
+    </div>
+
+    <div class="fld">
+      <label class="label" for="authPw">Password</label>
+      <span class="inp-wrap">
+        <input class="inp" id="authPw" name="pw" type="password"
+               autocomplete="current-password" placeholder="비밀번호"
+               aria-describedby="authPwErr" required>
+        <button class="inp-eye" id="authEye" type="button" aria-pressed="false" aria-label="비밀번호 표시">
+          <svg class="ico-on" width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1 8.5S3.7 3.5 8.5 3.5 16 8.5 16 8.5 13.3 13.5 8.5 13.5 1 8.5 1 8.5z"/><circle cx="8.5" cy="8.5" r="2.2"/></svg>
+          <svg class="ico-off" width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true"><path d="M1 8.5S3.7 3.5 8.5 3.5 16 8.5 16 8.5 13.3 13.5 8.5 13.5 1 8.5 1 8.5z"/><path d="M2.5 2.5l12 12"/></svg>
+        </button>
+      </span>
+      <p class="fld__err" id="authPwErr" hidden>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true"><path d="M6.5 1.5L12 11.5H1L6.5 1.5zM6.5 5.2v3M6.5 9.6v.5"/></svg>
+        <span></span>
+      </p>
+    </div>
+
+    <div class="fld" id="fldPw2" hidden>
+      <label class="label" for="authPw2">Confirm Password</label>
+      <input class="inp" id="authPw2" name="pw2" type="password"
+             autocomplete="new-password" placeholder="비밀번호 확인"
+             aria-describedby="authPw2Err">
+      <p class="fld__err" id="authPw2Err" hidden>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" aria-hidden="true"><path d="M6.5 1.5L12 11.5H1L6.5 1.5zM6.5 5.2v3M6.5 9.6v.5"/></svg>
+        <span></span>
+      </p>
+    </div>
+
+    <div class="auth__row" id="authRow">
+      <label class="chk"><input type="checkbox" id="authKeep"><span>로그인 상태 유지</span></label>
+      <a href="#top" data-auth-close>비밀번호 찾기</a>
+    </div>
+
+    <button class="btn btn--solid auth__submit" id="authSubmit" type="submit">
+      <span id="authSubmitTxt">로그인</span>
+    </button>
+
+    <p class="auth__foot">
+      <span id="authFootTxt">계정이 없으신가요?</span>
+      <button type="button" id="authMode">회원가입</button>
+    </p>
+  </form>
+</dialog>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer__in">
+    <div class="menu-col">
+    <nav class="menu-page" aria-label="이 페이지">
+      <h2>이 페이지</h2>
+      <div class="menu-page__list">
+        <a href="#scan">공정</a>
+        <a href="#flow">기능</a>
+        <a href="#spec">결과</a>
+      </div>
+    </nav>
+    <nav class="menu-main" aria-label="사이트">
+      <details class="m-group">
+        <summary>기업소개<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=goal">우리의 목표</a>
+          <a href="sub.html?p=values">우리의 가치관</a>
+          <a href="sub.html?p=results">우리의 성과</a>
+          <a href="sub.html?p=pricing">가격 정책</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>SOLUTION<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=polishing">폴리싱</a>
+          <a href="sub.html?p=deburring">디버링</a>
+          <a href="sub.html?p=sanding">샌딩</a>
+          <a href="sub.html?p=pickplace">Pick &amp; Place</a>
+          <a href="sub.html?p=roadmap">확장 로드맵</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>기술혁신<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=physical-ai">Physical AI</a>
+          <a href="sub.html?p=rl">강화학습</a>
+          <a href="sub.html?p=expert-db">숙련공 DB</a>
+          <a href="sub.html?p=safety">안전 검증</a>
+        </div>
+      </details>
+      <details class="m-group">
+        <summary>PR<svg class="m-chev" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></summary>
+        <div class="m-sub">
+          <a href="sub.html?p=news">News</a>
+          <a href="sub.html?p=media">Media</a>
+          <a href="sub.html?p=blog">Blog</a>
+          <a href="sub.html?p=faq">FAQ</a>
+        </div>
+      </details>
+    </nav>
+    <p class="menu-foot">PolyTwin — 로봇 폴리싱 공정 디지털 트윈</p>
+    </div>
+
+    <div class="menu-side">
+      <h2>바로 가기</h2>
+      <a class="menu-card" href="console.html">
+        콘솔 열기
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+      <a class="menu-card" href="monitor.html">
+        공정 감시
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+      <a class="menu-card" href="library.html">
+        라이브러리
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 12L12 4M6 4h6v6"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+<nav class="rail" aria-label="섹션">
+  <div class="rail__list">
+    <a href="#scan" data-spy="scan">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4M3 10h14"/>
+      </svg>
+      <span>공정</span>
+    </a>
+    <a href="#flow" data-spy="flow">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+        <path d="M10 2.5 17 6.5 10 10.5 3 6.5zM3 11.5 10 15.5 17 11.5"/>
+      </svg>
+      <span>기능</span>
+    </a>
+    <a href="#spec" data-spy="spec">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M4 16.5V10M10 16.5V4M16 16.5v-4.5M2.5 16.5h15"/>
+      </svg>
+      <span>결과</span>
+    </a>
+  </div>
+  <div class="rail__end">
+    <a href="#top">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
+        <path d="M10 16.5V4M4.5 9.5 10 4l5.5 5.5"/>
+      </svg>
+      <!-- 레일 글자 상자는 68px - 좌우 padding 8px = 60px 다.
+           사전의 'Back to top' 은 13px/0.06em 에서 75.7px — overflow:hidden 에
+           잘린다. 이 자리에서만 Top(25.5px). 푸터·드로어는 사전 그대로다. -->
+      <span data-en="Top">맨 위로</span>
+    </a>
+  </div>
+</nav>
+
+<main id="main">
+
+  <!-- ══════════ 히어로 ══════════
+       assets/video/hero.mp4 (1280x720 / 10.3초) 를 무한 반복 재생한다.
+       파일이 없거나 못 읽으면 3D 씬(#heroCanvas)이 대신 보인다. -->
+  <section class="hero" id="top">
+    <div class="hero__media">
+      <video id="heroVideo" muted loop playsinline preload="metadata" hidden
+             aria-hidden="true" tabindex="-1">
+        <source src="assets/video/hero.mp4" type="video/mp4">
+      </video>
+      <canvas id="heroCanvas" aria-label="차체 폴리싱 로봇 공정의 3차원 미리보기"></canvas>
+    </div>
+    <div class="hero__scrim"></div>
+
+    <div class="hero__in wrap">
+      <p class="eyebrow">Polishing Digital Twin</p>
+      <h1>AI가 찾은 최적값을<em>숙련공이 검증한다</em></h1>
+      <p class="hero__sub">
+        작업 환경을 설정하여 강화학습(RL)이 도출한 최적의 파라미터로 공정을 시뮬레이션하고,
+        숙련공이 채점하여 합격한 결과만 라이브러리에 저장한다.
+      </p>
+      <div class="hero__cta">
+        <a class="btn btn--solid btn--lg" href="console.html">콘솔 열기</a>
+        <a class="btn btn--ghost btn--lg" href="#scan">공정 보기</a>
+      </div>
+    </div>
+
+    <div class="scroll-cue" aria-hidden="true">
+      <span class="scroll-cue__rail"></span>
+      <span class="label">Scroll</span>
+    </div>
+  </section>
+
+  <!-- ══════════ 문장 하나 ══════════ -->
+  <section class="sec sec--impress statement" id="statement">
+    <div class="wrap statement__grid">
+      <blockquote class="rise">
+        숙련공의 감은 은퇴와&nbsp;함께 <b>사라진다.</b>
+      </blockquote>
+      <footer class="rise" style="--d:80ms">
+        남는 건 결과물뿐이다. 그 결과를 만든 암묵지(압력·속도·경로)는 어디에도 기록되지 못했다.
+        아래부터가 그 암묵지를 남기는 방법이다.
+      </footer>
+    </div>
+  </section>
+
+  <!-- ══════════ 3D 스캔 ══════════ -->
+  <section class="sec scan" id="scan">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <p class="label">01 — 공정</p>
+        <h2>잘 닦였는지는 눈이 아니라 표면 수치로 판정한다</h2>
+        <p>
+          차체를 3,600칸 격자로 나눠 칸마다 표면을 잰다. 거칠기 Ra 0.20 µm 이하,
+          극단 거칠기 Rz 2.0 µm 이하, 잔여 클리어코트 35 µm 이상 — 한 칸이라도 벗어나면 합격이 아니다.
+          숙련공이 합격을 매길 때 보는 것도 이 수치다.
+        </p>
+      </div>
+
+      <div class="scan__stage rise" style="--d:80ms">
+        <canvas id="scanCanvas" aria-label="차체 표면이 무광에서 유광으로 바뀌는 스캔 시연"></canvas>
+
+        <div class="scan__hud">
+          <div class="scan__readout">
+            <div class="readout">
+              <span class="label">진행</span>
+              <span class="readout__v" id="scanPct">0<small>%</small></span>
+            </div>
+            <div class="readout">
+              <span class="label">거칠기 Ra</span>
+              <span class="readout__v" id="scanRa">0.82<small>µm</small></span>
+            </div>
+            <div class="readout readout--ref">
+              <span class="label">합격선</span>
+              <span class="readout__v">0.20<small>µm</small></span>
+            </div>
+          </div>
+          <button class="btn btn--ghost" type="button" id="scanBtn">다시 재생</button>
+        </div>
+
+        <p class="scan__note" id="scanNote" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 기능 3종 ══════════ -->
+  <section class="sec flow" id="flow">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <p class="label">02 — 기능</p>
+        <h2>환경 설정, RL 최적화, 숙련공 평가</h2>
+        <p>환경을 세우고, 학습이 값을 찾고, 숙련공이 판정한다. 통과한 것만 라이브러리에 남는다.</p>
+      </div>
+
+      <!-- 01 환경 설정 -->
+      <article class="step rise">
+        <p class="step__no">01</p>
+        <div class="step__txt">
+          <span class="label step__cat">환경 설정</span>
+          <h3>파라미터 대신 작업 환경을 구축한다</h3>
+          <p>값을 손으로 맞추지 않는다. 3D 뷰어에서 설비 구성만 정하면 탐색은 학습이 맡는다.</p>
+          <ul>
+            <li>로봇 팔 대수 (1–3대) 지정</li>
+            <li>이동 레일 유무 설정</li>
+            <li>작업용 리프트 토글</li>
+          </ul>
+        </div>
+        <figure class="panel">
+          <figcaption class="panel__bar">
+            <span class="label">라이브 · 세션 A-2261</span>
+            <span class="dot">가동중</span>
+          </figcaption>
+          <div class="panel__body">
+            <div class="metrics">
+              <div><span class="label">접촉력</span><span class="v">5.6<small>N</small></span></div>
+              <div><span class="label">이송</span><span class="v">30<small>mm/s</small></span></div>
+              <div><span class="label">토크</span><span class="v">2.7<small>Nm</small></span></div>
+            </div>
+            <svg class="spark" viewBox="0 0 320 68" preserveAspectRatio="none" role="img"
+                 aria-label="최근 60초 접촉력 추이. 4.5에서 6.5뉴턴 사이를 유지하다 끝부분에서 소폭 상승.">
+              <line class="grid" x1="0" y1="17" x2="320" y2="17"/>
+              <line class="grid" x1="0" y1="34" x2="320" y2="34"/>
+              <line class="grid" x1="0" y1="51" x2="320" y2="51"/>
+              <path d="M0 44 L20 41 L40 46 L60 38 L80 42 L100 33 L120 37 L140 30 L160 35 L180 28 L200 32 L220 25 L240 30 L260 22 L280 27 L300 19 L320 24"/>
+            </svg>
+            <div>
+              <div class="bar-head">
+                <span class="label">커버리지</span>
+                <span class="num">72.4%</span>
+              </div>
+              <div class="bar"><i style="width:72.4%"></i></div>
+            </div>
+          </div>
+        </figure>
+      </article>
+
+      <!-- 02 RL 최적화 및 평가 -->
+      <article class="step rise">
+        <p class="step__no">02</p>
+        <div class="step__txt">
+          <span class="label step__cat">최적화 및 채점</span>
+          <h3>채점을 통과하기 전까지는 전부 후보값이다</h3>
+          <p>강화학습이 파라미터를 탐색해 공정을 돌리고, 숙련공이 그 결과를 채점한다.</p>
+          <ul>
+            <li>강화학습(RL) 기반 파라미터 자동 탐색</li>
+            <li>면적 커버리지, 조도 등 품질 지표 도출</li>
+            <li>숙련공의 Pass/Fail 및 별점 부여</li>
+          </ul>
+        </div>
+        <figure class="panel">
+          <figcaption class="panel__bar">
+            <span class="label">프리셋 저장</span>
+            <span class="label">2026-08-28 14:07</span>
+          </figcaption>
+          <div class="panel__body">
+            <div class="field">
+              <span class="label">프리셋 이름</span>
+              <p class="fake-input">세단 루프 — 김영수 반장 설정</p>
+            </div>
+            <div class="field">
+              <span class="label">포함된 파라미터</span>
+              <div class="chips">
+                <span class="chip">접촉력 <span class="num">5.6 N</span></span>
+                <span class="chip">이송 <span class="num">30 mm/s</span></span>
+                <span class="chip">오버랩 <span class="num">40%</span></span>
+                <span class="chip">패드 <span class="num">P2000</span></span>
+                <span class="chip">경로 <span class="num">S-3</span></span>
+                <span class="chip">각도 <span class="num">12°</span></span>
+              </div>
+            </div>
+            <p class="panel-note">
+              저장 시점의 커버리지·Ra·사이클 타임이 함께 묶인다.
+            </p>
+          </div>
+        </figure>
+      </article>
+
+      <!-- 03 라이브러리 저장 -->
+      <article class="step rise">
+        <p class="step__no">03</p>
+        <div class="step__txt">
+          <span class="label step__cat">라이브러리</span>
+          <h3>검증된 데이터만 다시 꺼내 쓴다</h3>
+          <p>합격점을 받은 파라미터 세트만 라이브러리에 남는다. 다음 작업은 여기서 시작한다.</p>
+          <ul>
+            <li>환경 조건별 강화학습 파라미터 저장</li>
+            <li>합격 레시피 비교 및 적용</li>
+            <li>결과 지표 기반 정렬 기능</li>
+          </ul>
+        </div>
+        <figure class="panel">
+          <figcaption class="panel__bar">
+            <span class="label">라이브러리 · 4건</span>
+            <span class="label">Ra 낮은 순</span>
+          </figcaption>
+          <div class="panel__body panel__body--flush">
+            <div class="tbl-scroll">
+            <table class="tbl">
+              <thead>
+                <tr><th scope="col">프리셋</th><th scope="col">Ra <span class="u">(µm)</span></th><th scope="col">커버리지</th><th scope="col">사이클</th></tr>
+              </thead>
+              <tbody>
+                <tr data-sel="true"><td>세단 루프 — 김영수<span class="tag-on">적용중</span></td><td class="num">0.14</td><td class="num">98.2%</td><td class="num">4:12</td></tr>
+                <tr><td>세단 후드 — 김영수</td><td class="num">0.17</td><td class="num">96.8%</td><td class="num">3:48</td></tr>
+                <tr><td>SUV 도어 — 표준</td><td class="num">0.23</td><td class="num">94.1%</td><td class="num">5:02</td></tr>
+                <tr><td>SUV 루프 — 초기값<span class="tag-warn">기준 미달</span></td><td class="num">0.41</td><td class="num">88.7%</td><td class="num">5:36</td></tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </figure>
+      </article>
+
+      <p class="flow__more rise">
+        <span>폴리싱은 네 공정 중 첫 번째다. 디버링·샌딩·Pick &amp; Place 가
+        같은 스캔·경로·힘 제어 파이프라인을 쓴다.</span>
+        <a href="sub.html?p=polishing">공정 4종 보기</a>
+        <a href="sub.html?p=roadmap">확장 로드맵</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════ 결과 ══════════
+       네 값 모두 실측이다. 출처는 전부 데이터셋/seg_best_kpi.json ( 생성,
+       원본 sweep_traj_csv 183.1MB). 산출은 아래와 같다:
+       595회  = 15구간 runCount 합 (구간당 37–40회)
+       10종   = header 의 p_* 컬럼 수 (force·stiffness·damping·speed·press_vel·
+                adm_damping·adm_mass·lag_gain·force_alpha·creep_advance)
+       15구간 = segments 길이 (천장 C 8 + 사이드 SL 7) · waypoints 합 829
+       94.4%  = 구간별 best inband 평균 0.9435 (기준값 baselineInband 평균 0.7414)
+       자산 용량(모델 MB·폰트 KB)은 공정 지표가 아니라서 뺐다..
+       근거 없는 수치는 여기 올리지 않는다. -->
+  <section class="sec sec--tight spec" id="spec">
+    <div class="wrap">
+      <div class="sec-head sec-head--tight rise">
+        <p class="label">03 — 결과</p>
+        <h2>강화학습 탐색 기록</h2>
+      </div>
+      <div class="spec__grid rise" style="--d:60ms">
+      <div>
+        <span class="spec__v">595<small>회</small></span>
+        <span class="label">파라미터 스윕 시행</span>
+      </div>
+      <div>
+        <span class="spec__v">10<small>종</small></span>
+        <span class="label">학습이 조절하는 파라미터</span>
+      </div>
+      <div>
+        <span class="spec__v">15<small>구간</small></span>
+        <span class="label">차체 곡면 · 웨이포인트 829</span>
+      </div>
+      <div>
+        <span class="spec__v">94.4<small>%</small></span>
+        <span class="label">접촉력 밴드 유지율 · 기준 74.1%</span>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 마감 CTA ══════════ -->
+  <section class="sec end">
+    <div class="wrap">
+      <h2 class="rise">지금 돌고 있는 공정부터 기록한다</h2>
+      <p class="rise" style="--d:60ms">
+        설정을 만들고, 공정을 지켜보고, 결과가 좋으면 저장한다. 다음 차종에서 다시 꺼낸다.
+      </p>
+      <div class="end__cta rise" style="--d:120ms">
+        <a class="btn btn--solid btn--lg" href="console.html">콘솔 열기</a>
+        <a class="btn btn--ghost btn--lg" href="library.html">라이브러리 보기</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="ft">
+  <div class="wrap ft__in">
+    <small>PolyTwin — 로봇 폴리싱 공정 디지털 트윈 · 2026</small>
+    <nav class="ft__links" aria-label="푸터">
+      <a href="#top">맨 위로</a>
+      <a href="#scan">공정</a>
+      <a href="#flow">기능</a>
+      <a href="sub.html?p=polishing">솔루션</a>
+      <a href="sub.html?p=physical-ai">기술</a>
+      <a href="sub.html?p=goal">기업소개</a>
+      <a href="console.html">콘솔</a>
+    </nav>
+  </div>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/vendor/three.module.js",
+    "three/addons/": "./assets/vendor/"
+  }
+}
+</script>
+
+<script src="/assets/js/i18n.js?v=2026-09-01b"></script>
+<script src="/assets/js/auth-client.js?v=2026-09-01"></script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   메뉴 오버레이 — 열면 화면 전체가 반전된다
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  const btn = document.getElementById('menuBtn');
+  const drawer = document.getElementById('drawer');
+  const setOpen = (open) => {
+    const root = document.documentElement;
+    drawer.hidden = !open;
+    if (open) root.setAttribute('data-menu', 'open');
+    else root.removeAttribute('data-menu');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    /* 열면 첫 항목으로, 닫으면 버튼으로 초점을 되돌린다 */
+    if (open) drawer.querySelector('a')?.focus();
+  };
+  btn.addEventListener('click', () => setOpen(drawer.hidden));
+  drawer.addEventListener('click', (e) => { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !drawer.hidden) { setOpen(false); btn.focus(); } });
+  /* 아코디언은 한 번에 하나만 연다 */
+  const groups = drawer.querySelectorAll('.m-group');
+  groups.forEach((d) => d.addEventListener('toggle', () => {
+    if (!d.open) return;
+    groups.forEach((o) => { if (o !== d) o.open = false; });
+  }));
+
+  /* 바깥을 누르면 닫는다 */
+  document.addEventListener('click', (e) => {
+    if (drawer.hidden) return;
+    if (e.target.closest('#drawer, #menuBtn')) return;
+    setOpen(false);
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   레일 — 지금 보고 있는 섹션을 표시한다 (nav-state-active)
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  const links = document.querySelectorAll('.rail a[data-spy]');
+  if (!links.length) return;
+  const byId = {};
+  links.forEach((a) => { byId[a.dataset.spy] = a; });
+
+  const seen = new Map();
+  const mark = () => {
+    let best = null, bestRatio = 0;
+    seen.forEach((ratio, id) => { if (ratio > bestRatio) { bestRatio = ratio; best = id; } });
+    links.forEach((a) => {
+      if (a.dataset.spy === best) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
+  };
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
+    mark();
+  }, { threshold: [0, 0.15, 0.35, 0.6, 0.9] });
+
+  Object.keys(byId).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) io.observe(el);
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   스크롤 진입 — 40ms stagger는 --d 인라인으로 준다
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  const items = document.querySelectorAll('.rise');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach((el) => el.classList.add('is-in'));
+    return;
+  }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('is-in');
+      io.unobserve(e.target);
+    });
+  }, { rootMargin: '0px 0px -12% 0px', threshold: 0.05 });
+  items.forEach((el) => io.observe(el));
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   히어로 영상 — 있으면 쓰고, 없으면 3D가 그 자리를 지킨다
+   ══════════════════════════════════════════════════════════════ */
+window.__heroVideoOK = false;
+(function () {
+  const v = document.getElementById('heroVideo');
+  const c = document.getElementById('heroCanvas');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* 배경으로 끊김 없이 계속 돈다 (markup 의 loop 속성).
+     감축 모드에서는 play() 를 호출하지 않으므로 첫 프레임에 멈춘 채로 남는다. */
+  v.addEventListener('loadeddata', () => {
+    window.__heroVideoOK = true;
+    v.hidden = false;
+    c.hidden = true;
+    if (reduced) return;              // 감축 모드에서는 첫 프레임 정지
+    v.play().catch(() => {});
+  }, { once: true });
+
+  /* 탭 복귀 시 브라우저가 배경 재생을 멈춰둔 경우 다시 돌린다 */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !window.__heroVideoOK || reduced) return;
+    if (v.paused) v.play().catch(() => {});
+  });
+
+  v.addEventListener('error', () => { v.hidden = true; }, { once: true });
+  v.querySelector('source').addEventListener('error', () => { v.hidden = true; }, { once: true });
+  v.load();
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   로그인 다이얼로그 — server/ 의 계정 API 에 붙는다
+   검증은 blur 에서, 오류 해제는 input 에서. 제출 실패 시 요약으로
+   초점을 옮기고 각 항목이 해당 필드를 가리킨다. 인라인 오류는 남긴다.
+   클라이언트 검증은 왕복을 줄이려는 것뿐이고, 판정은 서버가 한다.
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  const dlg = document.getElementById('authDlg');
+  if (!dlg || typeof dlg.showModal !== 'function') return;
+
+  const root = document.documentElement;
+  const form = document.getElementById('authForm');
+  const alertBox = document.getElementById('authAlert');
+  const alertTitle = document.getElementById('authAlertTitle');
+  const alertList = document.getElementById('authAlertList');
+  const submitBtn = document.getElementById('authSubmit');
+  const submitTxt = document.getElementById('authSubmitTxt');
+  const titleEl = document.getElementById('authTitle');
+  const subEl = document.getElementById('authSub');
+  const eyebrow = document.getElementById('authEyebrow');
+  const footTxt = document.getElementById('authFootTxt');
+  const modeBtn = document.getElementById('authMode');
+  const row = document.getElementById('authRow');
+  const fldName = document.getElementById('fldName');
+  const fldPw2 = document.getElementById('fldPw2');
+  const nameEl = document.getElementById('authName');
+  const id = document.getElementById('authId');
+  const pw = document.getElementById('authPw');
+  const pw2 = document.getElementById('authPw2');
+  const eye = document.getElementById('authEye');
+
+  /* 서버(server/server.js)의 ID_RE 와 같은 규칙 */
+  const ID_RE = /^[A-Za-z0-9._-]{4,32}$/;
+
+  let mode = 'login';
+  let busy = false;
+
+  const rules = {
+    authId: (v) => {
+      if (!v) return 'ID를 입력하세요.';
+      if (mode === 'signup' && !ID_RE.test(v)) return '영문·숫자와 . _ - 만 쓸 수 있고 4–32자여야 합니다.';
+      if (v.length < 4) return 'ID는 4자 이상이어야 합니다.';
+      return '';
+    },
+    authPw: (v) => {
+      if (!v) return '비밀번호를 입력하세요.';
+      if (mode === 'signup' && v.length < 8) return '비밀번호는 8자 이상이어야 합니다.';
+      return '';
+    },
+    authPw2: (v) => {
+      if (mode !== 'signup') return '';
+      if (!v) return '비밀번호를 다시 입력하세요.';
+      if (v !== pw.value) return '비밀번호가 일치하지 않습니다.';
+      return '';
+    },
+    authName: () => '',
+  };
+  const labelOf = { authId: 'ID', authPw: '비밀번호', authPw2: '비밀번호 확인' };
+  const activeFields = () => (mode === 'signup' ? [id, pw, pw2] : [id, pw]);
+
+  function setErr(el, msg) {
+    const box = document.getElementById(el.id + 'Err');
+    if (!box) return msg;
+    if (msg) {
+      box.querySelector('span').textContent = msg;
+      box.hidden = false;
+      el.setAttribute('aria-invalid', 'true');
+    } else {
+      box.hidden = true;
+      el.removeAttribute('aria-invalid');
+    }
+    return msg;
+  }
+
+  function clearAll() {
+    [id, pw, pw2].forEach((el) => setErr(el, ''));
+    alertBox.hidden = true;
+    alertBox.classList.remove('is-ok');
+    alertList.replaceChildren();
+  }
+
+  /* 요약 한 줄짜리 — 서버가 돌려준 메시지를 그대로 보여준다 */
+  function notice(text, ok) {
+    alertList.replaceChildren();
+    alertTitle.textContent = text;
+    alertBox.classList.toggle('is-ok', !!ok);
+    alertBox.hidden = false;
+    alertBox.focus();
+  }
+
+  function setBusy(on, label) {
+    busy = on;
+    submitBtn.disabled = on;
+    if (on) submitBtn.setAttribute('aria-busy', 'true');
+    else submitBtn.removeAttribute('aria-busy');
+    submitTxt.textContent = label;
+  }
+
+  /* ── 제출 ── */
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (busy) return;
+
+    alertBox.hidden = true;
+    alertBox.classList.remove('is-ok');
+    alertList.replaceChildren();
+
+    const bad = [];
+    activeFields().forEach((el) => {
+      if (setErr(el, rules[el.id](el.value.trim()))) bad.push(el);
+    });
+
+    if (bad.length) {
+      alertTitle.textContent = '입력을 확인해 주세요';
+      bad.forEach((el) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '#' + el.id;
+        a.textContent = labelOf[el.id] + ' — '
+          + document.getElementById(el.id + 'Err').querySelector('span').textContent;
+        a.addEventListener('click', (ev) => { ev.preventDefault(); el.focus(); });
+        li.appendChild(a);
+        alertList.appendChild(li);
+      });
+      alertBox.hidden = false;
+      alertBox.focus();
+      return;
+    }
+
+    const loginId = id.value.trim();
+
+    if (mode === 'signup') {
+      setBusy(true, '등록 중');
+      window.PT.signup(loginId, nameEl.value.trim(), pw.value)
+        .then((d) => {
+          setMode('login');
+          id.value = loginId;
+          notice(d.message || '가입 신청이 접수되었습니다.', true);
+        })
+        .catch((err) => {
+          if (err.status === 409) setErr(id, err.message);
+          notice(err.message, false);
+        })
+        .finally(() => setBusy(false, mode === 'signup' ? '계정 만들기' : '로그인'));
+      return;
+    }
+
+    setBusy(true, '확인 중');
+    window.PT.login(loginId, pw.value)
+      .then(() => {
+        /* 로그인은 로그인만 한다. 어디로도 보내지 않는다 —*/
+        /* 닫기 전에 헤더를 먼저 갈아끼운다. 순서를 뒤집으면 close 가
+           사라질 버튼에 초점을 주고 그대로 잃는다 */
+        return window.PT.paint().then(() => {
+          setBusy(false, '로그인');
+          dlg.close();
+        });
+      })
+      .catch((err) => {
+        setBusy(false, '로그인');
+        notice(err.message, false);
+        if (err.status === 401) { pw.value = ''; }
+      });
+  });
+
+  /* ── blur 검증 · input 해제 ── */
+  [id, pw, pw2].forEach((el) => {
+    el.addEventListener('blur', () => {
+      if (!el.value && !el.dataset.touched) return;
+      el.dataset.touched = '1';
+      setErr(el, rules[el.id](el.value.trim()));
+    });
+    el.addEventListener('input', () => {
+      el.dataset.touched = '1';
+      if (el.getAttribute('aria-invalid')) setErr(el, '');
+    });
+  });
+
+  /* ── 비밀번호 표시 ── */
+  eye.addEventListener('click', () => {
+    const on = eye.getAttribute('aria-pressed') === 'true';
+    eye.setAttribute('aria-pressed', String(!on));
+    pw.type = on ? 'password' : 'text';
+  });
+
+  /* ── 모드 전환 ── */
+  function setMode(nextMode) {
+    mode = nextMode;
+    const signup = nextMode === 'signup';
+    clearAll();
+    eyebrow.textContent = signup ? 'Request Account' : 'Console Access';
+    titleEl.textContent = signup ? '회원가입' : '로그인';
+    subEl.textContent = signup
+      ? '관리자 승인 후 콘솔 접속 권한이 부여됩니다.'
+      : '공정 콘솔에 접속하려면 계정 정보를 입력하세요.';
+    submitTxt.textContent = signup ? '계정 만들기' : '로그인';
+    footTxt.textContent = signup ? '이미 계정이 있으신가요?' : '계정이 없으신가요?';
+    modeBtn.textContent = signup ? '로그인' : '회원가입';
+    fldName.hidden = !signup;
+    fldPw2.hidden = !signup;
+    pw2.required = signup;
+    row.hidden = signup;
+    pw.setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+    pw.placeholder = signup ? '비밀번호 (8자 이상)' : '비밀번호';
+  }
+  modeBtn.addEventListener('click', () => {
+    setMode(mode === 'login' ? 'signup' : 'login');
+    id.focus();
+  });
+
+  /* ── 열기 / 닫기 ──
+     그래서 버튼을 잡아 두지 않고 위임한다. ──*/
+  function open() {
+    if (dlg.open) return;
+    dlg.showModal();
+    root.setAttribute('data-modal', 'open');
+    id.focus();
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#loginBtn')) open();
+  });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => {
+    root.removeAttribute('data-modal');
+    clearAll();
+    setMode('login');
+    form.reset();
+    pw.type = 'password';
+    eye.setAttribute('aria-pressed', 'false');
+    [id, pw, pw2].forEach((el) => delete el.dataset.touched);
+    const back = document.getElementById('loginBtn')
+      || document.querySelector('[data-auth-slot] button, [data-auth-slot] a');
+    if (back) back.focus();
+  });
+  dlg.querySelectorAll('[data-auth-close]').forEach((el) => {
+    el.addEventListener('click', () => dlg.close());
+  });
+
+  /* ── 보호된 화면에서 튕겨 온 경우 ──
+     서버가 /?login=1&next=... 로 돌려보낸다. 왜 여기 있는지 말해준다 ── */
+  (function fromRedirect() {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.has('login')) return;
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
+    open();
+    notice('접속하려면 로그인이 필요한 화면입니다.', false);
+    id.focus();
+  })();
+})();
+</script>
+
+<script type="module">
+/* ══════════════════════════════════════════════════════════════
+   3D — asset-check.html 의 검증된 구현에서 가져왔다
+   · MeshoptDecoder 연결 필수
+   · 카메라는 바운딩 스피어로 자동 프레이밍
+   · 무광 → 유광은 onBeforeCompile 로 roughnessFactor 0.82 ↔ 0.14
+   ══════════════════════════════════════════════════════════════ */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from './assets/vendor/meshopt_decoder.mjs';
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const VOID = getComputedStyle(document.documentElement).getPropertyValue('--bg-void').trim() || '#08090B';
+const noteEl  = document.getElementById('scanNote');
+const pctEl   = document.getElementById('scanPct');
+const raEl    = document.getElementById('scanRa');
+const scanBtn = document.getElementById('scanBtn');
+
+function fail(msg) {
+  noteEl.hidden = false;
+  noteEl.innerHTML = msg;
+  scanBtn.disabled = true;
+  scanBtn.style.opacity = '0.4';
+  scanBtn.style.cursor = 'not-allowed';
+}
+
+if (!document.createElement('canvas').getContext('webgl2')) {
+  fail('이 브라우저에서는 3D 미리보기를 표시할 수 없다.');
+} else {
+  boot().catch((err) => {
+    fail(`모델을 불러오지 못했다 — ${err.message}<br><br>` +
+         `<code>file://</code> 로는 fetch가 막힌다. 이 폴더에서 서버를 띄워라:<br>` +
+         `<code>python -m http.server 8000</code>`);
+  });
+}
+
+async function boot() {
+  /* ── 씬 하나를 두 캔버스에 그린다 (히어로 / 스캔 섹션) ── */
+  const scanCanvas = document.getElementById('scanCanvas');
+  const heroCanvas = document.getElementById('heroCanvas');
+
+  const renderer = new THREE.WebGLRenderer({ canvas: scanCanvas, antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const heroCtx = heroCanvas.getContext('2d');
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x08090B);
+
+  const camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.01, 1000);
+
+  /* 조명 — 키 1 + 좌우 림 2. 형상보다 조명이 중요하다 */
+  const key = new THREE.DirectionalLight(0xffffff, 2.6);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0004;
+  scene.add(key, key.target);
+
+  const rimL = new THREE.DirectionalLight(0x94B6C3, 1.5); scene.add(rimL);
+  const rimR = new THREE.DirectionalLight(0xDBC5A7, 1.1); scene.add(rimR);
+  scene.add(new THREE.HemisphereLight(0x1C242C, 0x04060A, 0.35));
+
+  /* 환경맵 — 없으면 금속이 금속으로 안 보인다 */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  {
+    const s = new THREE.Scene();
+    s.add(new THREE.Mesh(
+      new THREE.SphereGeometry(10, 24, 16),
+      new THREE.MeshBasicMaterial({ color: 0x1A222B, side: THREE.BackSide })
+    ));
+    const strip = (x, y, z, c, i) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.4), new THREE.MeshBasicMaterial({ color: c }));
+      m.position.set(x, y, z); m.lookAt(0, 0, 0); m.material.color.multiplyScalar(i); s.add(m);
+    };
+    strip(0, 7, 0, 0xffffff, 3.2);
+    strip(-7, 1.5, -3, 0xACC7D1, 1.4);
+    strip(7, 1.0, -4, 0xE3D5BB, 1.0);
+    scene.environment = pmrem.fromScene(s, 0.03).texture;
+  }
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshStandardMaterial({ color: 0x040608, roughness: 0.78, metalness: 0, envMapIntensity: 0.05 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  /* ── 스캔 셰이더 ─────────────────────────────────
+     스캔면이 지나간 자리(z > uScanZ)가 유광이 된다. */
+  const scanU = { uScanZ: { value: 1e9 }, uMinZ: { value: 0 }, uMaxZ: { value: 1 } };
+
+  function attachScan(mat) {
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, scanU);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vScanPos;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvScanPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>',
+          '#include <common>\nvarying vec3 vScanPos;\nuniform float uScanZ;\nuniform float uMinZ;\nuniform float uMaxZ;')
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+          float span = max(0.0001, uMaxZ - uMinZ);
+          float polished = smoothstep(uScanZ - 0.012 * span, uScanZ + 0.012 * span, vScanPos.z);
+          roughnessFactor = mix(0.82, 0.14, polished);
+          float edge = 1.0 - smoothstep(0.0, 0.010 * span, abs(vScanPos.z - uScanZ));
+          diffuseColor.rgb += vec3(0.24, 0.78, 0.94) * edge * 0.85;`);
+    };
+    mat.needsUpdate = true;
+  }
+
+  /* ── 모델 ────────────────────────────────────── */
+  const res = await fetch('./assets/models/car.opt.glb');
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await res.arrayBuffer(), '');
+
+  const model = gltf.scene;
+  const box = new THREE.Box3();
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = o.receiveShadow = true;
+    if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    o.material = new THREE.MeshStandardMaterial({ color: 0x9AA3AC, roughness: 0.82, metalness: 0.9, envMapIntensity: 1.15 });
+    attachScan(o.material);
+    box.expandByObject(o);
+  });
+
+  /* 자동 정렬 — 모델마다 스케일이 3자릿수 넘게 차이난다 */
+  const size = box.getSize(new THREE.Vector3());
+  const ctr  = box.getCenter(new THREE.Vector3());
+  const k    = 2.4 / Math.max(size.x, size.y, size.z);
+  model.scale.setScalar(k);
+  model.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k);
+  scene.add(model);
+
+  const b2 = new THREE.Box3().setFromObject(model);
+  scanU.uMinZ.value = b2.min.z;
+  scanU.uMaxZ.value = b2.max.z;
+  ground.position.y = b2.min.y - 0.002;
+
+  /* 카메라 자동 프레이밍 — 바운딩 스피어 기준. 고정 좌표는 쓰지 않는다 */
+  const sph  = b2.getBoundingSphere(new THREE.Sphere());
+  const fov  = THREE.MathUtils.degToRad(camera.fov);
+  const dist = (sph.radius / Math.sin(fov / 2)) * 1.18;
+  const el   = THREE.MathUtils.degToRad(17);
+  let   az   = THREE.MathUtils.degToRad(34);
+
+  camera.near = dist / 200;
+  camera.far  = dist * 60;
+
+  function placeCamera(azimuth) {
+    camera.position.set(
+      sph.center.x + dist * Math.cos(el) * Math.sin(azimuth),
+      sph.center.y + dist * Math.sin(el),
+      sph.center.z + dist * Math.cos(el) * Math.cos(azimuth)
+    );
+    camera.lookAt(sph.center);
+  }
+  placeCamera(az);
+
+  const r = sph.radius;
+  key.position.set(sph.center.x + r * 1.2, sph.center.y + r * 2.2, sph.center.z + r * 1.6);
+  key.target.position.copy(sph.center);
+  const sc = key.shadow.camera;
+  sc.left = -r * 1.6; sc.right = r * 1.6; sc.top = r * 1.6; sc.bottom = -r * 1.6;
+  sc.near = r * 0.05; sc.far = r * 8; sc.updateProjectionMatrix();
+  rimL.position.set(sph.center.x - r * 2.4, sph.center.y + r * 0.6, sph.center.z - r * 1.2);
+  rimR.position.set(sph.center.x + r * 2.4, sph.center.y + r * 0.4, sph.center.z - r * 1.6);
+  ground.scale.setScalar(Math.max(1, r * 4));
+
+  /* 안개로 바닥 끝을 배경에 녹인다 */
+  scene.fog = new THREE.FogExp2(0x08090B, 0.052 / Math.max(0.001, r));
+
+  /* ── 스캔 재생 — 1회 재생 후 유광 상태로 정지 ──*/
+  const SPAN = scanU.uMaxZ.value - scanU.uMinZ.value;
+  const DUR  = 3.4;          // 초
+  const RA_MATTE = 0.82, RA_GLOSS = 0.14;
+  const RA_PASS = 0.20;      // 데이터셋/quality_kpi.json 의 criteria.ra.limit
+
+  let t = REDUCED ? DUR : 0;
+  let playing = !REDUCED;
+
+  function applyScan() {
+    const p = Math.min(1, t / DUR);
+    scanU.uScanZ.value = scanU.uMinZ.value + SPAN * (1 - p) - SPAN * 0.02;
+    /* 값은 즉시 갱신한다. 이징을 넣으면 현재값을 읽을 수 없다*/
+    pctEl.innerHTML = `${Math.round(p * 100)}<small>%</small>`;
+    const ra = RA_MATTE + (RA_GLOSS - RA_MATTE) * p;
+    raEl.innerHTML  = `${ra.toFixed(2)}<small>µm</small>`;
+    raEl.classList.toggle('is-pass', ra <= RA_PASS);
+  }
+  applyScan();
+
+  function replay() { t = 0; playing = true; }
+  scanBtn.addEventListener('click', replay);
+
+  /* 화면에 처음 들어올 때 1회 자동 재생 */
+  if (!REDUCED) {
+    const once = new IntersectionObserver((es) => {
+      if (es.some((e) => e.isIntersecting)) { replay(); once.disconnect(); }
+    }, { threshold: 0.35 });
+    once.observe(scanCanvas);
+  }
+
+  /* ── 렌더 루프 — 보이지 않으면 돌리지 않는다 ── */
+  let scanVisible = false, heroVisible = true;
+  new IntersectionObserver((es) => { scanVisible = es[0].isIntersecting; }, { threshold: 0 })
+    .observe(document.getElementById('scan'));
+  new IntersectionObserver((es) => { heroVisible = es[0].isIntersecting; }, { threshold: 0 })
+    .observe(document.getElementById('top'));
+
+  function resizeTo(w, h) {
+    if (renderer.domElement.width === Math.floor(w * renderer.getPixelRatio()) &&
+        renderer.domElement.height === Math.floor(h * renderer.getPixelRatio())) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+
+  const clock = new THREE.Clock();
+
+  function frame() {
+    requestAnimationFrame(frame);
+    const dt = clock.getDelta();
+    const heroOn = heroVisible && !window.__heroVideoOK;
+    if (!scanVisible && !heroOn) return;
+
+    if (playing) {
+      t += dt;
+      if (t >= DUR) { t = DUR; playing = false; }
+      applyScan();
+    }
+
+    /* 히어로에서는 아주 느리게 선회시킨다 — 정지 화면으로 보이지 않게 */
+    if (heroOn && !REDUCED) { az += dt * 0.04; placeCamera(az); }
+
+    if (scanVisible) {
+      const rc = scanCanvas.getBoundingClientRect();
+      resizeTo(Math.max(1, rc.width), Math.max(1, rc.height));
+      renderer.render(scene, camera);
+    }
+
+    /* 히어로 캔버스는 같은 프레임을 2D로 복사한다 (WebGL 컨텍스트 1개 유지) */
+    if (heroOn) {
+      const hr = heroCanvas.getBoundingClientRect();
+      if (hr.width > 0 && hr.height > 0) {
+        const dpr = Math.min(devicePixelRatio, 2);
+        if (heroCanvas.width !== Math.floor(hr.width * dpr)) {
+          heroCanvas.width = Math.floor(hr.width * dpr);
+          heroCanvas.height = Math.floor(hr.height * dpr);
+        }
+        if (!scanVisible) {
+          resizeTo(Math.max(1, hr.width), Math.max(1, hr.height));
+          renderer.render(scene, camera);
+        }
+        const src = renderer.domElement;
+        const s = Math.max(heroCanvas.width / src.width, heroCanvas.height / src.height);
+        const dw = src.width * s, dh = src.height * s;
+        heroCtx.fillStyle = VOID;
+        heroCtx.fillRect(0, 0, heroCanvas.width, heroCanvas.height);
+        heroCtx.drawImage(src, (heroCanvas.width - dw) / 2, (heroCanvas.height - dh) / 2, dw, dh);
+      }
+    }
+  }
+  frame();
+}
+</script>
+
+</body>
+</html>

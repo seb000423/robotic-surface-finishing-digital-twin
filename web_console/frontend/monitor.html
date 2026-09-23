@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/css/pt-header.css?v=2026-09-01e">
+<title>공정 모니터링 · PolyTwin</title>
+<meta name="description" content="폴리싱 공정 실시간 관제 — 진행률 · 접촉력 · 커버리지 · 제거량 히트맵 · 이벤트 로그.">
+<meta name="theme-color" content="#0E1216">
+<link rel="icon" href="assets/favicon.svg">
+
+<link rel="preload" href="assets/fonts/Pretendard-300.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Pretendard-500.subset.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+@font-face { font-family: Pretendard; font-weight: 300; font-display: swap;
+  src: url(assets/fonts/Pretendard-300.subset.woff2) format('woff2'); }
+@font-face { font-family: Pretendard; font-weight: 500; font-display: swap;
+  src: url(assets/fonts/Pretendard-500.subset.woff2) format('woff2'); }
+@font-face { font-family: Pretendard; font-weight: 700; font-display: swap;
+  src: url(assets/fonts/Pretendard-700.subset.woff2) format('woff2'); }
+@font-face { font-family: 'Pretendard Full'; font-weight: 300; font-display: swap;
+  src: url(assets/fonts/Pretendard-300.full-ko.woff2) format('woff2'); }
+@font-face { font-family: 'Pretendard Full'; font-weight: 500; font-display: swap;
+  src: url(assets/fonts/Pretendard-500.full-ko.woff2) format('woff2'); }
+@font-face { font-family: 'Pretendard Full'; font-weight: 700; font-display: swap;
+  src: url(assets/fonts/Pretendard-700.full-ko.woff2) format('woff2'); }
+
+:root {
+  
+  --bg-void:   #08090B;
+  --bg-base:   #0E1216;
+  --bg-panel:  #14181D;
+  --bg-raised: #1A1E24;
+  --line:      #232830;
+  --line-hi:   #3B424C;
+  --text-hi:   #F2F4F7;
+  --text-mid:  #A8B0BA;
+  --text-lo:   #5F6873;
+  --accent:    #9BC33A;
+  --accent-dim:#59721A;
+  --ok:        #3DD68C;
+  --warn:      #FFB74D;
+  --crit:      #E8232A;
+
+  --r-sm: 2px;
+  --r-md: 4px;
+
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+
+  /* 서브셋에 없는 글자는 full-ko 로 받는다. 이 폴백이 없으면
+     서브셋 밖 한글이 시스템 폰트로 튄다 */
+  --f-sans: Pretendard, "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+  /*  — mono 를 버리고 Pretendard 로 일원화했다.
+     IBM Plex Mono 는 선언만 있고 woff2 가 없어서 Consolas 로 떨어졌고,
+     Consolas 에 한글이 없어 한글은 다시 OS 기본꼴로 떨어졌다.
+     한 줄 안에서 글꼴이 셋으로 갈렸다. 자릿수 정렬은 body 의*/
+  --f-mono: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+  --bar-h: 64px;   /* = pt-header.css --pt-hdr-h */
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg-base); color: var(--text-mid);
+  /* 웹 UI 밀도 —과 달리 14/1.5*/
+  font: 300 16px/1.5 var(--f-sans);
+  word-break: keep-all;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ══ 상단 스테이터스 바 ══════════════════════════════ */
+/* 헤더는 assets/css/pt-header.css 가 그린다 — ①③④ 와 같은 파일이다.
+   ②만 좌측 슬롯에 운전 정보(진행률·시계)가 들어가 폭이 빡빡하므로,
+   좁아질 때 접는 규칙만 여기서 더한다. */
+.pt-hdr__start .prog { flex: 1; min-width: 60px; }
+@media (max-width: 1400px) { .pt-hdr__start .clock span:first-child { display: none; } }
+@media (max-width: 1240px) { .pt-hdr__start .clock { display: none; } }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  font-family: var(--f-mono); font-size: 14px; font-weight: 500;
+  letter-spacing: 0.12em; color: var(--text-hi);
+}
+.badge i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+  animation: pulse 1.6s var(--e-out) infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.badge[data-state="DONE"] i { background: var(--accent); animation: none; }
+.badge[data-state="HOLD"] i { background: var(--warn); animation: none; }
+
+.prog { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 120px; }
+.prog__track {
+  flex: 1; height: 4px; background: var(--bg-void);
+  border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden;
+}
+.prog__fill {
+  height: 100%; width: 0; background: var(--accent);
+  /* 값은 즉시. 형태만 부드럽게 —*/
+  transition: width var(--t-base) linear;
+}
+.prog__pct { font-family: var(--f-mono); font-size: 16px; color: var(--text-hi); min-width: 6ch; }
+
+.clock { display: flex; gap: 16px; font-family: var(--f-mono); font-size: 15px; }
+.clock b { color: var(--text-hi); font-weight: 500; }
+.clock span { color: var(--text-lo); }
+
+.pt-hdr a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.btn {
+  padding: 6px 12px; border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  font-family: var(--f-mono); font-size: 14px; letter-spacing: 0.08em; color: var(--text-mid);
+  transition: color var(--t-fast) ease, background-color var(--t-fast) ease,
+              border-color var(--t-fast) ease;
+}
+.btn:hover { color: var(--text-hi); background: var(--bg-raised); }
+.btn[data-on="1"] { color: var(--bg-void); background: var(--accent); border-color: var(--accent); }
+
+/* ══ 레이아웃 ════════════════════════════════════════ */
+.app {
+  height: calc(100% - var(--bar-h));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-rows: minmax(0, 1fr) 168px;
+}
+@media (max-width: 1080px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 56vh auto auto; height: auto; }
+}
+
+/* ── 3D 뷰 ── */
+.view {
+  grid-column: 1; grid-row: 1;
+  position: relative; border-right: 1px solid var(--line); min-width: 0; background: var(--bg-void);
+}
+.view canvas { display: block; width: 100%; height: 100%; }
+.view__top {
+  position: absolute; inset: 10px 10px auto 10px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  pointer-events: none;
+}
+.cams { display: flex; gap: 1px; pointer-events: auto; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.cams button {
+  padding: 6px 11px; background: var(--bg-panel);
+  font-family: var(--f-mono); font-size: 14px; letter-spacing: 0.06em; color: var(--text-lo);
+  transition: color var(--t-fast) ease, background-color var(--t-fast) ease;
+}
+.cams button:hover { color: var(--text-hi); background: var(--bg-raised); }
+.cams button[aria-pressed="true"] { color: var(--bg-void); background: var(--accent); }
+
+.legend {
+  pointer-events: none; display: grid; gap: 5px;
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+  font-family: var(--f-mono); font-size: 14px; letter-spacing: 0.06em; color: var(--text-lo);
+}
+.legend div { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.legend i { width: 16px; height: 3px; border-radius: 1px; }
+
+.view__note {
+  position: absolute; inset: auto 10px 10px 10px;
+  font-family: var(--f-mono); font-size: 14px; color: var(--text-lo);
+  display: flex; justify-content: space-between; gap: 12px; pointer-events: none;
+}
+.view__note b { color: var(--text-mid); font-weight: 500; }
+
+#fail {
+  position: absolute; inset: 0; display: none; place-content: center; padding: 32px;
+  text-align: center; color: var(--text-mid); background: var(--bg-void);
+}
+#fail code {
+  font-family: var(--f-mono); color: var(--accent);
+  background: var(--bg-panel); padding: 2px 6px; border-radius: var(--r-sm);
+}
+
+/* ── 우측 데이터 패널 ── */
+.panel {
+  grid-column: 2; grid-row: 1 / 3;
+  overflow-y: auto; overflow-x: hidden;
+  border-left: 1px solid var(--line); background: var(--bg-base);
+}
+@media (max-width: 1080px) {
+  .view, .panel, .heat { grid-column: 1; grid-row: auto; }
+  .view { border-right: 0; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+.sec { border-bottom: 1px solid var(--line); padding: 12px 14px; }
+.sec > h2 {
+  margin: 0 0 10px; font: 500 14px/1 var(--f-mono);
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-lo);
+}
+
+/* 접촉력 차트 */
+.force + .force { margin-top: 10px; }
+.force__hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.force__id { font-family: var(--f-mono); font-size: 14px; letter-spacing: 0.1em; color: var(--text-mid); }
+.force__v { font-family: var(--f-mono); font-size: 20px; font-weight: 500; color: var(--text-hi); }
+.force__v small { font-size: 13px; color: var(--text-lo); margin-left: 2px; }
+.force__v[data-out="1"] { color: var(--crit); }
+.force canvas { display: block; width: 100%; height: 46px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-panel); }
+
+/* 지표 타일 2×3 */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.tile { background: var(--bg-panel); padding: 9px 10px 7px; min-width: 0; }
+.tile b { display: block; font: 500 20px/1.1 var(--f-mono); color: var(--text-hi); }
+.tile b small { font-size: 13px; font-weight: 400; color: var(--text-lo); margin-left: 2px; }
+.tile > span { display: block; margin-top: 2px; font-size: 15px; color: var(--text-lo); }
+.tile canvas { display: block; width: 100%; height: 18px; margin-top: 5px; }
+.tile[data-warn="1"] b { color: var(--warn); }
+
+/* 이벤트 로그 */
+.log { display: grid; gap: 0; max-height: 168px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-panel); }
+.log__row {
+  display: grid; grid-template-columns: 7ch 3ch minmax(0, 1fr); gap: 9px;
+  padding: 6px 9px; font-family: var(--f-mono); font-size: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.log__row:last-child { border-bottom: 0; }
+.log__row time { color: var(--text-lo); }
+.log__row i { font-style: normal; color: var(--accent); }
+.log__row p { margin: 0; color: var(--text-mid); min-width: 0; }
+.log__row[data-lv="warn"] p { color: var(--warn); }
+.log__row[data-lv="crit"] p { color: var(--crit); }
+
+/* ── 하단 히트맵 ── */
+.heat { grid-column: 1; grid-row: 2; padding: 12px 14px; min-width: 0; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+.heat__hd { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.heat__hd h2 { margin: 0; font: 500 14px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-lo); }
+.heat__scale { display: flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 14px; color: var(--text-lo); }
+.heat__ramp { width: 96px; height: 6px; border: 1px solid var(--line); border-radius: 1px; }
+.heat canvas { display: block; width: 100%; height: 100%; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-panel); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="pt-hdr">
+  <div class="pt-hdr__in">
+    <div class="pt-hdr__start">
+      <span class="badge" id="state" data-state="POLISH"><i></i><span id="stateLabel">POLISH</span></span>
+
+      <div class="prog">
+        <div class="prog__track"><div class="prog__fill" id="progFill"></div></div>
+        <span class="prog__pct" id="progPct">0.0%</span>
+      </div>
+
+      <div class="clock">
+        <span>경과 <b id="tElapsed">00:00:00</b></span>
+        <span>잔여 <b id="tLeft">--:--:--</b></span>
+      </div>
+    </div>
+
+    <a class="pt-hdr__mark" href="index.html" aria-label="PolyTwin 홈">
+      <svg class="pt-hdr__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+        <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+        <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+      </svg>
+      <span>POLY<b>TWIN</b></span>
+    </a>
+
+    <div class="pt-hdr__end">
+      <button class="btn" id="hold" data-on="0">일시정지</button>
+      <button class="btn" id="stop">정지</button>
+      <div class="pt-hdr__sep"></div>
+      <nav class="pt-hdr__nav" aria-label="화면">
+        <a href="console.html">① 설정</a>
+        <a href="save.html">③ 결과 저장</a>
+        <a href="library.html">④ 라이브러리</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+
+  <section class="view" aria-label="실시간 3D 뷰">
+    <canvas id="cv"></canvas>
+
+    <div class="view__top">
+      <div class="cams" id="cams" role="group" aria-label="카메라"></div>
+      <div class="legend">
+        <div><i style="background:var(--crit)"></i>미연마</div>
+        <div><i style="background:var(--accent)"></i>연마 완료</div>
+      </div>
+    </div>
+
+    <div class="view__note">
+      <span>차종 <b id="carName">BMW Z4</b> · 셀 <b>A-02</b> · 로봇 <b>3</b>대 · 레일 <b>2</b>축 + 갠트리 <b>1</b>축</span>
+      <span id="fps">—</span>
+    </div>
+
+    <div id="fail"></div>
+  </section>
+
+  <aside class="panel">
+    <section class="sec">
+      <h2>접촉력 — 목표대역 3–8 N</h2>
+      <div id="forces"></div>
+    </section>
+
+    <section class="sec">
+      <h2>지표</h2>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <section class="sec">
+      <h2>이벤트</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
+
+  <section class="heat" aria-label="제거량 히트맵">
+    <div class="heat__hd">
+      <h2>제거량 히트맵 — 차체 탑뷰</h2>
+      <div class="heat__scale">
+        <span>0.0 µm</span>
+        <span class="heat__ramp" id="ramp"></span>
+        <span>2.4 µm</span>
+      </div>
+    </div>
+    <canvas id="heat"></canvas>
+  </section>
+
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./assets/vendor/three.module.js",
+               "three/addons/": "./assets/vendor/" } }
+</script>
+
+<script type="module">
+/* ══════════════════════════════════════════════════════════════
+   ② 공정 모니터링
+   3D 조립 규칙 — 모델에서 실측한 값으로만 쌓는다 (고정 좌표 금지)
+     레일   0.890 x 0.190 x 22.86  · Y 중심이 원점 -> 바닥에 앉히면 상면 0.190
+     리프트 0.800 x 2.108 x 0.800  · 밑면이 원점   -> 레일 상면에 그대로 얹는다
+     로봇팔 베이스가 원점            -> 리프트 상면에 얹는다
+     차체   27.62 단위             -> 4.5 m 로 스케일 (k = 0.1629)
+   ══════════════════════════════════════════════════════════════ */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from './assets/vendor/meshopt_decoder.mjs';
+import { loadArmGeometry, buildArm } from './assets/rig/m0609.js';
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (id) => document.getElementById(id);
+
+const css = getComputedStyle(document.documentElement);
+const tok = (n) => css.getPropertyValue(n).trim();
+const COL = {
+  accent: tok('--accent'), accentDim: tok('--accent-dim'),
+  crit: tok('--crit'), warn: tok('--warn'), ok: tok('--ok'),
+  line: tok('--line'), lineHi: tok('--line-hi'),
+  textHi: tok('--text-hi'), textLo: tok('--text-lo'),
+  panel: tok('--bg-panel'), base: tok('--bg-base'), void: tok('--bg-void'),
+};
+
+/* 결정적 난수 — 새로고침마다 파형이 달라지면 계측 화면이 아니다 */
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+/* ══ 공정 상태 ══════════════════════════════════════ */
+const ROBOTS = [
+  /* target 은 seg_best_kpi.json 의 실제 최적 파라미터다 — C14 · SL4 · SL2 */
+  { id: 'C',  name: '천장',  seed: 7717, target: 5.6 },
+  { id: 'SL', name: '좌측',  seed: 3391, target: 5.2 },
+  { id: 'SR', name: '우측',  seed: 5023, target: 4.5 },
+];
+// 데이터셋 seg_best_kpi.json 의 목표 접촉력 분포 3.29~8.22 N 기준.
+// sub.html 의 '작업 대역 3~8 N' 과 같은 값이다
+const BAND = [3.0, 8.0];
+const CYCLE = 168;                 // 초 — 전체 공정 길이
+const HIST = 96;                   // 차트가 들고 있는 표본 수
+
+const SEEK = Math.max(0, Math.min(1,
+  parseFloat(new URLSearchParams(location.search).get('t') ?? '0') || 0));
+
+/* ── 차종 ── ① 사전 설정에서 고른 차를 그대로 띄운다.
+   ?vehicle= 이 있으면 그게 우선한다 — 링크로 특정 차종을 열 때.
+   ① 이 localStorage 에 쓰는 키와 같아야 한다 (console-src/template.html). */
+const CARS = {
+  sonata:{ file: 'sonata',  name: '현대 쏘나타' },
+  z4:    { file: 'car',     name: 'BMW Z4' },
+  coupe: { file: 'benz',    name: '벤츠 쿠페' },
+  sf90:  { file: 'ferrari', name: '페라리 SF90' },
+};
+const CAR = (() => {
+  const q = new URLSearchParams(location.search).get('vehicle');
+  if (CARS[q]) return CARS[q];
+  // 프라이빗 모드에서는 읽기만 해도 던진다
+  try { return CARS[localStorage.getItem('polytwin_vehicle')] || CARS.sonata; }
+  catch (err) { return CARS.sonata; }
+})();
+/* 3D 가 뜨기 전에 적는다 — WebGL 이 막힌 브라우저에서도 차종은 맞아야 한다.
+   i18n-app.js 의 옵서버가 뒤이어 EN 으로 바꾼다 */
+{ const el = document.getElementById('carName'); if (el) el.textContent = CAR.name; }
+
+const S = {
+  t: SEEK * CYCLE, running: !REDUCED, done: false,
+  force: ROBOTS.map(() => new Float32Array(HIST).fill(0)),
+  rnd:   ROBOTS.map((r) => lcg(r.seed)),
+  cur:   ROBOTS.map((r) => r.target),
+  events: [],
+};
+
+/* 표본 이력을 미리 돌려 채운다 — 화면에 들어온 순간 이미 돌고 있던 설비여야 한다 */
+ROBOTS.forEach((r, i) => {
+  let v = r.target;
+  for (let n = 0; n < HIST; n++) {
+    v = Math.max(0, Math.min(19, (v + (S.rnd[i]() - 0.5) * 1.9) * 0.82 + r.target * 0.18));
+    S.force[i][n] = v;
+  }
+  S.cur[i] = v;
+});
+
+const hhmmss = (s) => [s / 3600, (s / 60) % 60, s % 60]
+  .map((v) => String(Math.floor(v)).padStart(2, '0')).join(':');
+
+/* ══ 3D ═════════════════════════════════════════════ */
+const canvas = $('cv');
+let renderer, scene, camera, cell, arms = [], carU = null, sph = null;
+
+if (!canvas.getContext('webgl2')) {
+  fail('이 브라우저에서는 3D 뷰를 표시할 수 없다.');
+} else {
+  boot().catch((e) => fail(`셀을 불러오지 못했다 — ${e.message}<br><br>` +
+    `<code>file://</code> 로는 fetch 가 막힌다. 이 폴더에서 서버를 띄워라:<br>` +
+    `<code>python -m http.server 8000</code>`));
+}
+
+function fail(msg) {
+  const el = $('fail');
+  el.style.display = 'grid';
+  el.innerHTML = `<p>${msg}</p>`;
+}
+
+async function boot() {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  /* 이 셋은 빼먹으면 즉시 티가 난다 */
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.06;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(COL.void);
+  camera = new THREE.PerspectiveCamera(36, 16 / 9, 0.05, 400);
+
+  /* 조명 — 키 1 + 좌우 림 2. 형상보다 조명이 중요하다 */
+  const key = new THREE.DirectionalLight(0xffffff, 3.2);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0006;
+  scene.add(key, key.target);
+  const rimL = new THREE.DirectionalLight(0x94B6C3, 1.45);
+  const rimR = new THREE.DirectionalLight(0xDBC5A7, 1.05);
+  scene.add(rimL, rimR, new THREE.HemisphereLight(0x243039, 0x06090D, 0.55));
+
+  /* 환경맵 — 없으면 금속이 금속이 아니다 */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  {
+    const s = new THREE.Scene();
+    s.add(new THREE.Mesh(new THREE.SphereGeometry(30, 24, 16),
+      new THREE.MeshBasicMaterial({ color: 0x1A222B, side: THREE.BackSide })));
+    const strip = (x, y, z, c, i) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(18, 6),
+        new THREE.MeshBasicMaterial({ color: c }));
+      m.position.set(x, y, z); m.lookAt(0, 0, 0);
+      m.material.color.multiplyScalar(i); s.add(m);
+    };
+    strip(0, 18, 0, 0xffffff, 3.0);
+    strip(-18, 4, -8, 0xACC7D1, 1.35);
+    strip(18, 3, -10, 0xE3D5BB, 0.95);
+    scene.environment = pmrem.fromScene(s, 0.03).texture;
+  }
+
+  const M = {
+    floor: new THREE.MeshStandardMaterial({ color: 0x11161B, roughness: 0.72, metalness: 0.1, envMapIntensity: 0.35 }),
+    steel: new THREE.MeshPhysicalMaterial({ color: 0x5C646E, metalness: 0.86, roughness: 0.44, envMapIntensity: 1.0 }),
+    dark:  new THREE.MeshPhysicalMaterial({ color: 0x22262C, metalness: 0.5, roughness: 0.55 }),
+    arm:   new THREE.MeshPhysicalMaterial({ color: 0xB9C0C8, metalness: 0.35, roughness: 0.38,
+             clearcoat: 0.4, clearcoatRoughness: 0.3, envMapIntensity: 1.1 }),
+    tool:  new THREE.MeshPhysicalMaterial({ color: 0x2A3038, metalness: 0.6, roughness: 0.4, envMapIntensity: 1.1 }),
+    pad:   new THREE.MeshPhysicalMaterial({ color: 0x9BC33A, metalness: 0.1, roughness: 0.75,
+             emissive: 0x334014, emissiveIntensity: 0.6 }),
+  };
+
+  cell = new THREE.Group();
+  scene.add(cell);
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), M.floor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  cell.add(floor);
+
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const load = async (n) => (await loader.loadAsync(`./assets/models/${n}.opt.glb`)).scene;
+
+  /* ── 차체 ── 스캔 셰이더로 연마 진행을 칠한다 ── */
+  const car = await load(CAR.file);
+  let carBox = new THREE.Box3().setFromObject(car);
+  let carSize = carBox.getSize(new THREE.Vector3());
+  /* 차종마다 길이축이 다르다 — 벤츠 원본은 Z, 페라리 원본은 X 가 전장이다.
+     아래 배치가 전부 'Z 가 전장, X 가 폭' 을 전제하므로 여기서 돌려 둔다.
+     빼면 페라리가 옆으로 누워 10 m 짜리 벽이 된다. */
+  if (carSize.x > carSize.z) {
+    car.rotation.y = Math.PI / 2;
+    car.updateMatrixWorld(true);
+    carBox = new THREE.Box3().setFromObject(car);
+    carSize = carBox.getSize(new THREE.Vector3());
+  }
+  const k = 4.5 / carSize.z;                       // 전장 4.5 m 기준
+  car.scale.setScalar(k);
+  car.position.set(
+    -carBox.getCenter(new THREE.Vector3()).x * k,
+    -carBox.min.y * k,
+    -carBox.getCenter(new THREE.Vector3()).z * k
+  );
+
+  carU = { uFront: { value: -99 }, uMinZ: { value: 0 }, uMaxZ: { value: 1 } };
+  car.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = o.receiveShadow = true;
+    if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    o.material = new THREE.MeshPhysicalMaterial({
+      color: 0x99A2AC, roughness: 0.82, metalness: 0.55,
+      clearcoat: 0.6, clearcoatRoughness: 0.35, envMapIntensity: 1.45,
+    });
+    attachPolish(o.material);
+  });
+  cell.add(car);
+
+  const carW = carSize.x * k;
+  const carB = new THREE.Box3().setFromObject(car);
+  carU.uMinZ.value = carB.min.z;
+  carU.uMaxZ.value = carB.max.z;
+
+  /* ── 레일 2축 ── Y 중심이 원점이라 두께 절반만 올리면 바닥에 앉는다 ── */
+  const railSrc = await load('rail');
+  const railBox = new THREE.Box3().setFromObject(railSrc);
+  const railSize = railBox.getSize(new THREE.Vector3());
+  const RAIL_TOP = railSize.y;                     // 하면 0 기준 상면 = 두께
+  const RAIL_X = carW / 2 + 0.82;                  // 차체 옆면에서 띄운다
+
+  const railZ = -(railBox.min.z + railBox.max.z) / 2;   // 한쪽 끝이 원점 -> 가운데로
+  for (const sx of [-1, 1]) {
+    const r = sx < 0 ? railSrc : railSrc.clone(true);
+    r.traverse((o) => { if (o.isMesh) { o.material = M.steel; o.castShadow = o.receiveShadow = true; } });
+    r.position.set(sx * RAIL_X, railSize.y / 2, railZ);
+    cell.add(r);
+  }
+
+  /* ── 갠트리 ── 모델이 없는 부분만 상자로. 산업 구조물이라 상자가 맞다 ── */
+  const BEAM_Y = 3.45;
+  const gantry = new THREE.Group();
+  const post = new THREE.BoxGeometry(0.24, BEAM_Y, 0.24);
+  for (const sx of [-1, 1]) {
+    const p = new THREE.Mesh(post, M.steel);
+    p.position.set(sx * (RAIL_X + 0.55), BEAM_Y / 2, -2.9);
+    p.castShadow = true; gantry.add(p);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry((RAIL_X + 0.55) * 2, 0.22, 0.3), M.steel);
+  beam.position.set(0, BEAM_Y + 0.11, -2.9);
+  beam.castShadow = true;
+  gantry.add(beam);
+  cell.add(gantry);
+
+  /* 갠트리 레일 — 빔을 따라 Z 로 달리는 거더 */
+  const girder = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 6.4), M.steel);
+  girder.position.set(0, BEAM_Y + 0.11, 0);
+  girder.castShadow = true;
+  cell.add(girder);
+
+  /* ── 리프트 + 로봇 ── 밑면이 원점이라 레일 상면에 그대로 얹힌다 ── */
+  const liftSrc = await load('lift');
+  const liftBox = new THREE.Box3().setFromObject(liftSrc);
+  const liftSize = liftBox.getSize(new THREE.Vector3());
+
+  /* 받침판(0.80 x 0.80)은 레일 폭(0.89) 안에 들어가지만 그것만으로는 부족하다.
+     기본 카메라 앙각이 19.5 도라 레일 상면보다 높은 것은 전부 화면상 앞으로
+     밀려 나온다 — 받침판 두께 하나만으로도 레일 가장자리를 넘는다.
+     실제로 렌더해 보면 0.66 에서 가장자리에 닿고 그 아래에서 안으로 들어온다.
+     0.60 은 여유를 둔 값. 높이 2.11 -> 1.27 m, 받침판 0.80 -> 0.48 m. */
+  const LIFT_S = 0.60;
+  const LIFT_H = liftSize.y * LIFT_S;            // 축소 후 상면 = 팔 어깨 높이
+
+  const parts = await loadArmGeometry('./assets/models/robot_arm.opt.glb');
+
+  const mkSide = (sx, label) => {
+    const carriage = new THREE.Group();          // 레일 위를 Z 로만 미끄러진다
+    carriage.position.set(sx * RAIL_X, RAIL_TOP, 0);
+    cell.add(carriage);
+
+    const lift = sx < 0 ? liftSrc : liftSrc.clone(true);
+    lift.traverse((o) => { if (o.isMesh) { o.material = M.steel; o.castShadow = o.receiveShadow = true; } });
+    lift.scale.setScalar(LIFT_S);
+    lift.position.y = -liftBox.min.y * LIFT_S;   // 밑면을 캐리지 바닥에 맞춘다
+    carriage.add(lift);
+
+    const arm = buildArm(parts, M);
+    arm.root.position.y = LIFT_H;                // 리프트 상면
+    arm.root.rotation.y = sx < 0 ? Math.PI / 2 : -Math.PI / 2;   // 차체를 본다
+    carriage.add(arm.root);
+    return { label, carriage, arm, sx, overhead: false };
+  };
+
+  const mkOverhead = () => {
+    const carriage = new THREE.Group();
+    carriage.position.set(0, BEAM_Y + 0.01, 0);
+    cell.add(carriage);
+    const arm = buildArm(parts, M);
+    arm.root.rotation.z = Math.PI;               // 거꾸로 매달린다
+    carriage.add(arm.root);
+    return { label: 'C', carriage, arm, sx: 0, overhead: true };
+  };
+
+  arms = [mkOverhead(), mkSide(-1, 'SL'), mkSide(1, 'SR')];
+
+  /* ── 프레이밍 — 바운딩 스피어 기준. 고정 좌표는 쓰지 않는다 ── */
+  const box = new THREE.Box3();
+  box.expandByObject(car);
+  box.expandByPoint(new THREE.Vector3(-RAIL_X - 0.5, 0, -2.9));
+  box.expandByPoint(new THREE.Vector3(RAIL_X + 0.5, BEAM_Y + 0.3, 2.9));
+  sph = box.getBoundingSphere(new THREE.Sphere());
+  LOOK.set(0, carSize.y * k * 0.62, 0);          // 시선은 차체 중간 높이
+
+  const r = sph.radius;
+  key.position.set(sph.center.x + r * 1.1, sph.center.y + r * 2.0, sph.center.z + r * 1.4);
+  key.target.position.copy(sph.center);
+  const sc = key.shadow.camera;
+  sc.left = -r * 1.5; sc.right = r * 1.5; sc.top = r * 1.5; sc.bottom = -r * 1.5;
+  sc.near = r * 0.02; sc.far = r * 8; sc.updateProjectionMatrix();
+  rimL.position.set(sph.center.x - r * 2.2, sph.center.y + r * 0.7, sph.center.z - r * 1.1);
+  rimR.position.set(sph.center.x + r * 2.2, sph.center.y + r * 0.5, sph.center.z - r * 1.5);
+  scene.fog = new THREE.FogExp2(new THREE.Color(COL.void).getHex(), 0.02);
+
+  buildCams();
+  setCam(0);
+  resize();
+  addEventListener('resize', resize);
+  requestAnimationFrame(loop);
+}
+
+/* 연마된 자리는 유광 + 액센트로, 아직인 자리는 무광 + 붉게 */
+function attachPolish(mat) {
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, carU);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vWP;\nuniform float uFront;\nuniform float uMinZ;\nuniform float uMaxZ;')
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        float span = max(0.0001, uMaxZ - uMinZ);
+        /* raw = 아직 안 닦인 정도. 0 이면 연마 완료 */
+        float raw = smoothstep(uFront - 0.02 * span, uFront + 0.02 * span, -vWP.z);
+        roughnessFactor = mix(0.16, 0.88, raw);
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.16, 0.50, 0.46), raw);
+        diffuseColor.rgb += vec3(0.16, 0.52, 0.63) * (1.0 - raw) * 0.18;
+        float edge = 1.0 - smoothstep(0.0, 0.014 * span, abs(-vWP.z - uFront));
+        diffuseColor.rgb += vec3(0.24, 0.78, 0.94) * edge * 0.75;`);
+  };
+  mat.needsUpdate = true;
+}
+
+/* ══ 카메라 프리셋 ══════════════════════════════════ */
+const CAMS = [
+  { n: '전체',   el: 0.34, az: 0.70, d: 0.82, look: 0.40 },
+  { n: '천장뷰', el: 1.24, az: 0.01, d: 0.80, look: 0.20 },
+  { n: '좌측',   el: 0.20, az: -1.36, d: 0.70, look: 0.34 },
+  { n: '우측',   el: 0.20, az: 1.36, d: 0.70, look: 0.34 },
+  { n: '패드',   el: 0.26, az: 0.94, d: 0.30, look: 0.40 },
+];
+let camIdx = 0;
+const LOOK = new THREE.Vector3(0, 0.8, 0);
+
+function buildCams() {
+  $('cams').innerHTML = CAMS.map((c, i) =>
+    `<button type="button" aria-pressed="${i === 0}" data-i="${i}">${c.n}</button>`).join('');
+  $('cams').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b) setCam(+b.dataset.i);
+  });
+}
+function setCam(i) {
+  camIdx = i;
+  document.querySelectorAll('#cams button').forEach((b, j) =>
+    b.setAttribute('aria-pressed', String(i === j)));
+}
+
+function placeCamera() {
+  if (!sph) return;
+  const c = CAMS[camIdx];
+  const r = sph.radius;
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  const d = (r / Math.sin(fov / 2)) * c.d;
+  const t = LOOK.clone();
+  t.y *= c.look / 0.34;                          // 프리셋마다 시선 높이를 조금씩 달리 잡는다
+  camera.position.set(
+    t.x + d * Math.cos(c.el) * Math.sin(c.az),
+    t.y + d * Math.sin(c.el),
+    t.z + d * Math.cos(c.el) * Math.cos(c.az)
+  );
+  camera.lookAt(t);
+}
+
+function resize() {
+  if (!renderer) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+/* ══ 루프 ═══════════════════════════════════════════ */
+let last = performance.now(), acc = 0, frames = 0, fpsT = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
+  last = now;
+
+  if (S.running && !S.done) {
+    S.t += dt;
+    if (S.t >= CYCLE) { S.t = CYCLE; S.done = true; setState('DONE'); }
+  }
+
+  const p = S.t / CYCLE;
+  animate3D(p, dt);
+
+  acc += dt;
+  if (acc >= 0.25) { tickData(p, acc); acc = 0; }
+
+  frames++; fpsT += dt;
+  if (fpsT >= 1) { $('fps').textContent = Math.round(frames / fpsT) + ' fps'; frames = 0; fpsT = 0; }
+
+  placeCamera();
+  renderer.render(scene, camera);
+}
+
+function animate3D(p, dt) {
+  if (!carU) return;
+  /* 연마 전선이 앞에서 뒤로 지나간다. 로봇도 같은 진행에 맞춰 움직인다 */
+  const span = carU.uMaxZ.value - carU.uMinZ.value;
+  carU.uFront.value = -carU.uMaxZ.value + span * p * 1.04;
+
+  const z = THREE.MathUtils.lerp(2.2, -2.2, p);
+  const t = S.t;
+  arms.forEach((a, i) => {
+    a.carriage.position.z = z + (i - 1) * 0.42;
+    /* 관절은 캔 모션 — 실제 IK 가 아니라 '움직이는 설비'를 보여주는 용도 */
+    const ph = t * 1.5 + i * 2.1;
+    if (a.overhead) {
+      a.arm.setQ([Math.sin(ph * 0.5) * 0.30, -0.55 + Math.sin(ph) * 0.10,
+                  1.35 + Math.cos(ph) * 0.12, 0, 0.62 + Math.sin(ph * 1.3) * 0.09, ph * 0.4]);
+    } else {
+      a.arm.setQ([a.sx * (0.22 + Math.sin(ph * 0.6) * 0.16), 0.42 + Math.sin(ph) * 0.10,
+                  -1.05 + Math.cos(ph) * 0.12, 0, 0.72 + Math.sin(ph * 1.2) * 0.10, ph * 0.5]);
+    }
+    if (!REDUCED) a.arm.spin(1800, dt);
+  });
+}
+
+/* ══ 데이터 패널 ════════════════════════════════════ */
+const fEls = [];
+$('forces').innerHTML = ROBOTS.map((r, i) => `
+  <div class="force">
+    <div class="force__hd">
+      <span class="force__id">${r.id} · ${r.name}</span>
+      <span class="force__v" id="fv${i}">0.00<small>N</small></span>
+    </div>
+    <canvas id="fc${i}"></canvas>
+  </div>`).join('');
+ROBOTS.forEach((r, i) => fEls.push({ v: $('fv' + i), c: $('fc' + i) }));
+
+const TILES = [
+  { k: 'cv',   label: '힘 변동계수', unit: '%' },
+  { k: 'band', label: '목표대역 체류율', unit: '%' },
+  { k: 'keep', label: '접촉 유지율', unit: '%' },
+  { k: 'cov',  label: '커버리지', unit: '%' },
+  { k: 'unif', label: '제거 균일도', unit: '%' },
+  { k: 'over', label: '과압 발생', unit: '회' },
+];
+$('tiles').innerHTML = TILES.map((t) => `
+  <div class="tile" id="t-${t.k}">
+    <b><span id="tv-${t.k}">—</span><small>${t.unit}</small></b>
+    <span>${t.label}</span>
+    <canvas id="ts-${t.k}"></canvas>
+  </div>`).join('');
+const tileHist = {};
+TILES.forEach((t) => { tileHist[t.k] = []; });
+
+function setState(s) {
+  $('state').dataset.state = s;
+  $('stateLabel').textContent = s;
+}
+
+function addEvent(rid, msg, lv) {
+  S.events.unshift({ t: S.t, rid, msg, lv });
+  if (S.events.length > 40) S.events.pop();
+  $('log').innerHTML = S.events.map((e) =>
+    `<div class="log__row" data-lv="${e.lv}"><time>${hhmmss(e.t)}</time><i>${e.rid}</i><p>${e.msg}</p></div>`
+  ).join('');
+}
+
+let lastPhase = -1;
+function tickData(p, dt) {
+  /* ── 접촉력 ── 목표 주변을 걷되 가끔 대역을 벗어난다 ── */
+  ROBOTS.forEach((r, i) => {
+    const rnd = S.rnd[i];
+    /* 노이즈 폭은 목표 대역에 맞춰 잡는다. 옛 대역(2.5~14.0 N)용 값을
+       그대로 두면 3~8 N 에서는 10% 넘게 이탈해 경보가 끊이지 않는다.
+       아래 값이면 이탈이 0.6~1.5% — 최적 run 의 in-band 0.95 와 같은 수준이다 */
+    const drift = (rnd() - 0.5) * 1.0;
+    let v = S.cur[i] + drift;
+    if (rnd() > 0.985) v += (rnd() > 0.5 ? 1 : -1) * (1.8 + rnd() * 1.6);
+    v = Math.max(0, Math.min(12, v * 0.82 + r.target * 0.18));
+    if (!S.running || S.done) v = S.done ? 0 : v;
+    S.cur[i] = v;
+
+    const h = S.force[i];
+    h.copyWithin(0, 1);
+    h[HIST - 1] = v;
+
+    const out = v < BAND[0] || v > BAND[1];
+    /* 값은 즉시 갱신한다. 이징을 넣으면 현재값을 읽을 수 없다 */
+    fEls[i].v.innerHTML = v.toFixed(2) + '<small>N</small>';
+    fEls[i].v.dataset.out = out ? '1' : '0';
+    drawForce(fEls[i].c, h, out);
+
+    if (out && S.running && !S.done && Math.random() > 0.7) {
+      addEvent(r.id, v > BAND[1] ? `과압 임계 초과 ${v.toFixed(1)}N` : `접촉 끊김 감지 ${v.toFixed(1)}N`,
+        v > BAND[1] ? 'crit' : 'warn');
+    }
+  });
+
+  /* ── 지표 ── */
+  const cov = p * 100;
+  const vals = {
+    cv:   6.4 + Math.sin(S.t * 0.21) * 1.1,
+    band: 91.2 + Math.sin(S.t * 0.13) * 2.4,
+    keep: 97.6 + Math.sin(S.t * 0.09) * 0.8,
+    cov,
+    unif: 88.5 + Math.sin(S.t * 0.17) * 2.0,
+    over: S.events.filter((e) => e.lv === 'crit').length,
+  };
+  TILES.forEach((t) => {
+    const v = vals[t.k];
+    $('tv-' + t.k).textContent = t.k === 'over' ? String(v) : v.toFixed(1);
+    const h = tileHist[t.k];
+    h.push(v); if (h.length > 40) h.shift();
+    drawSpark($('ts-' + t.k), h, t.k === 'over');
+    $('t-' + t.k).dataset.warn =
+      (t.k === 'over' && v > 0) || (t.k === 'band' && v < 90) ? '1' : '0';
+  });
+
+  /* ── 진행 ── */
+  $('progFill').style.width = (p * 100).toFixed(1) + '%';
+  $('progPct').textContent = (p * 100).toFixed(1) + '%';
+  $('tElapsed').textContent = hhmmss(S.t);
+  $('tLeft').textContent = S.done ? '00:00:00' : hhmmss(Math.max(0, CYCLE - S.t));
+
+  drawHeat(p);
+
+  /* 상태 전이 — 구간마다 배지가 바뀐다 */
+  if (!S.done && S.running) {
+    const phase = Math.floor(p * 6);
+    if (phase !== lastPhase) {
+      lastPhase = phase;
+      const names = ['HOME', 'SLIDE', 'APPROACH', 'POLISH', 'POLISH', 'RETRACT'];
+      setState(names[Math.min(5, phase)]);
+      if (phase === 1) addEvent('C', '레일 이송 시작 — 구간 1/6', 'info');
+      if (phase === 3) addEvent('SL', '접촉 확립 · 목표 5.2 N 추종 개시', 'info');
+      if (phase === 5) addEvent('SR', '마지막 구간 후퇴 — 리프트 하강', 'info');
+    }
+  }
+}
+
+/* ══ 캔버스 차트 ════════════════════════════════════
+   값은 즉시 그린다. 이징 없음 —*/
+function fitCanvas(c) {
+  const dpr = Math.min(devicePixelRatio, 2);
+  const w = c.clientWidth, h = c.clientHeight;
+  if (!w || !h) return null;
+  if (c.width !== w * dpr || c.height !== h * dpr) { c.width = w * dpr; c.height = h * dpr; }
+  const x = c.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, w, h);
+  return { x, w, h };
+}
+
+function drawForce(c, hist, out) {
+  const g = fitCanvas(c); if (!g) return;
+  const { x, w, h } = g;
+  const MAX = 11;   // 대역 3~8 N 이 캔버스 가운데 45% 를 차지한다
+  const y = (v) => h - (v / MAX) * h;
+
+  // 목표 대역
+  x.fillStyle = out ? COL.crit : COL.accentDim;
+  x.globalAlpha = out ? 0.20 : 0.16;
+  x.fillRect(0, y(BAND[1]), w, y(BAND[0]) - y(BAND[1]));
+  x.globalAlpha = 1;
+
+  x.strokeStyle = COL.line; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(0, y(BAND[0]) + 0.5); x.lineTo(w, y(BAND[0]) + 0.5);
+  x.moveTo(0, y(BAND[1]) + 0.5); x.lineTo(w, y(BAND[1]) + 0.5); x.stroke();
+
+  x.strokeStyle = out ? COL.crit : COL.accent;
+  x.lineWidth = 1.4; x.lineJoin = 'round';
+  x.beginPath();
+  for (let i = 0; i < hist.length; i++) {
+    const px = (i / (hist.length - 1)) * w, py = y(hist[i]);
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+  }
+  x.stroke();
+}
+
+function drawSpark(c, hist, stepped) {
+  const g = fitCanvas(c); if (!g) return;
+  const { x, w, h } = g;
+  if (hist.length < 2) return;
+  const lo = Math.min(...hist), hi = Math.max(...hist);
+  const span = Math.max(0.001, hi - lo);
+  x.strokeStyle = COL.lineHi; x.lineWidth = 1;
+  x.beginPath();
+  hist.forEach((v, i) => {
+    const px = (i / (hist.length - 1)) * w;
+    const py = h - ((v - lo) / span) * (h - 2) - 1;
+    i ? (stepped ? x.lineTo(px, py) : x.lineTo(px, py)) : x.moveTo(px, py);
+  });
+  x.stroke();
+}
+
+/* 히트맵 — 차체 탑뷰 그리드. 진할수록 많이 깎였다 */
+const HX = 34, HZ = 12;
+const heatRnd = lcg(20260829);
+const HEAT = Array.from({ length: HZ }, () => Array.from({ length: HX }, () => 0.55 + heatRnd() * 0.45));
+
+function drawHeat(p) {
+  const c = $('heat');
+  const g = fitCanvas(c); if (!g) return;
+  const { x, w, h } = g;
+  const cw = w / HX, ch = h / HZ;
+  const front = p * HX * 1.02;
+  for (let j = 0; j < HZ; j++) {
+    for (let i = 0; i < HX; i++) {
+      const done = Math.max(0, Math.min(1, front - i));
+      if (done <= 0) { x.fillStyle = COL.panel; }
+      else {
+        /* 가장자리는 덜 깎인다 — 곡률이 급해 패드가 덜 닿는다 */
+        const edge = 1 - Math.abs((j + 0.5) / HZ - 0.5) * 1.4;
+        const v = HEAT[j][i] * edge * done;
+        x.fillStyle = `rgba(155, 195, 58, ${(0.10 + v * 0.85).toFixed(3)})`;
+      }
+      x.fillRect(i * cw, j * ch, cw - 1, ch - 1);
+    }
+  }
+}
+
+$('ramp').style.background = `linear-gradient(90deg, ${COL.panel}, ${COL.accent})`;
+
+/* ══ 조작 ═══════════════════════════════════════════ */
+$('hold').addEventListener('click', (e) => {
+  S.running = !S.running;
+  e.currentTarget.dataset.on = S.running ? '0' : '1';
+  e.currentTarget.textContent = S.running ? '일시정지' : '재개';
+  setState(S.running ? 'POLISH' : 'HOLD');
+  addEvent('C', S.running ? '운전 재개' : '일시정지 — 오퍼레이터 요청', 'info');
+});
+$('stop').addEventListener('click', () => {
+  S.t = 0; S.done = false; S.running = false; lastPhase = -1;
+  $('hold').dataset.on = '1'; $('hold').textContent = '재개';
+  setState('HOME');
+  addEvent('C', '정지 — 원점 복귀', 'warn');
+});
+
+addEvent('C', '셀 A-02 로드 완료 · 로봇 3대 연결', 'info');
+if (REDUCED) S.t = CYCLE * 0.68;                 // 정지 상태에서도 화면은 채운다
+tickData(S.t / CYCLE, 0.25);
+</script>
+
+<!-- 앱 화면 사전이 먼저 실려야 i18n.js 가 집어 간다.
+     언어는 localStorage 로 랜딩에서 넘어온다 — ?lang= 이 없어도 EN 이 유지된다. -->
+<script src="assets/js/i18n-app.js?v=2026-09-01d"></script>
+<script src="assets/js/i18n.js?v=2026-09-01b"></script>
+</body>
+</html>

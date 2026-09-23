@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(function () {
+  var u = function (p) { return new URL(p, location.href).href; };
+  window.__resources = {
+    three: u('/assets/vendor/three.module.js'),
+    gltfLoader: u('/assets/vendor/loaders/GLTFLoader.js'),
+    orbitControls: u('/assets/vendor/controls/OrbitControls.js'),
+    bufferGeometryUtils: u('/assets/vendor/utils/BufferGeometryUtils.js'),
+    'https://unpkg.com/react@18.3.1/umd/react.production.min.js': u('/assets/vendor/react.production.min.js'),
+    'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js': u('/assets/vendor/react-dom.production.min.js')
+  };
+})();
+</script>
+<script src="/assets/vendor/page-runtime.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  /* 이 화면에는 @font-face 가 없어서 Pretendard 가 아니라 시스템 폰트로
+     떨어지고 있었다. index.html 과 같은 선언을 쓴다 —
+     두 화면의 글자가 달라 보이면 안 된다. */
+  @font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+    src:url("assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+    src:url("assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+  @font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+    src:url("assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+  /* 토큰 —
+     ④ 라이브러리와 같은 선언을 쓴다. 두 화면이 다른 청록으로 보이면 안 된다. */
+  :root {
+    /* 표면 */
+    --bg-void:    #08090B;
+    --bg-void-ch: 8 9 11;      /* 위 값의 채널. 스크림 알파용, 새 색 아님 */
+    --bg-base:    #0E1216;
+    --bg-base-ch: 14 18 22;
+    --bg-panel:   #14181D;
+    --bg-raised:  #1A1E24;
+    /* 경계 */
+    --line:       #232830;
+    --line-hi:    #3B424C;
+    /* 텍스트 */
+    --text-hi:    #F2F4F7;
+    --text-mid:   #A8B0BA;
+    --text-lo:    #5F6873;
+    /* 액센트 — 1개 */
+    --accent:     #9BC33A;
+    --accent-ch:  155 195 58;
+    --accent-dim: #59721A;
+    /* 의미색 — 상태 전용 */
+    --ok:         #3DD68C;
+    --ok-ch:      61 214 140;
+    --warn:       #FFB74D;
+    --warn-ch:    255 183 77;
+    --crit:       #E8232A;
+    --crit-ch:    232 35 42;
+
+    --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    /*  — mono 를 버리고 Pretendard 로 일원화했다.
+       IBM Plex Mono 는 선언만 있고 woff2 가 없어서 Consolas 로 떨어졌고,
+       Consolas 에 한글이 없어 한글은 다시 OS 기본꼴로 떨어졌다.
+       한 줄 안에서 글꼴이 셋으로 갈렸다. 자릿수 정렬은 body 의*/
+    --f-mono: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+    --r-sm: 2px;
+    --r-md: 4px;
+
+    --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --t-fast: 120ms;
+    --t-base: 200ms;
+    --t-slow: 400ms;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-void); overflow: hidden; }
+  body { font-family: var(--f-sans); -webkit-font-smoothing: antialiased;
+         word-break: keep-all; font-variant-numeric: tabular-nums; }
+  a { color: var(--text-mid); text-decoration: none; }
+  a:hover { color: var(--text-hi); }
+
+  /* 클릭 요소가 div 라 기본 포커스 링이 없다. 직접 준다. */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* 파라미터 패널 스크롤바가 OS 기본값이라 흰 막대로 떴다.
+     ④ 라이브러리와 같은 선언을 쓴다. accent 는 상태 신호용이라
+     크롬에는 쓰지 않는다 — 옆의 토글·수치와 경쟁한다.
+     ::-webkit-scrollbar 는 WebKit 전용이라 color-scheme 로
+     Firefox 와 폼 컨트롤 기본색까지 어둡게 맞춘다. */
+  :root { color-scheme: dark; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg-raised); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--line-hi); }
+
+  /* thumb 은 --text-hi 였다. 이 패널에서 제일 밝은 색은 글자 몫이고,
+     켜진 컨트롤(토글·선택된 버튼)은 전부 accent 다. 슬라이더만 예외일
+     이유가 없어서 accent 로 내렸다. hover 가 resting 보다 어두워지던
+     역전도 같이 사라진다.
+     채움 구간이 없으면 0 과 800 이 점 위치 말고는 구별이 안 된다.
+     --fill 은 위 바인딩에서 백분율로 내려온다. */
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; background: transparent; cursor: pointer; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 2px;
+    background: linear-gradient(to right, var(--accent-dim) var(--fill, 0%), var(--line) var(--fill, 0%)); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 6px; height: 14px; margin-top: -6px; border-radius: 1px; background: var(--accent); }
+  input[type="range"]:hover::-webkit-slider-thumb { background: var(--text-hi); }
+  input[type="range"]::-moz-range-track { height: 2px; background: var(--line); }
+  input[type="range"]::-moz-range-progress { height: 2px; background: var(--accent-dim); }
+  input[type="range"]::-moz-range-thumb { width: 6px; height: 14px; border: 0; border-radius: 1px; background: var(--accent); }
+  input[type="range"]:hover::-moz-range-thumb { background: var(--text-hi); }
+
+  /* 공정이 도는 동안만 켜지는 표시등. 값이 아니라 상태를 알리는 것이라
+     여기에는 이징을 써도 된다 — 계측 수치에는 쓰지 않는다 */
+  .pt-live { animation: pt-blink 1.6s var(--e-out) infinite; }
+  @keyframes pt-blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+
+  /* 3D 가 계속 도는 화면이다. 모션을 줄여 달라고 하면 전환은 멈춘다.
+     (뷰포트 렌더 루프 자체는 공정 표시라 남긴다) */
+  /* 차종 제조사 마크 — assets/icons/*.png (회색조+알파).
+     원색을 그대로 두면
+     선택 상태만 불투명도로 올린다. 어떤 로고가 너무 어둡게 나오면
+     brightness 를 올리거나 그 파일만 invert(1) 을 더해라. */
+  .veh-mark {
+    width: 26px; height: 26px; object-fit: contain;
+    /* 회색조·톤 정규화는 파일에 구워져 있다 (scripts/logo-mono.py).
+       여기서 filter 를 또 걸면 두 번 밝아진다 — 선택 상태만 불투명도로 준다. */
+    transition: opacity 200ms cubic-bezier(0.4,0,0.2,1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+  }
+</style>
+<link rel="stylesheet" href="assets/css/pt-header.css?v=2026-09-01e">
+<script type="module" src="/assets/js/console-viewport.js"></script>
+</helmet>
+<div style="position: fixed; inset: 0; display: grid; grid-template-columns: 1fr clamp(380px, 29vw, 430px); grid-template-rows: 64px 1fr; background: var(--bg-void); color: var(--text-hi)">
+
+  <header class="pt-hdr" style="grid-column: 1 / -1">
+    <div class="pt-hdr__in">
+      <div class="pt-hdr__start">
+        <div class="pt-hdr__sub">차량 3D · 파라미터 설정</div>
+      </div>
+      <a class="pt-hdr__mark" href="index.html" aria-label="PolyTwin 홈">
+        <svg class="pt-hdr__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+          <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+          <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+        </svg>
+        <span>POLY<b>TWIN</b></span>
+      </a>
+      <div class="pt-hdr__end">
+        <div class="pt-hdr__stat">{{ vehicleName }}</div>
+      </div>
+    </div>
+  </header>
+
+  <main style="position: relative; overflow: hidden">
+    <polytwin-viewport style="position: absolute; inset: 0"></polytwin-viewport>
+
+    <div style="position: absolute; left: 26px; bottom: 22px; z-index: 10; display: flex; gap: 26px; font-family: var(--f-mono); font-size: 16px; color: var(--text-lo); pointer-events: none">
+      <div>경로 간격 <span style="color: var(--accent)">{{ spacing }}</span> mm</div>
+      <div>패스 <span style="color: var(--text-mid)">{{ passes }}</span></div>
+      <div>추정 <span style="color: var(--text-mid)">{{ eta }}</span></div>
+    </div>
+
+    <div style="position: absolute; right: 26px; bottom: 22px; z-index: 10; display: flex; gap: 6px">
+      <sc-for list="{{ views }}" as="v" hint-placeholder-count="4">
+        <div sc-camel-on-click="{{ v.pick }}" style="padding: 8px 14px; border: 1px solid {{ v.border }}; font-size: 15px; letter-spacing: 0.08em; color: {{ v.color }}; cursor: pointer; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1)">{{ v.label }}</div>
+      </sc-for>
+    </div>
+  </main>
+
+  <aside style="border-left: 1px solid var(--bg-panel); background: rgb(var(--bg-base-ch) / 0.72); backdrop-filter: blur(14px); display: flex; flex-direction: column; overflow: hidden">
+    <div style="padding: 18px 22px 16px; border-bottom: 1px solid var(--bg-panel)">
+      <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 11px">차종(Vehicle)</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+        <sc-for list="{{ vehicles }}" as="v" hint-placeholder-count="4">
+          <div sc-camel-on-click="{{ v.pick }}" title="{{ v.name }}" style="padding: 10px 6px 9px; border: 1px solid {{ v.border }}; background: {{ v.bg }}; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1)">
+            <img class="veh-mark" src="{{ v.mark }}" alt="" style="opacity: {{ v.markOpacity }}">
+            <div style="font-size: 16px; color: {{ v.color }}; text-align: center; word-break: keep-all; line-height: 1.3">{{ v.name }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="padding: 18px 22px 16px; border-bottom: 1px solid var(--bg-panel); display: flex; align-items: center; gap: 10px">
+      <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-lo)">{{ panelTitle }}</div>
+      <div style="flex: 1"></div>
+      <sc-if value="{{ running }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 7px">
+          <div class="pt-live" style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent)"></div>
+          <div style="font-family: var(--f-mono); font-size: 15px; letter-spacing: 0.14em; color: var(--accent)">RUNNING</div>
+        </div>
+      </sc-if>
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 26px">
+    <sc-if value="{{ idle }}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; flex-direction: column; gap: 26px">
+      <section style="border: 1px solid var(--bg-panel); padding: 16px; display: flex; flex-direction: column; gap: 24px">
+        <div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px">
+            <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo)">차체 리프트(Car Lift)</div>
+            <div style="font-family: var(--f-mono); font-size: 16px; color: {{ carLiftColor }}; font-variant-numeric: tabular-nums">{{ carLiftLabel }}</div>
+          </div>
+          <input type="range" min="0" max="800" step="50" value="{{ carLift }}" style="--fill: {{ carLiftFill }}" sc-camel-on-input="{{ setCarLift }}" aria-label="차체 리프트 높이">
+          <div style="font-size: 16px; color: var(--text-mid); line-height: 1.5; margin-top: 10px; word-break: keep-all">{{ carLiftNote }}</div>
+        </div>
+        <div>
+          <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 12px">로봇 팔(Robot Arms) 대수</div>
+          <div style="display: flex; gap: 8px">
+            <sc-for list="{{ robotCounts }}" as="rc" hint-placeholder-count="3">
+              <div sc-camel-on-click="{{ rc.pick }}" style="flex: 1; padding: 10px 0; border: 1px solid {{ rc.border }}; background: {{ rc.bg }}; font-size: 15px; color: {{ rc.color }}; text-align: center; cursor: pointer; transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease">{{ rc.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 12px">폴리셔(Polisher) 종류</div>
+          <div style="display: flex; gap: 8px">
+            <sc-for list="{{ tools }}" as="t" hint-placeholder-count="2">
+              <div sc-camel-on-click="{{ t.pick }}" style="flex: 1; padding: 10px 0; border: 1px solid {{ t.border }}; background: {{ t.bg }}; font-size: 15px; color: {{ t.color }}; text-align: center; cursor: pointer; transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease">{{ t.label }}</div>
+            </sc-for>
+          </div>
+          <div style="margin-top: 10px; font-size: 16px; line-height: 1.5; color: var(--text-lo); word-break: keep-all">{{ toolNote }}</div>
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo)">이동 레일(Rail) 추가</div>
+            <div sc-camel-on-click="{{ toggleRail }}" style="width: 40px; height: 22px; border-radius: 11px; background: {{ railBg }}; position: relative; cursor: pointer; transition: background 200ms ease">
+              <div style="position: absolute; top: 2px; left: {{ railDotLeft }}; width: 18px; height: 18px; border-radius: 50%; background: var(--text-hi); transition: left 200ms ease"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo)">작업용 리프트(Lift) 추가</div>
+            <div sc-camel-on-click="{{ toggleLift }}" style="width: 40px; height: 22px; border-radius: 11px; background: {{ liftBg }}; position: relative; cursor: pointer; transition: background 200ms ease">
+              <div style="position: absolute; top: 2px; left: {{ liftDotLeft }}; width: 18px; height: 18px; border-radius: 50%; background: var(--text-hi); transition: left 200ms ease"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div style="padding: 16px; background: rgb(var(--accent-ch) / 0.06); border: 1px solid var(--line)">
+        <div style="font-size: 15px; color: var(--accent); margin-bottom: 8px">RL 최적화 안내</div>
+        <div style="font-size: 16px; color: var(--text-mid); line-height: 1.5">
+          환경 설정 후 공정을 시작하면, AI가 해당 하드웨어 조건에서 최적의 폴리싱 파라미터(압력, 속도 등)를 탐색한다.
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ running }}" hint-placeholder-val="{{ false }}">
+    <div style="display: flex; flex-direction: column; gap: 22px">
+
+      <section>
+        <div style="display: flex; align-items: baseline; gap: 8px">
+          <div style="font-family: var(--f-mono); font-size: 34px; font-weight: 300; color: var(--text-hi); line-height: 1; font-variant-numeric: tabular-nums">{{ monPct }}</div>
+          <div style="font-size: 16px; color: var(--text-lo)">%</div>
+          <div style="flex: 1"></div>
+          <div style="font-size: 15px; color: {{ monStateColor }}">{{ monStateLabel }}</div>
+        </div>
+        <div style="margin-top: 12px; height: 4px; background: var(--bg-panel); border-radius: var(--r-sm); overflow: hidden">
+          <div style="width: {{ monBarW }}; height: 100%; background: var(--accent)"></div>
+        </div>
+        <div style="margin-top: 9px; display: flex; font-family: var(--f-mono); font-size: 16px; color: var(--text-lo)">
+          <div>경과 <span style="color: var(--text-mid)">{{ monElapsed }}</span></div>
+          <div style="flex: 1"></div>
+          <div>남음 <span style="color: var(--text-mid)">{{ monLeft }}</span> / {{ monTotal }}</div>
+        </div>
+      </section>
+
+      <section style="border: 1px solid var(--bg-panel); padding: 15px 16px 13px">
+        <div style="display: flex; align-items: baseline; gap: 8px">
+          <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo)">접촉력</div>
+          <div style="flex: 1"></div>
+          <div style="font-family: var(--f-mono); font-size: 20px; color: {{ monStateColor }}; font-variant-numeric: tabular-nums">{{ monForce }}</div>
+          <div style="font-size: 15px; color: var(--text-lo)">N</div>
+        </div>
+        <div style="margin-top: 12px; position: relative; height: 62px; display: flex; align-items: stretch; gap: 2px">
+          <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-hi)"></div>
+          <sc-for list="{{ monBars }}" as="b" hint-placeholder-count="44">
+            <div style="flex: 1; position: relative">
+              <div style="position: absolute; left: 0; right: 0; height: {{ b.h }}; bottom: {{ b.bottom }}; top: {{ b.top }}; background: {{ b.bg }}"></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top: 9px; display: flex; font-family: var(--f-mono); font-size: 16px; color: var(--text-lo)">
+          <div>목표 <span style="color: var(--text-mid)">{{ monTarget }}</span> N</div>
+          <div style="flex: 1"></div>
+          <div>편차 <span style="color: {{ monStateColor }}">{{ monDev }}</span> N</div>
+        </div>
+      </section>
+
+      <section style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--bg-panel); border: 1px solid var(--bg-panel)">
+        <div style="background: var(--bg-base); padding: 13px 14px">
+          <div style="font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">패드 회전</div>
+          <div style="margin-top: 6px"><span style="font-family: var(--f-mono); font-size: 19px; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ monRpm }}</span> <span style="font-size: 15px; color: var(--text-lo)">rpm</span></div>
+        </div>
+        <div style="background: var(--bg-base); padding: 13px 14px">
+          <div style="font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">이송 속도</div>
+          <div style="margin-top: 6px"><span style="font-family: var(--f-mono); font-size: 19px; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ monFeed }}</span> <span style="font-size: 15px; color: var(--text-lo)">mm/s</span></div>
+        </div>
+        <div style="background: var(--bg-base); padding: 13px 14px">
+          <div style="font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">커버리지</div>
+          <div style="margin-top: 6px"><span style="font-family: var(--f-mono); font-size: 19px; color: var(--accent); font-variant-numeric: tabular-nums">{{ monCov }}</span> <span style="font-size: 15px; color: var(--text-lo)">%</span></div>
+        </div>
+        <div style="background: var(--bg-base); padding: 13px 14px">
+          <div style="font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo)">도달률</div>
+          <div style="margin-top: 6px"><span style="font-family: var(--f-mono); font-size: 19px; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ monReach }}</span> <span style="font-size: 15px; color: var(--text-lo)">%</span></div>
+        </div>
+      </section>
+      <div style="margin-top: -12px; font-size: 16px; color: var(--text-lo); line-height: 1.5; word-break: keep-all; font-variant-numeric: tabular-nums">{{ monReachNote }}</div>
+
+      <section>
+        <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 11px">로봇별 진행</div>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <sc-for list="{{ monRobots }}" as="r" hint-placeholder-count="3">
+            <div>
+              <div style="display: flex; align-items: baseline; gap: 8px; font-size: 16px">
+                <div style="font-family: var(--f-mono); color: var(--text-mid)">{{ r.label }}</div>
+                <div style="color: {{ r.railColor }}; font-size: 15px">{{ r.rail }}</div>
+                <div style="flex: 1"></div>
+                <div style="font-family: var(--f-mono); color: var(--text-lo)">{{ r.pts }}</div>
+                <div style="font-family: var(--f-mono); color: var(--text-mid); width: 38px; text-align: right; font-variant-numeric: tabular-nums">{{ r.lap }}</div>
+              </div>
+              <div style="margin-top: 6px; height: 2px; background: var(--bg-panel)">
+                <div style="width: {{ r.barW }}; height: 100%; background: var(--accent-dim)"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+    </div>
+    </sc-if>
+    </div>
+    <div style="border-top: 1px solid var(--bg-panel); padding: 16px 22px 22px; display: flex; flex-direction: column; gap: 10px">
+      <sc-if value="{{ idle }}" hint-placeholder-val="{{ true }}">
+      <div sc-camel-on-click="{{ loadPreset }}" tabindex="0" style="padding: 11px 0; border: 1px solid var(--line); font-size: 15px; letter-spacing: 0.06em; color: {{ presetColor }}; text-align: center; cursor: {{ presetCursor }}; transition: border-color 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1)" style-hover="border-color: var(--text-lo)">{{ presetLabel }}</div>
+      </sc-if>
+      <div sc-camel-on-click="{{ toggleRun }}" style="padding: 17px 0; border: 1px solid {{ runBorder }}; background: {{ runBg }}; font-size: 16px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-hi); text-align: center; cursor: pointer; transition: background-color 220ms cubic-bezier(0.4,0,0.2,1), border-color 220ms cubic-bezier(0.4,0,0.2,1), color 220ms cubic-bezier(0.4,0,0.2,1)">{{ runLabel }}</div>
+      <div style="display: flex; gap: 10px">
+        <a href="monitor.html" style="flex: 1; padding: 10px 0; font-size: 15px; letter-spacing: 0.06em; color: var(--text-lo); text-align: center; transition: color var(--t-base) var(--e-out); word-break: keep-all">② 공정 감시 →</a>
+        <a href="save.html" style="flex: 1; padding: 10px 0; font-size: 15px; letter-spacing: 0.06em; text-align: center; color: var(--text-lo); transition: color var(--t-base) var(--e-out); word-break: keep-all" style-hover="color: var(--text-mid)">③ 결과 저장 →</a>
+        <div sc-camel-on-click="{{ goLibrary }}" tabindex="0" style="flex: 1; padding: 10px 0; font-size: 15px; letter-spacing: 0.06em; color: var(--text-lo); text-align: center; cursor: pointer; transition: color var(--t-base) var(--e-out); word-break: keep-all" style-hover="color: var(--text-mid)">④ 라이브러리 →</div>
+      </div>
+    </div>
+  </aside>
+
+  <sc-if value="{{ showEvalModal }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; z-index: 50; background: rgb(var(--bg-void-ch) / 0.88); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 24px">
+      <div style="width: min(1060px, 100%); max-height: 100%; overflow: auto; background: var(--bg-base); border: 1px solid var(--line); padding: 30px 36px; display: flex; flex-direction: column; gap: 18px">
+
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 12px">
+            <div style="font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent)">RL 시뮬레이션 완료</div>
+            <div style="flex: 1"></div>
+            <div style="font-size: 16px; color: var(--text-lo)">{{ evalSegLabel }}</div>
+          </div>
+          <div style="font-size: 28px; font-weight: 600; color: var(--text-hi); margin-top: 10px; letter-spacing: -0.01em">공정 결과 · 숙련공 정답 대조</div>
+          <div style="font-size: 17px; color: var(--text-mid); margin-top: 10px; line-height: 1.6; word-break: keep-all">{{ evalIntro }}</div>
+        </div>
+
+        <sc-if value="{{ hasQual }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px">
+            <div style="font-size: 18px; font-weight: 600; color: var(--text-hi)">표면 품질 · 합격 기준 대조</div>
+            <div style="flex: 1"></div>
+            <div style="font-size: 16px; color: var(--text-lo)">{{ qualEpLabel }}</div>
+          </div>
+          <div style="border: 1px solid var(--bg-panel); background: var(--bg-void)">
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 190px 74px; gap: 12px; padding: 13px 20px; border-bottom: 1px solid var(--bg-panel); font-size: 16px; font-weight: 500; letter-spacing: 0.04em; color: var(--text-lo)">
+              <div>항목</div>
+              <div style="text-align: right">공정 결과</div>
+              <div style="text-align: right">기준</div>
+              <div style="text-align: right">판정</div>
+            </div>
+            <div style="padding: 6px 20px 16px">
+              <sc-for list="{{ qualRows }}" as="q" hint-placeholder-count="5">
+                <div style="border-bottom: 1px solid var(--bg-base); padding: 9px 0">
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 190px 74px; gap: 12px; align-items: baseline">
+                    <div style="font-size: 17px; color: var(--text-mid); word-break: keep-all">{{ q.label }}</div>
+                    <div style="text-align: right"><span style="font-size: 21px; font-weight: 500; color: {{ q.color }}; font-variant-numeric: tabular-nums">{{ q.mine }}</span> <span style="font-size: 15px; color: var(--text-lo)">{{ q.unit }}</span></div>
+                    <div style="font-size: 17px; color: var(--text-lo); text-align: right; font-variant-numeric: tabular-nums">{{ q.limit }}</div>
+                    <div style="font-size: 16px; font-weight: 500; color: {{ q.color }}; text-align: right">{{ q.mark }}</div>
+                  </div>
+                  <sc-if value="{{ q.hasDetail }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top: 5px; font-size: 15px; color: var(--text-lo); font-variant-numeric: tabular-nums">{{ q.detail }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <div style="font-size: 18px; font-weight: 600; color: var(--text-hi); margin-bottom: -8px">제어 파라미터 · 숙련공 정답 대조</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px">
+          <div style="border: 1px solid {{ evalLeftBorder }}; background: var(--bg-void)">
+            <div style="padding: 14px 20px; border-bottom: 1px solid var(--bg-panel); font-size: 17px; font-weight: 500; letter-spacing: 0.04em; color: var(--text-mid)">공정 결과 · RL 탐색</div>
+            <div style="padding: 6px 20px 16px">
+            <sc-for list="{{ evalRows }}" as="r" hint-placeholder-count="5">
+              <div style="display: flex; align-items: baseline; gap: 12px; height: 40px; border-bottom: 1px solid var(--bg-base)">
+                <div style="font-size: 17px; color: var(--text-mid); white-space: nowrap">{{ r.label }}</div>
+                <div style="flex: 1"></div>
+                <div style="font-size: 21px; font-weight: 500; color: {{ r.color }}; font-variant-numeric: tabular-nums">{{ r.mine }}</div>
+                <div style="font-size: 16px; color: {{ r.color }}; width: 66px; text-align: right; font-variant-numeric: tabular-nums">{{ r.delta }}</div>
+              </div>
+            </sc-for>
+            </div>
+          </div>
+          <div style="border: 1px solid var(--bg-panel); background: var(--bg-void)">
+            <div style="padding: 14px 20px; border-bottom: 1px solid var(--bg-panel); font-size: 17px; font-weight: 500; letter-spacing: 0.04em; color: var(--text-mid)">숙련공 정답 · 데이터셋</div>
+            <div style="padding: 6px 20px 16px">
+            <sc-for list="{{ evalRows }}" as="r" hint-placeholder-count="5">
+              <div style="display: flex; align-items: baseline; gap: 12px; height: 40px; border-bottom: 1px solid var(--bg-base)">
+                <div style="font-size: 17px; color: var(--text-mid); white-space: nowrap">{{ r.label }}</div>
+                <div style="flex: 1"></div>
+                <div style="font-size: 21px; font-weight: 500; color: var(--text-hi); font-variant-numeric: tabular-nums">{{ r.ref }}</div>
+                <div style="font-size: 16px; color: var(--text-lo); width: 66px; text-align: right">{{ r.unit }}</div>
+              </div>
+            </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 15px 20px; border: 1px solid {{ verdictBorder }}; background: {{ verdictBg }}">
+          <div style="font-size: 19px; font-weight: 600; color: {{ verdictColor }}; white-space: nowrap">{{ verdictTitle }}</div>
+          <div style="font-size: 17px; color: var(--text-mid); line-height: 1.6; word-break: keep-all">{{ verdictText }}</div>
+        </div>
+
+        <div style="font-family: var(--f-mono); font-size: 15px; color: var(--text-lo); word-break: break-all">{{ evalSource }}</div>
+
+        <div style="display: flex; gap: 14px">
+          <div sc-camel-on-click="{{ evalFail }}" tabindex="0" style="flex: 1; padding: 15px 0; border: 1px solid var(--line); font-size: 18px; color: var(--text-mid); text-align: center; cursor: pointer; transition: border-color 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1)" style-hover="border-color: var(--text-lo); color: var(--text-hi)">{{ btnLeftLabel }}</div>
+          <div sc-camel-on-click="{{ btnRightAction }}" tabindex="0" style="flex: 1; padding: 15px 0; border: 1px solid {{ saveBorder }}; background: {{ saveBg }}; font-size: 18px; font-weight: 500; color: {{ saveColor }}; text-align: center; cursor: {{ saveCursor }}; transition: border-color 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1)">{{ btnRightLabel }}</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+/* 고른 차종은 ② 공정 감시와 공유한다. monitor.html 이 같은 키를 읽는다 —
+   프리셋(polytwin_preset)은 RL 검증을 저장해야 생기므로 이 용도로는 못 쓴다. */
+const VEHICLE_KEY = 'polytwin_vehicle';
+const readVehicle = () => {
+  try {
+    const id = localStorage.getItem(VEHICLE_KEY);
+    return CARS.some((c) => c.id === id) ? id : 'sonata';
+  } catch (err) { return 'sonata'; }
+};
+
+/* mark 는 assets/icons/ 의 제조사 마크다. 회색조·톤 정규화가 파일에 구워져 있다 —
+   브랜드 원색을 그대로 쓰면 이 패널에만 색 체계가 넷 더 생긴다.
+   흰 배경은 빼 뒀다(누끼) — 어두운 패널에 그대로 얹힌다.
+   파일이 없으면 alt="" 라 빈칸으로 떨어진다(깨진 이미지 아이콘 안 뜬다).
+   누끼·톤 정규화 재현은 scripts/logo-mono.py, 원본은 assets/icons/_orig/. */
+const CARS = [
+  { id: 'sonata', name: '현대 쏘나타', mark: 'assets/icons/hyundai.png' },
+  { id: 'z4', name: 'BMW Z4', mark: 'assets/icons/bmw.png' },
+  { id: 'coupe', name: '벤츠 쿠페', mark: 'assets/icons/benz.png' },
+  { id: 'sf90', name: '페라리 SF90', mark: 'assets/icons/ferrari.png' },
+];
+
+// 광택기 두 종류 — 「자동차 광택」 2. 광택의 종류.
+// 싱글은 연마력이 월등하고 작업이 빠르지만 기계자국·홀로그램을 남길 수 있어
+// 숙련자만 쓴다. 듀얼은 자국을 남기지 않는 대신 시간이 더 걸린다.
+// 접촉력이 일정한 로봇에는 그 숙련도 제약이 없다 — 이 화면이 고르게 하는 이유다.
+// 경로 간격 = 패드 지름 x (1 - 오버랩). 라이브러리 레시피와 같은 규칙.
+// force 는 3~8 N 대역 안이어야 한다 — 이탈하면 접촉 게이트가 실행을 막는다.
+// 값은 데이터셋 목표 접촉력 분포(3.29~8.22 N, 중앙값 4.46)를 따른다.
+const TOOLS = [
+  { id: 'dual',   label: '듀얼', pad: 110, overlap: 40, rpm: 3000, force: 5.6, feed: 0.030,
+    note: '기계자국과 홀로그램을 남기지 않는다. 대신 같은 면적에 시간이 더 걸린다.' },
+  { id: 'single', label: '싱글', pad: 140, overlap: 35, rpm: 2400, force: 7.2, feed: 0.030,
+    note: '연마력이 월등하고 빠르다. 사람에게는 홀로그램 위험 때문에 숙련자 전용이지만, 접촉력이 일정한 로봇에는 그 제약이 없다.' },
+];
+const toolOf = (id) => TOOLS.find((t) => t.id === id) || TOOLS[0];
+
+// ── 숙련공 정답 데이터 ──
+// 데이터셋/seg_best_kpi.json — sweep_traj_csv 원본(184MB)에서 세그먼트마다
+// '세그먼트별_최적파라미터.csv 의 최적 파라미터와 일치하는 run' 을 찾아
+// 그 run 의 실제 KPI 와 파일 내 바이트 범위를 뽑아 둔 요약이다.
+// 만드는 방법과 재생성 명령은 데이터셋/make_seed.py 에 있다.
+/* 숙련공 정답 데이터 — DB(segments 테이블)에서 온다. 예전에는
+   데이터셋/seg_best_kpi.json 을 직접 읽었다. 모양은 그때와 같다 */
+const SEED_URL = '/api/dataset/seg-best-kpi';
+
+// 표면 품질 KPI — 데이터셋/make_quality.py 가 data_sample.txt 에서 뽑는다.
+// 원본은 셀 단위 2.4 MB 라 브라우저가 매번 파싱할 물건이 아니다.
+const QUALITY_URL = '/api/dataset/quality-kpi';
+
+// 허용 오차 — 이 안에 들면 '일치'로 본다.
+// 접촉력만 절대값(N), 나머지는 정답 대비 상대비. in-band 는 아래로만 본다.
+const TOL = { force: 0.40, stiffness: 0.06, damping: 0.08, speed: 0.10, inband: 0.02 };
+
+// run 순번으로 결정되는 난수 — 실행할 때마다 결과가 달라지되,
+// 같은 순번이면 같은 값이 나와 데모 중에 재현이 된다.
+function lcg(seed) {
+  let x = (seed >>> 0) || 1;
+  return () => (x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296;
+}
+const mmss = (sec) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+
+class Component extends DCLogic {
+  state = {
+    vehicle: readVehicle(),
+    tool: 'dual',
+    view: 'free',
+    running: false,
+    robotCount: 1,
+    hasRail: false,
+    hasLift: false,
+    carLift: 0,          // mm. 차체를 들어 옆면을 로봇 어깨 높이로 올린다
+    showEvalModal: false,
+    seed: null,          // 데이터셋 요약. null 이면 아직 못 읽었다
+    seedErr: '',
+    qual: null,          // 표면 품질 KPI. null 이면 아직 못 읽었다
+    qualEp: null,        // 이번 판정에 쓴 에피소드
+    runSeq: 0,           // 몇 번째 RL 실행인가 — 대상 세그먼트와 난수를 정한다
+    refSeg: null,        // 이번 판정의 숙련공 정답 세그먼트
+    rl: null,            // 이번 판정의 공정 결과
+    evalSaved: false, evalSaving: false, evalErr: '',
+    hasPreset: false,
+    runMs: 0,            // 이번 공정의 길이. 실행마다 30~60초에서 새로 뽑는다
+    runEl: 0,            // 경과 ms
+    mon: null,           // 공정 중 계측값. 대기 중에는 null
+  };
+
+  componentDidMount() {
+    this.push();
+    
+    fetch(SEED_URL, { credentials: 'same-origin' })
+      .then((r) => r.json().catch(() => ({})).then((d) => {
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        return d;
+      }))
+      .then((d) => this.setState({ seed: d.segments || [] }))
+      .catch((err) => this.setState({ seedErr: String(err.message || err) }));
+    fetch(QUALITY_URL, { credentials: 'same-origin' })
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then((d) => this.setState({ qual: d }))
+      .catch(() => this.setState({ qual: null }));   // 없으면 품질표를 접는다
+    this.setState({ hasPreset: !!this.readPreset() });
+  }
+  componentWillUnmount() { clearTimeout(this._simTimer); clearInterval(this._monTimer); }
+
+  vp() { return document.querySelector('polytwin-viewport'); }
+
+  push() {
+    const v = this.vp();
+    if (!v || !v.setParams) { setTimeout(() => this.push(), 150); return; }
+    const s = this.state;
+    const t = toolOf(s.tool);
+    v.setParams({ pad: t.pad, overlap: t.overlap, feed: t.feed, force: t.force, rpm: t.rpm,
+                  robotCount: s.robotCount, hasRail: s.hasRail, hasLift: s.hasLift,
+                  carLift: s.carLift / 1000, running: s.running });
+    /* 뷰포트는 attribute 가 없으면 z4 로 뜬다. 저장된 차종으로 열 때는 패널만
+       그 차를 가리키고 3D 는 Z4 인 상태가 된다 — 여기서 맞춘다.
+       setVehicle 은 같은 id 면 즉시 돌아오므로 매 push 마다 불러도 된다. */
+    if (v.setVehicle) v.setVehicle(s.vehicle);
+  }
+
+  pickVehicle(id) {
+    if (id === this.state.vehicle) return;
+    this.setState({ vehicle: id });
+    const v = this.vp();
+    if (v && v.setVehicle) v.setVehicle(id);
+    // ② 공정 감시가 같은 차를 띄우게 한다. 사파리 프라이빗에서는 던지므로 감싼다
+    try { localStorage.setItem(VEHICLE_KEY, id); } catch (err) { /* 무시 */ }
+  }
+
+  pickView(id) {
+    this.setState({ view: id });
+    const v = this.vp();
+    if (v && v.setView) v.setView(id);
+  }
+
+  stopTimers() { clearTimeout(this._simTimer); clearInterval(this._monTimer); }
+
+  toggleRun() {
+    if (this.state.running) {                 // 진행 중 누르면 중단
+      this.stopTimers();
+      this.setState({ running: false, mon: null, runEl: 0 }, () => this.push());
+      return;
+    }
+    /* 공정 길이는 30~60초 사이에서 매번 다르게 잡는다. 같은 길이로 고정하면
+       두 번째 실행부터 타이머를 보는 화면이 된다. */
+    const runMs = 30000 + Math.floor(Math.random() * 30001);
+    this._hist = [];
+    this._runT0 = performance.now();
+    this.setState({ running: true, runMs, runEl: 0, mon: this.sampleMon(0, runMs) }, () => {
+      this.push();
+      this.stopTimers();
+      this._simTimer = setTimeout(() => this.finishRun(), runMs);
+      /* 200ms — 사람이 수치가 산다고 느끼는 하한이면서, 값이 읽기 전에
+         바뀌어 버리지 않는 상한이다 */
+      this._monTimer = setInterval(() => {
+        const el = performance.now() - this._runT0;
+        this.setState({ runEl: el, mon: this.sampleMon(el, this.state.runMs) });
+      }, 200);
+    });
+  }
+
+  /* 계측값. 뷰포트가 실제로 돌리고 있는 수를 그대로 읽어 온다 —
+     패널에만 있는 숫자를 따로 만들면 3D 와 패널이 어긋난다. */
+  sampleMon(elapsed, total) {
+    const s = this.state, t = toolOf(s.tool);
+    const prog = total > 0 ? Math.min(1, elapsed / total) : 0;
+    const vp = this.vp();
+    const st = (vp && vp.getStats) ? vp.getStats() : null;
+
+    /* 접촉력은 목표를 중심으로 흔들린다. 곡면에 들어가면 잠깐 내려가고
+       평면으로 나오면 회복한다 — 주기가 다른 성분 셋을 겹쳐 그 모양을 만든다 */
+    const ph = elapsed / 1000;
+    const wob = Math.sin(ph * 2.3) * 0.30 + Math.sin(ph * 5.7) * 0.17 + Math.sin(ph * 11.3) * 0.08;
+    const force = Math.max(0, t.force + wob);
+    const dev = Math.abs(force - t.force);
+
+    const hist = this._hist || (this._hist = []);
+    hist.push(force);
+    if (hist.length > 44) hist.shift();       // 패널 폭에 들어가는 만큼만
+
+    return {
+      prog,
+      force, dev,
+      target: t.force,
+      rpm: t.rpm,
+      feed: t.feed * 1000,                    // m/s -> mm/s
+      // 뷰포트가 실제로 찍은 면적. 없으면(초기 프레임) 0 으로 둔다 —
+      // 시간 진행률을 대신 넣으면 3D 에는 안 닦인 차가 100% 로 표시된다
+      cov: st && st.polished != null ? st.polished * 100 : 0,
+      hist: hist.slice(),
+      cells: st ? st.cells : [],
+      points: st ? st.points : 0,
+      assigned: st ? st.assigned : 0,
+    };
+  }
+
+  // RL 탐색이 끝났다. 대상 세그먼트의 정답을 기준으로 결과를 만들고 판정 화면을 열다.
+  finishRun() {
+    this.stopTimers();
+    const seed = this.state.seed;
+    if (!seed || !seed.length) {
+      this.setState({ running: false, mon: null, showEvalModal: true, refSeg: null, rl: null,
+                      qualEp: this.pickEpisode(this.state.runSeq + 1) }, () => this.push());
+      return;
+    }
+    const seq = this.state.runSeq + 1;
+    const ref = seed[(seq - 1) % seed.length];
+    const rnd = lcg(seq * 2654435761 + ref.seg.length * 8191);
+
+    // 탐색이 수렴했는지 — 수렴하면 전 항목이 허용 오차 안,
+    // 아니면 한두 항목이 밖으로 벗어난다. 벗어난 판정도 보여야 하는 화면이다.
+    const converged = rnd() < 0.7;
+    const keys = ['force', 'stiffness', 'damping', 'speed'];
+    const off = {};
+    keys.forEach((k) => { off[k] = rnd() * 1.6 - 0.8; });
+    if (!converged) {
+      const n = rnd() < 0.4 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const k = keys[Math.min(keys.length - 1, Math.floor(rnd() * keys.length))];
+        off[k] = (rnd() < 0.5 ? -1 : 1) * (1.35 + rnd() * 1.15);
+      }
+    }
+    const rl = {
+      force: ref.p.force + off.force * TOL.force,
+      stiffness: ref.p.stiffness * (1 + off.stiffness * TOL.stiffness),
+      damping: ref.p.damping * (1 + off.damping * TOL.damping),
+      speed: ref.p.speed * (1 + off.speed * TOL.speed),
+      inband: Math.max(0, ref.inband - (converged ? rnd() * 0.014 : 0.025 + rnd() * 0.07)),
+    };
+    this.setState({ running: false, mon: null, showEvalModal: true, runSeq: seq, refSeg: ref, rl,
+                    qualEp: this.pickEpisode(seq), evalSaved: false,
+                    evalSaving: false, evalErr: '' }, () => this.push());
+  }
+
+  /* 공정 모니터링 패널이 그리는 값. 대기 중에는 설정 패널이 대신 뜬다. */
+  monVals() {
+    const s = this.state, m = s.mon;
+    const idle = !s.running || !m;
+    if (idle) {
+      return { running: false, idle: true, panelTitle: 'PARAMETERS',
+               monBars: [], monRobots: [] };
+    }
+    const pct = m.prog * 100;
+    const leftSec = Math.max(0, Math.round((s.runMs - s.runEl) / 1000));
+    const elSec = Math.round(s.runEl / 1000);
+    // 접촉력이 목표에서 얼마나 벗어났나 — 이 화면에서 관리자가 제일 먼저 볼 값
+    const warn = m.dev > 0.55;
+    const stateColor = warn ? 'var(--warn)' : 'var(--ok)';
+
+    /* 접촉력 이력. 목표선을 가운데(50%)에 두고 위아래로 그린다.
+       값은 즉시 바뀐다 — 막대에 트랜지션을 걸면 계측이 아니라 애니메이션이 된다 */
+    const span = 2.4;                        // 위아래로 보여 줄 폭 (N)
+    const monBars = m.hist.map((v) => {
+      const d = Math.max(-1, Math.min(1, (v - m.target) / span));
+      return {
+        h: (6 + Math.abs(d) * 44).toFixed(1) + '%',
+        bottom: d >= 0 ? '50%' : 'auto',
+        top: d < 0 ? '50%' : 'auto',
+        bg: Math.abs(v - m.target) > 0.55 ? 'var(--warn)' : 'var(--accent)',
+      };
+    });
+
+    const monRobots = (m.cells || []).map((c, i) => ({
+      label: 'R' + (i + 1),
+      pts: String(c.pts) + ' pt',
+      lap: (c.lap * 100).toFixed(0) + '%',
+      barW: (c.lap * 100).toFixed(1) + '%',
+      rail: c.onRail ? '레일' : '고정',
+      railColor: c.onRail ? 'var(--accent)' : 'var(--text-lo)',
+    }));
+
+    return {
+      running: true, idle: false, panelTitle: '공정 모니터링',
+      monPct: pct.toFixed(1),
+      monBarW: pct.toFixed(1) + '%',
+      monElapsed: mmss(elSec),
+      monLeft: mmss(leftSec),
+      monTotal: mmss(Math.round(s.runMs / 1000)),
+      monForce: m.force.toFixed(2),
+      monTarget: m.target.toFixed(1),
+      monDev: (m.force >= m.target ? '+' : '–') + m.dev.toFixed(2),
+      monRpm: String(m.rpm),
+      monFeed: m.feed.toFixed(0),
+      monCov: m.cov.toFixed(1),
+      monPoints: String(m.points),
+      monAssigned: String(m.assigned),
+      monReach: m.points > 0 ? (100 * m.assigned / m.points).toFixed(0) : '0',
+      /* 미도달이 남는 것은 결함이 아니라 이 구성의 사실이다. 그대로 적는다 */
+      monReachNote: m.points > 0
+        ? ('도달 ' + m.assigned.toLocaleString() + ' / ' + m.points.toLocaleString()
+           + ' pt · 미도달 구간은 검증 리포트로 남는다')
+        : '',
+      monStateLabel: warn ? '접촉력 이탈' : '정상 추종',
+      monStateColor: stateColor,
+      monBars, monRobots,
+    };
+  }
+
+  /* 실행 순번으로 에피소드를 고른다 — 세그먼트를 고르는 방식과 같다.
+     같은 순번이면 같은 에피소드가 나와 데모 중에 재현이 된다. */
+  pickEpisode(seq) {
+    const q = this.state.qual;
+    if (!q || !q.episodes || !q.episodes.length) return null;
+    return q.episodes[(seq - 1 + q.episodes.length) % q.episodes.length];
+  }
+
+  /* 표면 품질 판정. 왼쪽은 이번 공정 결과, 오른쪽은 합격 기준이다.
+     기준의 부등호 방향(>= / <= / <)은 quality_kpi.json 이 들고 있다 —
+     화면에서 다시 정의하면 두 곳이 어긋난다. */
+  qualRows() {
+    const q = this.state.qual, ep = this.state.qualEp;
+    if (!q || !ep) return [];
+    const BAND = { target_pass: '목표 충족', partial: '부분', low: '낮음', severe_defect: '심한 결함' };
+    return (q.criteria || []).map((c) => {
+      const v = ep[c.key];
+      const d = c.digits != null ? c.digits : 2;
+      let ok, limitText, detail = '';
+      if (c.op === 'gloss') {
+        /* 광택은 평균만으로 통과시키지 않는다 — 평균·p10·산포·최소를 모두 본다.
+           한 군데가 깊게 파여도 평균은 멀쩡해 보이기 때문이다.
+           판정 자체는 make_quality.py 가 이미 내려 둔 것을 쓴다. */
+        const g = (q.gloss && q.gloss.pass) || { mean: 70, p10: 60, std: 10, min: 45 };
+        ok = !!ep.glossPass;
+        limitText = '평균 ≥ ' + g.mean + ' GU';
+        detail = 'p10 ' + ep.glossP10.toFixed(1) + ' (≥' + g.p10 + ')'
+               + ' · σ ' + ep.glossStd.toFixed(1) + ' (≤' + g.std + ')'
+               + ' · 최소 ' + ep.glossMin.toFixed(1) + ' (≥' + g.min + ')'
+               + ' · 타일 ' + ep.glossTiles + ' · ' + (BAND[ep.glossBand] || ep.glossBand);
+      } else if (c.op === '<') {               // 스크래치 — 초기 대비 감소
+        const base = ep.scratchBefore;
+        ok = v < base;
+        limitText = '초기 ' + base.toFixed(d) + ' 대비 감소';
+      } else if (c.op === '>=') {
+        ok = v >= c.limit;  limitText = '≥ ' + c.limit.toFixed(d === 4 ? 2 : d) + (c.unit ? ' ' + c.unit : '');
+      } else {
+        ok = v <= c.limit;  limitText = '≤ ' + c.limit.toFixed(d === 4 ? 2 : d) + (c.unit ? ' ' + c.unit : '');
+      }
+      return {
+        label: c.label,
+        mine: v.toFixed(d),
+        unit: c.unit || '',
+        limit: limitText,
+        detail,
+        hasDetail: !!detail,
+        ok,
+        color: ok ? 'var(--ok)' : 'var(--crit)',
+        mark: ok ? '충족' : '미달',
+      };
+    });
+  }
+
+  // 판정 행 — 두 패널이 같은 순서로 그린다. 왼쪽은 색과 Δ, 오른쪽은 값과 단위.
+  evalRows() {
+    const ref = this.state.refSeg, rl = this.state.rl;
+    if (!ref || !rl) return [];
+    const defs = [
+      { key: 'force',     label: '접촉력 목표', unit: 'N',    d: 2, tol: TOL.force, abs: true },
+      { key: 'stiffness', label: '패드 강성 k', unit: 'N/m',  d: 1, tol: TOL.stiffness },
+      { key: 'damping',   label: '감쇠 c',      unit: 'Ns/m', d: 2, tol: TOL.damping },
+      { key: 'speed',     label: '속도 배율',   unit: 'x',    d: 2, tol: TOL.speed },
+    ];
+    const rows = defs.map((f) => {
+      const mine = rl[f.key], want = ref.p[f.key], diff = mine - want;
+      const ok = Math.abs(diff) <= (f.abs ? f.tol : Math.abs(want) * f.tol);
+      return { label: f.label, unit: f.unit, ok,
+               mine: mine.toFixed(f.d), ref: want.toFixed(f.d),
+               delta: (diff >= 0 ? '+' : '-') + Math.abs(diff).toFixed(f.d),
+               color: ok ? 'var(--ok)' : 'var(--crit)' };
+    });
+    const dIn = rl.inband - ref.inband;
+    const okIn = dIn >= -TOL.inband;
+    rows.push({ label: 'in-band 비율', unit: '', ok: okIn,
+                mine: rl.inband.toFixed(3), ref: ref.inband.toFixed(3),
+                delta: (dIn >= 0 ? '+' : '-') + Math.abs(dIn).toFixed(3),
+                color: okIn ? 'var(--ok)' : 'var(--crit)' });
+    return rows;
+  }
+
+  // 일치할 때만 저장한다. 저장은 서버 DB(library_entries)로 간다 —
+  // 예전 localStorage 'polytwin_saved' 는 이 브라우저에만 남아서 다른
+  // PC 에서는 보이지 않았고 누가 저장했는지도 알 수 없었다.
+  evalSave() {
+    const ref = this.state.refSeg, rl = this.state.rl, s = this.state;
+    if (!ref || !rl || this.evalRows().some((r) => !r.ok)) return;
+    if (s.evalSaving || s.evalSaved) return;
+
+    const rec = {
+      id: 'rl-' + Date.now(),
+      seg: ref.seg,
+      name: ref.seg + ' · ' + ref.robot + ' 로봇 · RL 검증',
+      env: { robotCount: s.robotCount, tool: s.tool, hasRail: s.hasRail, hasLift: s.hasLift },
+      rl: { force: rl.force, stiffness: rl.stiffness, damping: rl.damping, speed: rl.speed, inband: rl.inband },
+      ref: ref,
+    };
+    // 시각은 서버가 찍는다 — 클라이언트 시계를 믿고 정렬하지 않는다
+
+    // ① 화면의 '저장된 최적 프리셋 불러오기' 가 읽는 자리. 이건 이 브라우저의
+    // 편의 값이라 로컬에 그대로 둔다 — 실패해도 저장 자체를 막지 않는다
+    try {
+      localStorage.setItem('polytwin_preset', JSON.stringify({
+        robotCount: s.robotCount, tool: s.tool, hasRail: s.hasRail, hasLift: s.hasLift,
+        seg: ref.seg, force: rl.force, stiffness: rl.stiffness, damping: rl.damping, speed: rl.speed,
+      }));
+    } catch (err) { /* 무시 */ }
+
+    this.setState({ evalSaving: true, evalErr: '' });
+    fetch('/api/library', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rec),
+    })
+      .then((r) => r.json().catch(() => ({})).then((d) => {
+        if (!r.ok) throw new Error(d.error || '저장하지 못했습니다.');
+        return d;
+      }))
+      .then(() => this.setState({ evalSaving: false, evalSaved: true, evalErr: '' }))
+      .catch((err) => this.setState({
+        evalSaving: false, evalSaved: false,
+        evalErr: String((err && err.message) || err),
+      }));
+  }
+
+  evalFail() {
+    this.setState({ showEvalModal: false, evalSaved: false, evalSaving: false, evalErr: '' });
+  }
+
+  readPreset() {
+    try { return JSON.parse(localStorage.getItem('polytwin_preset') || 'null'); } catch (e) { return null; }
+  }
+
+  loadPreset() {
+    const preset = this.readPreset();
+    if (!preset) return;
+    this.setState({
+      robotCount: preset.robotCount || 1,
+      tool: preset.tool || 'dual',
+      hasRail: !!preset.hasRail,
+      hasLift: !!preset.hasLift,
+    }, () => this.push());
+  }
+
+  renderVals() {
+    const s = this.state;
+    const tool = toolOf(s.tool);
+    const ev = this.evalRows();
+    const failed = ev.filter((r) => !r.ok).length;
+    const qr = this.qualRows();
+    const qFailed = qr.filter((r) => !r.ok).length;
+    // 품질표가 없으면(파일 미배치) 파라미터 판정만으로 본다
+    const evOk = ev.length > 0 && failed === 0 && qFailed === 0;
+    const ref = s.refSeg;
+    const noSeed = !ref;
+    const spacing = Math.round(tool.pad * (1 - tool.overlap / 100));
+    // 작업 폭 약 1850mm 기준. 공구를 바꾸면 패스 수와 예상 시간이 따라 움직인다
+    const passes = Math.round(1850 / spacing);
+    return {
+      vehicles: CARS.map((c) => ({
+        name: c.name, mark: c.mark,
+        //  0.45 -> 0.62. 파일 톤을 0.55->0.80 으로 올렸어도
+        // 곱해지면 미선택 마크가 다시 배경에 묻혔다. 선택 대비는 남는다
+        markOpacity: s.vehicle === c.id ? '1' : '0.62',
+        border: s.vehicle === c.id ? 'var(--accent)' : 'var(--line)',
+        bg: s.vehicle === c.id ? 'rgb(var(--accent-ch) / 0.06)' : 'transparent',
+        color: s.vehicle === c.id ? 'var(--text-hi)' : 'var(--text-lo)',
+        pick: () => this.pickVehicle(c.id),
+      })),
+      vehicleName: (CARS.find((c) => c.id === s.vehicle) || CARS[0]).name,
+      views: [['front', '정면'], ['top', '상면'], ['side', '측면'], ['free', '자유']].map(([id, label]) => ({
+        label,
+        border: s.view === id ? 'var(--text-lo)' : 'var(--bg-raised)',
+        color: s.view === id ? 'var(--text-hi)' : 'var(--text-lo)',
+        pick: () => this.pickView(id),
+      })),
+      robotCounts: [1, 2, 3].map(n => ({
+        label: `${n}대`,
+        border: s.robotCount === n ? 'var(--accent)' : 'var(--line)',
+        bg: s.robotCount === n ? 'rgb(var(--accent-ch) / 0.06)' : 'transparent',
+        color: s.robotCount === n ? 'var(--text-hi)' : 'var(--text-mid)',
+        pick: () => this.setState({ robotCount: n }, () => this.push())
+      })),
+      tools: TOOLS.map((t) => ({
+        label: t.label,
+        border: s.tool === t.id ? 'var(--accent)' : 'var(--line)',
+        bg: s.tool === t.id ? 'rgb(var(--accent-ch) / 0.06)' : 'transparent',
+        color: s.tool === t.id ? 'var(--text-hi)' : 'var(--text-mid)',
+        pick: () => this.setState({ tool: t.id }, () => this.push()),
+      })),
+      toolNote: tool.note,
+      toggleRail: () => this.setState(p => ({ hasRail: !p.hasRail }), () => this.push()),
+      railBg: s.hasRail ? 'var(--accent)' : 'var(--line)',
+      railDotLeft: s.hasRail ? '20px' : '2px',
+      toggleLift: () => this.setState(p => ({ hasLift: !p.hasLift }), () => this.push()),
+      carLift: String(s.carLift),
+      // WebKit 은 ::-moz-range-progress 가 없어서 트랙 그라디언트로 채운다
+      carLiftFill: (s.carLift / 800 * 100) + '%',
+      setCarLift: (e) => this.setState({ carLift: Number(e.target.value) }, () => this.push()),
+      carLiftLabel: s.carLift ? (s.carLift + ' mm') : '내림',
+      carLiftColor: s.carLift ? 'var(--accent)' : 'var(--text-lo)',
+      carLiftNote: s.carLift
+        ? ('차체를 ' + s.carLift + ' mm 올려 도어·펜더가 팔의 도달 범위에 들어온다. '
+           + '대신 루프가 그만큼 높아진다.')
+        : '차체가 내려와 있어 옆면 하단은 팔이 닿지 않는다. 올리면 측면 경로가 배정된다.',
+      liftBg: s.hasLift ? 'var(--accent)' : 'var(--line)',
+      liftDotLeft: s.hasLift ? '20px' : '2px',
+      spacing: String(spacing),
+      passes: String(passes),
+      eta: mmss(Math.round(passes * 8)),
+      runLabel: s.running ? '공정 중단' : 'RL 공정 시작',
+      runBorder: s.running ? 'var(--warn)' : 'var(--accent)',
+      runBg: s.running ? 'rgb(var(--warn-ch) / 0.1)' : 'rgb(var(--accent-ch) / 0.1)',
+      ...this.monVals(),
+      toggleRun: () => this.toggleRun(),
+      loadPreset: () => this.loadPreset(),
+      presetLabel: s.hasPreset ? '저장된 최적 프리셋 불러오기' : '저장된 프리셋 없음',
+      presetColor: s.hasPreset ? 'var(--text-mid)' : 'var(--line)',
+      presetCursor: s.hasPreset ? 'pointer' : 'not-allowed',
+      goLibrary: () => { window.location.href = 'library.html'; },
+      showEvalModal: s.showEvalModal,
+      evalRows: ev,
+      qualRows: qr,
+      hasQual: qr.length > 0,
+      qualEpLabel: s.qualEp
+        ? ('에피소드 ' + s.qualEp.episode + ' · ' + s.qualEp.recipe + ' · 셀 ' + s.qualEp.cells)
+        : '',
+      evalFail: () => this.evalFail(),
+      evalSegLabel: ref ? ('세그먼트 ' + ref.seg + ' · ' + ref.robot + ' 로봇') : '데이터셋 없음',
+      evalIntro: noSeed
+        ? ('숙련공 정답 데이터를 읽지 못했습니다'
+           + (s.seedErr ? ' (' + s.seedErr + ')' : '')
+           + '. 시드가 됐는지 확인하세요 — npm run seed:data 로 데이터셋/seg_best_kpi.json 을 DB 에 넣습니다.')
+        : ('RL 이 이 환경에서 찾은 파라미터를, 같은 세그먼트에서 숙련공이 낸 정답과 항목별로 맞춰 본다. '
+           + '전부 허용 오차 안에 들어야 라이브러리에 저장한다.'),
+      evalSource: ref ? (ref.file + '  ·  run ' + ref.bestRun + '  ·  ' + ref.steps + ' steps') : '',
+      evalLeftBorder: noSeed ? 'var(--bg-panel)' : (evOk ? 'var(--ok)' : 'var(--crit)'),
+      verdictBorder: noSeed ? 'var(--line)' : (evOk ? 'rgb(var(--ok-ch) / 0.45)' : 'rgb(var(--crit-ch) / 0.45)'),
+      verdictBg: noSeed ? 'transparent' : (evOk ? 'rgb(var(--ok-ch) / 0.06)' : 'rgb(var(--crit-ch) / 0.06)'),
+      verdictColor: noSeed ? 'var(--text-mid)' : (evOk ? 'var(--ok)' : 'var(--crit)'),
+      verdictTitle: noSeed ? '판정 불가'
+        : s.evalErr ? '저장 실패'
+        : s.evalSaving ? '저장 중'
+        : (s.evalSaved ? '저장 완료' : (evOk ? '일치' : '불일치')),
+      verdictText: noSeed
+        ? '대조할 정답이 없어 저장하지 않는다.'
+        : s.evalErr
+          ? (s.evalErr + ' 판정은 그대로다 — 다시 눌러 저장할 수 있다.')
+        : s.evalSaving
+          ? '라이브러리에 기록하는 중이다.'
+        : (s.evalSaved
+            ? ('라이브러리에 저장했다. 세그먼트 ' + ref.seg + ' 의 원본 CSV 와 함께 04 화면에서 열린다.')
+            : (evOk
+                ? (qr.length
+                    ? '품질 ' + qr.length + '개 항목이 기준을 넘겼고, 파라미터 ' + ev.length + '개도 허용 오차 안이다. 라이브러리에 저장할 수 있다.'
+                    : '5개 항목 모두 허용 오차 안이다. 라이브러리에 저장할 수 있다.')
+                : ([qFailed ? ('품질 ' + qFailed + '개 항목이 기준 미달') : '',
+                    failed ? ('파라미터 ' + failed + '개 항목이 허용 오차 밖') : '']
+                    .filter(Boolean).join(', ') + '이다. 저장하지 않는다.'))),
+      btnLeftLabel: s.evalSaved ? '닫기' : '파기',
+      btnRightLabel: s.evalSaved ? '라이브러리 열기'
+        : s.evalSaving ? '저장 중'
+        : (evOk ? (s.evalErr ? '다시 저장' : '합격 (저장)') : '저장 불가'),
+      btnRightAction: s.evalSaved
+        ? () => { window.location.href = 'library.html'; }
+        : (evOk && !s.evalSaving ? () => this.evalSave() : () => {}),
+      saveBorder: (evOk || s.evalSaved) ? 'var(--accent)' : 'var(--bg-raised)',
+      saveBg: (evOk || s.evalSaved) ? 'rgb(var(--accent-ch) / 0.1)' : 'transparent',
+      saveColor: (evOk || s.evalSaved) ? 'var(--accent)' : 'var(--line)',
+      saveCursor: (evOk || s.evalSaved) ? 'pointer' : 'not-allowed',
+    };
+  }
+}
+</script>
+
+<!-- 언어 전환 — 번들에도 같은 두 줄이 들어가야 한다.
+     scripts/i18n-bundle-patch.py --check 로 확인한다. -->
+<script src="assets/js/i18n-app.js?v=2026-09-01d"></script>
+<script src="assets/js/i18n.js"></script>
+</body></html>

@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계정 관리 · PolyTwin</title>
+<meta name="description" content="PolyTwin 콘솔 계정 승인·권한·접속 기록">
+<style>
+@font-face { font-family:"Pretendard"; font-weight:300; font-display:swap;
+  src:url("/assets/fonts/Pretendard-300.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:500; font-display:swap;
+  src:url("/assets/fonts/Pretendard-500.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard"; font-weight:700; font-display:swap;
+  src:url("/assets/fonts/Pretendard-700.subset.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:300; font-display:swap;
+  src:url("/assets/fonts/Pretendard-300.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:500; font-display:swap;
+  src:url("/assets/fonts/Pretendard-500.full-ko.woff2") format("woff2"); }
+@font-face { font-family:"Pretendard Full"; font-weight:700; font-display:swap;
+  src:url("/assets/fonts/Pretendard-700.full-ko.woff2") format("woff2"); }
+
+/* ══════════════════════════════════════════════════════════════
+   토큰 —
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --bg-void:    #08090B;
+  --bg-void-ch: 8 9 11;
+  --bg-base:    #0E1216;
+  --bg-panel:   #14181D;
+  --bg-raised:  #1A1E24;
+  --line:       #232830;
+  --line-hi:    #3B424C;
+  --text-hi:    #F2F4F7;
+  --text-mid:   #A8B0BA;
+  --text-lo:    #5F6873;
+  --accent:     #9BC33A;
+  --accent-dim: #59721A;
+  --ok:         #3DD68C;
+  --warn:       #FFB74D;
+  --crit:       #E8232A;
+
+  --f-sans: "Pretendard", "Pretendard Full", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+  --r-sm: 2px;
+  --r-md: 4px;
+
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-in:  cubic-bezier(0.4, 0, 1, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+
+  --header-h: 52px;
+  --gutter: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-mid);
+  font-family: var(--f-sans);
+  font-size: 16px; line-height: 1.5;
+  font-weight: 400;
+  word-break: keep-all;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p, figure, ul, ol { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; color: inherit; }
+
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm);
+}
+
+.skip {
+  position: absolute; left: var(--gutter); top: -100px; z-index: 100;
+  background: var(--bg-panel); color: var(--text-hi);
+  border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  padding: 10px 16px;
+  transition: top var(--t-fast) var(--e-out);
+}
+.skip:focus { top: 10px; }
+
+/* 화면에서는 감추고 보조기술에는 남긴다 */
+.sr {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* 실시간·표 수치는 자릿수가 흔들리면 안 된다*/
+.num { font-variant-numeric: tabular-nums; }
+
+.label {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; line-height: 1.3; color: var(--text-lo);
+}
+
+/* ══ 헤더 ══════════════════════════════════════════════════ */
+.hdr {
+  position: sticky; top: 0; z-index: 40;
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 16px;
+  padding-inline: var(--gutter);
+  background: var(--bg-void);
+  border-bottom: 1px solid var(--line);
+}
+.mark { display: inline-flex; align-items: center; gap: 9px;
+  font-size: 18px; font-weight: 300; letter-spacing: 0.28em; color: var(--text-hi); }
+.mark__sig { flex: none; width: 32px; height: 19.2px; }
+.mark__sig .a { fill: currentColor; }
+.mark__sig .b { fill: var(--accent); }
+.mark b { font-weight: 300; color: var(--accent); }
+.hdr__sep { width: 1px; height: 18px; background: var(--line); }
+.hdr__here { font-size: 15px; color: var(--text-lo); }
+.hdr__end { margin-inline-start: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr__auth { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr__who { display: none; align-items: baseline; gap: 7px; font-size: 15px; color: var(--text-lo); min-width: 0; }
+@media (min-width: 560px) { .hdr__who { display: flex; } }
+.hdr__role {
+  flex: none; padding: 2px 5px;
+  border: 1px solid var(--accent-dim); border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.1em; color: var(--accent);
+}
+
+/* ══ 버튼 ══════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 30px; padding: 0 11px;
+  font-size: 15px; font-weight: 500; letter-spacing: 0.02em;
+  border-radius: var(--r-sm); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--e-out),
+              border-color var(--t-fast) var(--e-out),
+              color var(--t-fast) var(--e-out),
+              filter var(--t-fast) var(--e-out);
+}
+.btn--ghost { background: transparent; color: var(--text-mid); border: 1px solid var(--line-hi); }
+.btn--ghost:hover { background: var(--bg-raised); color: var(--text-hi); border-color: var(--text-lo); }
+.btn--solid { background: var(--accent); color: var(--bg-void); border: 1px solid var(--accent); font-weight: 700; }
+.btn--solid:hover { filter: brightness(1.12); }
+/* 파괴적 동작은 색과 위치로 분리한다 (destructive-emphasis) */
+.btn--danger { background: transparent; color: var(--crit); border: 1px solid var(--line-hi); }
+.btn--danger:hover { border-color: var(--crit); background: var(--bg-raised); }
+.btn--hdr { min-height: 30px; letter-spacing: 0.08em; }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; filter: none; }
+
+/* ══ 레이아웃 ══════════════════════════════════════════════ */
+.page { max-width: 1180px; margin-inline: auto; padding: 20px var(--gutter) 64px; }
+
+.page__head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.page__title { font-size: 21px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-hi); }
+.page__sub { margin-top: 3px; font-size: 15px; color: var(--text-lo); }
+
+/* ── 지표 스트립 ── 깊이는 그림자가 아니라 선으로 ── */
+.stats {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px; margin-bottom: 16px;
+  background: var(--line); border: 1px solid var(--line);
+}
+@media (min-width: 720px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stat { background: var(--bg-panel); padding: 12px 14px; }
+.stat__k { font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); }
+.stat__v {
+  margin-top: 4px; display: flex; align-items: baseline; gap: 6px;
+  font-size: 28px; font-weight: 300; line-height: 1; letter-spacing: -0.03em;
+  color: var(--text-hi); font-variant-numeric: tabular-nums;
+}
+.stat__u { font-size: 14px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-lo); }
+.stat.is-wait .stat__v { color: var(--warn); }
+
+/* ── 패널 ── */
+.panel { border: 1px solid var(--line); background: var(--bg-panel); border-radius: var(--r-md); }
+.panel + .panel { margin-top: 16px; }
+.panel__bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.panel__t { font-size: 16px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-hi); }
+.panel__n { font-size: 14px; color: var(--text-lo); font-variant-numeric: tabular-nums; }
+.panel__tools { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; }
+
+.seg { display: flex; border: 1px solid var(--line-hi); border-radius: var(--r-sm); overflow: hidden; }
+.seg button {
+  min-height: 28px; padding: 0 10px;
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-lo);
+  transition: background-color var(--t-fast) var(--e-out), color var(--t-fast) var(--e-out);
+}
+.seg button + button { border-inline-start: 1px solid var(--line-hi); }
+.seg button:hover { color: var(--text-mid); background: var(--bg-raised); }
+.seg button[aria-pressed="true"] { background: var(--bg-raised); color: var(--text-hi); }
+
+.search {
+  min-height: 30px; width: 170px; padding: 0 10px;
+  background: var(--bg-base); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-size: 15px; color: var(--text-hi);
+  transition: border-color var(--t-fast) var(--e-out);
+}
+.search::placeholder { color: var(--text-lo); }
+.search:hover { border-color: var(--line-hi); }
+.search:focus { outline: none; border-color: var(--accent); }
+.search:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── 표 ── */
+.tw { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+thead th {
+  position: sticky; top: var(--header-h); z-index: 1;
+  background: var(--bg-raised);
+  font-size: 14px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-lo); white-space: nowrap;
+}
+tbody tr { transition: background-color var(--t-fast) var(--e-out); }
+tbody tr:hover { background: var(--bg-raised); }
+tbody tr:last-child td { border-bottom: 0; }
+td.c-id { color: var(--text-hi); font-weight: 500; }
+td.c-name { color: var(--text-mid); }
+td.c-when { color: var(--text-lo); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 16px; }
+td.c-act { text-align: right; white-space: nowrap; }
+.acts { display: inline-flex; gap: 6px; justify-content: flex-end; }
+
+/* 상태 — 색만으로 알리지 않는다. 점 + 글자를 함께 둔다 */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 7px; border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 500; letter-spacing: 0.04em; white-space: nowrap;
+}
+.badge::before { content: ""; width: 5px; height: 5px; border-radius: var(--r-sm); background: currentColor; flex: none; }
+.badge.s-pending   { color: var(--warn); border-color: var(--warn); }
+.badge.s-active    { color: var(--ok); border-color: var(--accent-dim); }
+.badge.s-suspended { color: var(--crit); border-color: var(--crit); }
+.badge.r-admin     { color: var(--accent); border-color: var(--accent-dim); }
+.badge.r-engineer  { color: var(--text-lo); }
+.badge.is-me { border-style: dashed; }
+
+/* ── 비어 있음 · 불러오는 중 ── */
+.state { padding: 40px 20px; text-align: center; color: var(--text-lo); font-size: 13.5px; }
+.state b { display: block; margin-bottom: 5px; color: var(--text-mid); font-weight: 500; font-size: 16px; }
+
+/* 골격 — 빈 표 틀 대신 자리를 잡아 둔다 (CLS 방지) */
+.skel { display: grid; gap: 1px; background: var(--line); }
+.skel div { height: 38px; background: var(--bg-panel); }
+
+/* ── 감사 로그 ── */
+.log { display: grid; }
+.log li {
+  display: grid; grid-template-columns: 148px 106px minmax(0, 1fr);
+  gap: 12px; align-items: baseline;
+  padding: 7px 14px; border-bottom: 1px solid var(--line);
+  font-size: 16px;
+}
+.log li:last-child { border-bottom: 0; }
+.log time { color: var(--text-lo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.log .act { font-weight: 500; color: var(--text-mid); white-space: nowrap; }
+.log .det { color: var(--text-lo); min-width: 0; overflow-wrap: anywhere; }
+.log .act.a-fail, .log .act.a-throttled { color: var(--crit); }
+.log .act.a-login { color: var(--ok); }
+.log .act.a-signup { color: var(--warn); }
+@media (max-width: 620px) {
+  .log li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* ── 토스트 ── 초점을 뺏지 않는다 ── */
+.toasts {
+  position: fixed; inset-block-end: 16px; inset-inline-start: 50%;
+  transform: translateX(-50%); z-index: 60;
+  display: grid; gap: 8px; width: min(420px, calc(100vw - 32px));
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 11px 13px;
+  background: var(--bg-raised); border: 1px solid var(--line-hi); border-radius: var(--r-sm);
+  font-size: 13.5px; color: var(--text-mid);
+  animation: toastIn var(--t-base) var(--e-out);
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+.toast svg { flex: none; margin-block-start: 1px; }
+.toast.t-ok { border-color: var(--accent-dim); }
+.toast.t-ok svg { color: var(--ok); }
+.toast.t-err { border-color: var(--crit); }
+.toast.t-err svg { color: var(--crit); }
+
+/* ── 확인 다이얼로그 ── 되돌릴 수 없는 동작 앞에 선다 ── */
+.ask {
+  width: 100%; max-width: none; height: 100%; max-height: none;
+  margin: 0; padding: 24px var(--gutter); border: 0;
+  background: rgb(var(--bg-void-ch) / 0.84);
+  color: var(--text-mid); overflow-y: auto;
+}
+.ask[open] { display: flex; align-items: center; justify-content: center; }
+.ask::backdrop { background: transparent; }
+.ask__box {
+  width: min(400px, 100%); margin: auto;
+  display: grid; gap: 14px; padding: 24px;
+  background: var(--bg-panel); border: 1px solid var(--line-hi); border-radius: var(--r-md);
+  animation: askIn var(--t-base) var(--e-out);
+}
+@keyframes askIn { from { opacity: 0; transform: translateY(8px); } }
+.ask__t { font-size: 19px; font-weight: 500; color: var(--text-hi); }
+.ask__m { font-size: 13.5px; line-height: 1.6; color: var(--text-mid); }
+.ask__m b { color: var(--text-hi); font-weight: 500; }
+.ask__row { display: flex; justify-content: flex-end; gap: 8px; }
+.ask__inp {
+  min-height: 38px; padding: 0 11px;
+  background: var(--bg-base); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-size: 16px; color: var(--text-hi);
+  transition: border-color var(--t-fast) var(--e-out);
+}
+.ask__inp:focus { outline: none; border-color: var(--accent); }
+.ask__inp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-modal="open"] { overflow: hidden; }
+
+/* ══ 모션 정지 — 예외 없음 ══*/
+@media (prefers-reduced-motion: reduce) {
+  .toast, .ask__box { animation: none; }
+  *, *::before, *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="hdr">
+  <a class="mark" href="/" aria-label="PolyTwin 홈">
+    <svg class="mark__sig" viewBox="0 0 130 78" aria-hidden="true" focusable="false">
+      <path class="a" d="M29.1 4.25Q33 2 36.9 4.25L62.4 19Q65 20.5 62.76 22.49C53.5 30.5 53.5 47.5 62.76 55.51Q65 57.5 62.4 59L36.9 73.75Q33 76 29.1 73.75L4.9 59.75Q1 57.5 1 53L1 25Q1 20.5 4.9 18.25Z"/>
+      <path class="b" d="M100.9 4.25Q97 2 93.1 4.25L67.6 19Q65 20.5 67.24 22.49C76.5 30.5 76.5 47.5 67.24 55.51Q65 57.5 67.6 59L93.1 73.75Q97 76 100.9 73.75L125.1 59.75Q129 57.5 129 53L129 25Q129 20.5 125.1 18.25Z"/>
+    </svg>
+    <span>Poly<b>Twin</b></span>
+  </a>
+  <span class="hdr__sep" aria-hidden="true"></span>
+  <p class="hdr__here">계정 관리</p>
+  <div class="hdr__end">
+    <div class="hdr__auth" data-auth-slot></div>
+  </div>
+</header>
+
+<main class="page" id="main">
+
+  <div class="page__head">
+    <div>
+      <h1 class="page__title">계정 관리</h1>
+      <p class="page__sub">가입 신청을 승인하고 콘솔 접근 권한을 조정합니다.</p>
+    </div>
+    <button class="btn btn--ghost" type="button" id="reload">새로 고침</button>
+  </div>
+
+  <section class="stats" aria-label="계정 현황">
+    <div class="stat"><p class="stat__k">전체</p><p class="stat__v"><span id="mTotal">—</span><span class="stat__u">개</span></p></div>
+    <div class="stat is-wait"><p class="stat__k">승인 대기</p><p class="stat__v"><span id="mPending">—</span><span class="stat__u">개</span></p></div>
+    <div class="stat"><p class="stat__k">활성</p><p class="stat__v"><span id="mActive">—</span><span class="stat__u">개</span></p></div>
+    <div class="stat"><p class="stat__k">정지</p><p class="stat__v"><span id="mSuspended">—</span><span class="stat__u">개</span></p></div>
+  </section>
+
+  <section class="panel" aria-labelledby="usersT">
+    <div class="panel__bar">
+      <h2 class="panel__t" id="usersT">계정</h2>
+      <span class="panel__n" id="usersN"></span>
+      <div class="panel__tools">
+        <div class="seg" role="group" aria-label="상태로 거르기">
+          <button type="button" data-filter="all" aria-pressed="true">전체</button>
+          <button type="button" data-filter="pending" aria-pressed="false">대기</button>
+          <button type="button" data-filter="active" aria-pressed="false">활성</button>
+          <button type="button" data-filter="suspended" aria-pressed="false">정지</button>
+        </div>
+        <input class="search" id="q" type="search" placeholder="ID · 이름 검색" aria-label="ID 또는 이름 검색">
+      </div>
+    </div>
+
+    <div class="tw">
+      <table>
+        <caption>등록된 콘솔 계정 목록과 권한 조작</caption>
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">이름</th>
+            <th scope="col">역할</th>
+            <th scope="col">상태</th>
+            <th scope="col">가입</th>
+            <th scope="col">최근 접속</th>
+            <th scope="col"><span class="sr">작업</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div id="usersState" class="skel" aria-hidden="true"><div></div><div></div><div></div></div>
+  </section>
+
+  <section class="panel" aria-labelledby="logT">
+    <div class="panel__bar">
+      <h2 class="panel__t" id="logT">접속 기록</h2>
+      <span class="panel__n">최근 60건</span>
+    </div>
+    <ul class="log" id="log"></ul>
+    <div id="logState" class="skel" aria-hidden="true"><div></div><div></div></div>
+  </section>
+
+</main>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<dialog class="ask" id="ask" aria-labelledby="askT">
+  <form class="ask__box" id="askForm" method="dialog">
+    <h2 class="ask__t" id="askT"></h2>
+    <p class="ask__m" id="askM"></p>
+    <input class="ask__inp" id="askInp" type="password" autocomplete="new-password" hidden>
+    <div class="ask__row">
+      <button class="btn btn--ghost" type="button" id="askNo">취소</button>
+      <button class="btn btn--solid" type="submit" id="askYes">확인</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/assets/js/auth-client.js?v=2026-09-01"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   계정 관리
+   판정은 전부 서버가 한다. 여기서 막는 것은 왕복을 줄이려는 것뿐이다.
+   ══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const rowsEl = $('rows');
+  const logEl = $('log');
+  const usersState = $('usersState');
+  const logState = $('logState');
+  const qEl = $('q');
+  const toasts = $('toasts');
+
+  let users = [];
+  let filter = 'all';
+  let me = null;
+
+  /* ── 표시 형식 ── 자릿수가 흔들리지 않게 고정 폭으로 ── */
+  const pad = (n) => String(n).padStart(2, '0');
+  function when(ms) {
+    if (!ms) return '—';
+    const d = new Date(ms);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  const STATUS_KO = { pending: '승인 대기', active: '활성', suspended: '정지' };
+  const ROLE_KO = { admin: '관리자', engineer: '엔지니어' };
+  const ACTION_KO = {
+    'login': '로그인', 'login.fail': '로그인 실패', 'login.throttled': '시도 차단',
+    'logout': '로그아웃', 'signup': '가입 신청',
+    'admin.update': '권한 변경', 'admin.delete': '계정 삭제', 'seed.admin': '관리자 생성',
+  };
+
+  /* ── 토스트 ── 초점을 뺏지 않는다. 4초 뒤 사라진다 ── */
+  const ICON = {
+    ok: 'M2 8.4l4 4 8-9',
+    err: 'M8 1.6L15 14H1L8 1.6zM8 6.2v3.6M8 11.6v.6',
+  };
+  function toast(msg, kind) {
+    const el = document.createElement('div');
+    el.className = 'toast t-' + (kind || 'ok');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '15'); svg.setAttribute('height', '15');
+    svg.setAttribute('viewBox', '0 0 16 16'); svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.5');
+    svg.setAttribute('stroke-linecap', 'square'); svg.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', kind === 'err' ? ICON.err : ICON.ok);
+    svg.appendChild(p);
+    const t = document.createElement('span');
+    t.textContent = msg;
+    el.append(svg, t);
+    toasts.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  /* ── 확인 다이얼로그 ── 되돌릴 수 없는 동작 앞에 선다 ── */
+  const ask = $('ask');
+  const askForm = $('askForm');
+  let askResolve = null;
+  function confirmAsk(opts) {
+    $('askT').textContent = opts.title;
+    $('askM').replaceChildren();
+    (opts.parts || [opts.message]).forEach((part) => {
+      if (typeof part === 'string') { $('askM').append(part); return; }
+      const b = document.createElement('b'); b.textContent = part.b; $('askM').append(b);
+    });
+    const inp = $('askInp');
+    inp.hidden = !opts.input;
+    inp.value = '';
+    if (opts.input) inp.placeholder = opts.input;
+    $('askYes').textContent = opts.yes || '확인';
+    $('askYes').className = 'btn ' + (opts.danger ? 'btn--danger' : 'btn--solid');
+    ask.showModal();
+    document.documentElement.setAttribute('data-modal', 'open');
+    (opts.input ? inp : $('askNo')).focus();
+    return new Promise((resolve) => { askResolve = resolve; });
+  }
+  askForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('askInp').hidden ? true : $('askInp').value;
+    /* close 이벤트가 동기로 먼저 돌면서 null 로 확정해버린다.
+       핸들러를 먼저 떼어내고 닫는다 */
+    const done = askResolve;
+    askResolve = null;
+    ask.close();
+    if (done) done(v);
+  });
+  $('askNo').addEventListener('click', () => ask.close());
+  ask.addEventListener('click', (e) => { if (e.target === ask) ask.close(); });
+  ask.addEventListener('close', () => {
+    document.documentElement.removeAttribute('data-modal');
+    if (askResolve) { askResolve(null); askResolve = null; }
+  });
+
+  /* ── 그리기 ── */
+  function badge(cls, text, dashed) {
+    const s = document.createElement('span');
+    s.className = 'badge ' + cls + (dashed ? ' is-me' : '');
+    s.textContent = text;
+    return s;
+  }
+
+  function cell(row, cls, text) {
+    const td = document.createElement('td');
+    td.className = cls;
+    if (text !== undefined) td.textContent = text;
+    row.appendChild(td);
+    return td;
+  }
+
+  function actionBtn(label, cls, title, fn) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + cls;
+    b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function visible() {
+    const q = qEl.value.trim().toLowerCase();
+    return users.filter((u) => {
+      if (filter !== 'all' && u.status !== filter) return false;
+      if (!q) return true;
+      return u.loginId.toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q);
+    });
+  }
+
+  function renderMetrics() {
+    const n = (s) => users.filter((u) => u.status === s).length;
+    $('mTotal').textContent = users.length;
+    $('mPending').textContent = n('pending');
+    $('mActive').textContent = n('active');
+    $('mSuspended').textContent = n('suspended');
+  }
+
+  function renderRows() {
+    const list = visible();
+    $('usersN').textContent = list.length + ' / ' + users.length;
+    rowsEl.replaceChildren();
+
+    if (!list.length) {
+      usersState.className = 'state';
+      usersState.removeAttribute('aria-hidden');
+      usersState.replaceChildren();
+      const b = document.createElement('b');
+      b.textContent = users.length ? '조건에 맞는 계정이 없습니다' : '등록된 계정이 없습니다';
+      const p = document.createElement('span');
+      p.textContent = users.length ? '검색어나 상태 필터를 바꿔 보세요.' : '랜딩 화면의 회원가입으로 신청이 들어옵니다.';
+      usersState.append(b, p);
+      return;
+    }
+    usersState.className = '';
+    usersState.setAttribute('aria-hidden', 'true');
+    usersState.replaceChildren();
+
+    list.forEach((u) => {
+      const tr = document.createElement('tr');
+      const isMe = me && u.id === me.id;
+
+      cell(tr, 'c-id', u.loginId);
+      cell(tr, 'c-name', u.name || '—');
+      cell(tr, 'c-role').appendChild(badge('r-' + u.role, ROLE_KO[u.role], isMe));
+      cell(tr, 'c-status').appendChild(badge('s-' + u.status, STATUS_KO[u.status]));
+      cell(tr, 'c-when num', when(u.createdAt));
+      cell(tr, 'c-when num', when(u.lastLoginAt));
+
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+
+      if (u.status === 'pending') {
+        acts.appendChild(actionBtn('승인', 'btn--solid', '콘솔 접속을 허용합니다',
+          () => patch(u, { status: 'active' }, u.loginId + ' 계정을 승인했습니다.')));
+      }
+      if (u.status === 'active') {
+        acts.appendChild(actionBtn('정지', 'btn--ghost', '접속을 막고 현재 세션을 끊습니다', async () => {
+          const ok = await confirmAsk({
+            title: '계정을 정지할까요?',
+            parts: [{ b: u.loginId }, ' 계정의 접속을 막습니다. 지금 열려 있는 세션도 즉시 끊깁니다.'],
+            yes: '정지', danger: true,
+          });
+          if (ok) patch(u, { status: 'suspended' }, u.loginId + ' 계정을 정지했습니다.');
+        }));
+      }
+      if (u.status === 'suspended') {
+        acts.appendChild(actionBtn('해제', 'btn--ghost', '다시 접속할 수 있게 합니다',
+          () => patch(u, { status: 'active' }, u.loginId + ' 계정의 정지를 풀었습니다.')));
+      }
+
+      const toRole = u.role === 'admin' ? 'engineer' : 'admin';
+      acts.appendChild(actionBtn(u.role === 'admin' ? '권한 회수' : '관리자 지정', 'btn--ghost',
+        u.role === 'admin' ? '엔지니어로 되돌립니다' : '모든 화면과 계정 관리 권한을 줍니다', async () => {
+          const ok = await confirmAsk({
+            title: toRole === 'admin' ? '관리자로 지정할까요?' : '관리자 권한을 회수할까요?',
+            parts: toRole === 'admin'
+              ? [{ b: u.loginId }, ' 계정이 모든 화면과 이 계정 관리 화면에 접근할 수 있게 됩니다.']
+              : [{ b: u.loginId }, ' 계정을 엔지니어로 되돌립니다.'],
+            yes: toRole === 'admin' ? '관리자로 지정' : '회수', danger: toRole !== 'admin',
+          });
+          if (ok) patch(u, { role: toRole }, u.loginId + ' → ' + ROLE_KO[toRole]);
+        }));
+
+      acts.appendChild(actionBtn('비번 초기화', 'btn--ghost', '새 비밀번호를 지정하고 기존 세션을 끊습니다', async () => {
+        const v = await confirmAsk({
+          title: '비밀번호를 새로 지정할까요?',
+          parts: [{ b: u.loginId }, ' 계정의 비밀번호를 바꿉니다. 열려 있는 세션은 끊깁니다.'],
+          input: '새 비밀번호 (8자 이상)', yes: '변경',
+        });
+        if (v === null) return;
+        if (String(v).length < 8) { toast('비밀번호는 8자 이상이어야 합니다.', 'err'); return; }
+        patch(u, { password: v }, u.loginId + ' 비밀번호를 바꿨습니다.');
+      }));
+
+      if (!isMe) {
+        acts.appendChild(actionBtn('삭제', 'btn--danger', '되돌릴 수 없습니다', async () => {
+          const ok = await confirmAsk({
+            title: '계정을 삭제할까요?',
+            parts: [{ b: u.loginId }, ' 계정과 접속 세션이 사라집니다. 되돌릴 수 없습니다.'],
+            yes: '삭제', danger: true,
+          });
+          if (ok) remove(u);
+        }));
+      }
+
+      cell(tr, 'c-act').appendChild(acts);
+      rowsEl.appendChild(tr);
+    });
+  }
+
+  function renderLog(entries) {
+    logEl.replaceChildren();
+    if (!entries.length) {
+      logState.className = 'state';
+      logState.replaceChildren('아직 기록이 없습니다.');
+      return;
+    }
+    logState.className = '';
+    logState.replaceChildren();
+    entries.forEach((e) => {
+      const li = document.createElement('li');
+      const t = document.createElement('time');
+      t.dateTime = new Date(e.at).toISOString();
+      t.textContent = when(e.at);
+      const a = document.createElement('span');
+      a.className = 'act a-' + e.action.split('.').pop();
+      a.textContent = ACTION_KO[e.action] || e.action;
+      const d = document.createElement('span');
+      d.className = 'det';
+      d.textContent = [e.actor, e.target && e.target !== e.actor ? '→ ' + e.target : '', e.detail]
+        .filter(Boolean).join('  ');
+      li.append(t, a, d);
+      logEl.appendChild(li);
+    });
+  }
+
+  /* ── 통신 ── */
+  function patch(u, body, okMsg) {
+    return window.PT.admin.update(u.id, body)
+      .then(() => { toast(okMsg, 'ok'); return load(); })
+      .catch((err) => toast(err.message, 'err'));
+  }
+  function remove(u) {
+    return window.PT.admin.remove(u.id)
+      .then(() => { toast(u.loginId + ' 계정을 삭제했습니다.', 'ok'); return load(); })
+      .catch((err) => toast(err.message, 'err'));
+  }
+
+  function load() {
+    return Promise.all([window.PT.admin.users(), window.PT.admin.audit()])
+      .then(([list, log]) => {
+        users = list;
+        renderMetrics();
+        renderRows();
+        renderLog(log);
+      })
+      .catch((err) => {
+        if (err.status === 401) { window.location.href = '/?login=1&next=/admin.html'; return; }
+        usersState.className = 'state';
+        usersState.replaceChildren();
+        const b = document.createElement('b');
+        b.textContent = '목록을 불러오지 못했습니다';
+        const p = document.createElement('span');
+        p.textContent = err.message;
+        usersState.append(b, p);
+        toast(err.message, 'err');
+      });
+  }
+
+  /* ── 조작 ── */
+  document.querySelectorAll('[data-filter]').forEach((b) => {
+    b.addEventListener('click', () => {
+      filter = b.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach((o) => {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      renderRows();
+    });
+  });
+  let t = null;
+  qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(renderRows, 140); });
+  $('reload').addEventListener('click', () => load().then(() => toast('목록을 새로 불러왔습니다.', 'ok')));
+
+  window.PT.me().then((u) => { me = u; return load(); });
+})();
+</script>
+
+</body>
+</html>

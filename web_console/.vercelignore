@@ -1,0 +1,4 @@
+# 배포 제외 — 로컬 DB와 개발용 스크립트
+backend/data/
+scripts/
+frontend/데이터셋/*.py
