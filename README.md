@@ -7,7 +7,7 @@
 
 차체를 3D 스캔하고, 표면 형상에 맞는 폴리싱 경로와  
 **Adaptive Force Control + Multi-Robot Rail/Gantry**를 적용하고,  
-**Isaac Lab 잔차 강화학습(BC → PPO)**으로 접촉력·이송속도를 보정하는 Isaac Sim 기반 디지털 트윈 프로젝트
+**Isaac Lab 잔차 강화학습(모방학습 → PPO)**으로 접촉력·이송속도를 보정하는 Isaac Sim 기반 디지털 트윈 프로젝트
 
 [![Isaac Sim](https://img.shields.io/badge/NVIDIA-Isaac%20Sim-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/isaac/sim)
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
@@ -64,10 +64,10 @@
    진행률·로봇별 접촉력·제거량 히트맵을 ROS2 토픽으로 발행하고, rosbridge를 통해 웹 UI에서 실시간 시각화. UI 버튼으로 스캔·시뮬레이션 실행.
 
 6. **Residual Reinforcement Learning (Isaac Lab)**  
-   규칙 기반 힘 제어기는 그대로 두고, 그 위에 **[Δ접촉력 ±30 %, Δ이송속도 ±50 %] 보정분만 학습하는 잔차 정책**을 Isaac Lab DirectRLEnv에서 학습. 수제 정책 모방(BC)으로 초기화한 뒤 에피소드 종료 시점의 품질 지표를 보상으로 PPO 미세조정.
+   규칙 기반 힘 제어기는 그대로 두고, 그 위에 **[Δ접촉력 ±30 %, Δ이송속도 ±50 %] 보정분만 학습하는 잔차 정책**을 Isaac Lab DirectRLEnv에서 학습. 규칙 기반 시연을 따라 하도록 먼저 모방학습(BC)으로 초기화한 뒤, 작업이 끝난 시점의 품질을 보상으로 PPO 미세조정.
 
 7. **Process Recipe Optimization (BO)**  
-   Constrained Bayesian Optimization(GP + EI)으로 접촉력·이송·RPM·줄 간격·패스 수 레시피를 탐색하고, 학습된 정책을 고정한 outer loop로 윗면/측면 자세별 레시피를 분리.
+   베이지안 최적화(BO)로 접촉력·이송·회전수·줄 간격·패스 수 공정조건을 탐색하고, 학습된 정책 기준으로 다시 탐색해 윗면/측면 조건을 분리.
 
 ---
 
@@ -210,12 +210,12 @@ cmd     = surface + normal · clearance   # + RMPFlow 추종 지연(lag) 보정
 
 | Step | Description |
 |---|---|
-| **1. Contact Model Port** | v5의 가상 스프링 + 어드미턴스 접촉 모델을 `(num_envs,)` 텐서 연산으로 이식해 병렬 env 학습 (`learning/rl/env/contact.py`) |
+| **1. Contact Model** | 기존 시뮬레이션의 접촉력 모델(가상 스프링 + 어드미턴스)을 GPU 병렬 연산으로 옮겨 여러 환경 동시 학습 (`learning/rl/env/contact.py`) |
 | **2. Surface Quality Model** | 논문 근거 표면 상태(Ra · 스크래치 · 클리어코트) + Preston형 제거 모델 + 20° 광택(GU) proxy (`learning/digital_twin/`) |
-| **3. BC Bootstrap** | 수제 dwell 정책을 모방해 actor 초기화 (`bootstrap_bc.py`) |
-| **4. Terminal-Reward PPO** | 에피소드 종료 시 전·후 품질 개선량을 보상으로 rsl_rl PPO 미세조정 (`train_ppo.py`) |
-| **5. Recipe BO** | 정책 고정 후 자세별 공정 레시피 탐색 (`bo_outer_loop.py`) |
-| **6. v5 Integration** | 20 Hz 잔차 정책 브리지를 v5 `agent.py` 훅으로 연결, 차체 스캔 점군을 12 cm 셀 483개로 나눠 셀별 판정 (`rl_bridge.py`) |
+| **3. Imitation (BC)** | 규칙 기반 시연을 따라 하도록 정책 초기화 (`bootstrap_bc.py`) |
+| **4. PPO Fine-tuning** | 작업 종료 시점의 전·후 품질 개선량을 보상으로 PPO 미세조정 (`train_ppo.py`) |
+| **5. Process BO** | 학습된 정책 기준으로 윗면·측면별 공정조건 탐색 (`bo_outer_loop.py`) |
+| **6. Process Integration** | 학습한 정책을 로봇 3대 공정 제어 루프(20 Hz)에 연결, 차체 스캔 데이터를 12 cm 셀 483개로 나눠 셀별 합격 판정 (`rl_bridge.py`) |
 
 </div>
 
@@ -229,40 +229,37 @@ F_cmd    = clip(F_target, 0, F_hard)     # 기존 안전 한계는 정책과 무
 ### Reward Design
 
 <div align="center">
-  <img src="assets/rl_training_curves.png" width="100%" alt="PPO training curves">
-  <br>
-  <sub>PPO 학습 곡선 — 스텝 보상(좌)은 오르지만 광택 GU(중)는 떨어지는 보상 정렬 문제를 진단한 기록</sub>
-</div>
-<br>
-
-<div align="center">
 
 | Problem | Fix |
 |---|---|
-| 제거량 합계 보상 → 정상 셀 감점이 지배해 "덜 문지르기" 학습 | 셀당 **평균** 보상으로 변경 |
-| 정적 결함 마스크 → 이미 지운 자리를 반복 문질러 보상 획득 | 지급을 **잔여 결함량**으로 게이팅 |
-| 관측 범위 ≈ 패치 크기 → 공간 변별 신호 소멸 | 관측을 패드 **코어 영역 잔여 결함**으로 축소 |
-| 스텝 대리 보상 최적점 ≠ 광택 최적점 | BC 부트스트랩 + **종말(에피소드 끝) 품질 보상** PPO |
+| 제거량을 합계로 보상 → 정상 영역 감점이 커져 "덜 문지르기"를 학습 | 셀 **평균**으로 보상 |
+| 이미 지운 자리를 반복해서 문질러 보상을 받음 | **남은 결함량만큼만** 보상 |
+| 관측 범위가 너무 넓어 결함 위치를 구분 못 함 | 패드 **중심부의 남은 결함**만 관측 |
+| 매 순간 주는 보상이 올라도 최종 광택은 오르지 않음 | 모방학습으로 시작 + **작업 종료 시점의 품질**로 보상 |
 
 </div>
 
 ### Results
+
 
 <div align="center">
 
 | Metric | Result |
 |---|---|
 | 신차 시나리오 150셀 (5종 판정: GU ≥ 70 · Ra ≤ 0.20 µm · Rz ≤ 2.0 µm · 클리어코트 ≥ 35 µm · 스크래치 감소) | **147 / 150** |
-| 레시피 BO 자세별 분리 (손상차 시나리오 150셀) | 91 → **97 / 150** |
-| 고정 레시피 대비 잔존 스크래치 (BC 정책) | **−30 %** |
-| 이송 ×1.5 레시피 — 합격 수 유지 시 셀당 공정시간 | 309 s → **177 s (−43 %)** |
-| PhysX 실접촉 M0609 env, 차체 전체 483셀 순회 | **321 / 483** |
-| 곡면(원통 R = 0.5 m) 작업면 GU — 평면 학습 정책 → 곡면 학습 정책 | 58.4 → **65.9** |
+| 신차 150셀 광택 목표(70 GU) 충족 셀 — 폴리싱 전 → 후 | 35 → **147** |
+| 신차 150셀 평균 광택 — 폴리싱 전 → 후 | 66.1 → **72.9 GU** |
+| 신차 150셀 평균 남은 스크래치 깊이 — 폴리싱 전 → 후 | 0.40 → **0.15 µm** |
+| 윗면·측면 공정조건 분리 (손상차 시나리오 150셀) | 91 → **97 / 150** |
+| 고정 공정조건 대비 남은 스크래치 깊이 | **−30 %** |
+| 이송속도 ×1.5 — 합격 수 유지 시 셀당 공정시간 | 309 s → **177 s (−43 %)** |
+| 물리 접촉(PhysX) M0609 환경, 차체 전체 483셀 | **321 / 483** |
+| 곡면(원통 R = 0.5 m) 광택 — 평면만 학습한 정책 → 곡면까지 학습한 정책 | 58.4 → **65.9** |
 
 </div>
 
-- 합격 셀은 전부 OEM 도장 보증 제거 한도(Ford 7.5 µm) 이내. 미합격 셀은 `rework_candidate` / `spot_repaint_review`로 처분 분류
-- 차체 순회의 주요 실패 원인은 강곡률 셀의 접촉 과부하 — 감압(×0.7) + 소형 패드(r = 0.035 m) 재실행으로 22셀 추가 합격
+- 합격한 셀은 모두 완성차 업체의 도장 보증 기준(도막 제거 7.5 µm 이내)을 지킴. 불합격 셀은 재작업(`rework_candidate`) 또는 부분 재도장(`spot_repaint_review`) 대상으로 분류
+- 차체 전체 검사에서 불합격의 주원인은 곡률이 큰 부위의 접촉력 초과 — 누르는 힘을 0.7배로 낮추고 작은 패드(r = 0.035 m)로 다시 돌려 22셀 추가 합격
 
 > 광택(GU)·거칠기·스크래치 지표는 논문 근거 디지털 트윈 모델의 출력(합성 수치)이며, 실측 광택계로 보정한 값이 아님.
 
@@ -395,14 +392,14 @@ PY=~/isaacsim/python.sh     # Isaac Lab이 설치된 Isaac Sim python
 $PY -m learning.digital_twin.tests.test_unit
 $PY -m learning.digital_twin.bo_runner
 
-# BC 부트스트랩 → PPO 미세조정 → 짝지은 평가
+# 모방학습 → PPO 미세조정 → 같은 조건에서 비교 평가
 $PY learning/rl/bootstrap_bc.py --headless
 $PY learning/rl/train_ppo.py --headless --num_envs 16 --max_iterations 1500 \
     --resume learning/rl/champion/model_bc_14ch.pt
 $PY learning/rl/eval_conditions.py --headless \
     --conditions "baseline=,policy=learning/rl/champion/model_terminal_ppo_14ch_it800.pt"
 
-# PhysX 실접촉 로봇 env — 차체 전체 셀 순회
+# 물리 접촉 로봇 환경 — 차체 전체 셀 검사
 bash learning/rl/run_car_cells.sh 0 482 8
 
 # v5 다중 로봇 시뮬레이션 + 잔차 정책 (GUI)
