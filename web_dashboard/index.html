@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="표면 마감(폴리싱/샌딩) 시뮬레이션 모니터링 대시보드 - Isaac Sim & ROS2 연동" />
+  <title>Surface Finishing Twin — Monitoring Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="top-bar__left">
+        <div class="logo">
+          <span class="logo__text">Surface Finishing Twin</span>
+        </div>
+      </div>
+      <nav class="top-bar__nav" id="mainNav">
+        <button class="nav-tab active" data-phase="pre" id="navPre">
+          <span class="nav-tab__number">01</span>
+          <span class="nav-tab__label">폴리싱 전</span>
+          <span class="nav-tab__sub">Pre-Polishing</span>
+        </button>
+        <div class="nav-divider">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" fill="none" />
+          </svg>
+        </div>
+        <button class="nav-tab" data-phase="during" id="navDuring">
+          <span class="nav-tab__number">02</span>
+          <span class="nav-tab__label">폴리싱 중</span>
+          <span class="nav-tab__sub">Monitoring</span>
+        </button>
+        <div class="nav-divider">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" fill="none" />
+          </svg>
+        </div>
+        <button class="nav-tab" data-phase="post" id="navPost">
+          <span class="nav-tab__number">03</span>
+          <span class="nav-tab__label">폴리싱 완료</span>
+          <span class="nav-tab__sub">Results</span>
+        </button>
+      </nav>
+      <div class="top-bar__right">
+        <div class="connection-control" style="display: flex; gap: 8px; align-items: center; margin-right: 16px;">
+          <input type="text" id="rosUrl" value="ws://localhost:9090" class="param-input"
+            style="width: 160px; padding: 6px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);" />
+          <button id="btnConnect" class="btn btn--secondary"
+            style="padding: 6px 12px; font-size: 0.85rem; height: auto; min-height: 0;">Connect</button>
+        </div>
+        <div class="connection-badge" id="rosBadge">
+          <span class="connection-badge__dot"></span>
+          <span class="connection-badge__text">ROS2 Disconnected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ======================== PHASE 1: PRE-POLISHING ======================== -->
+    <section class="phase-panel active" id="phasePre">
+      <div class="phase-header">
+        <h1 class="phase-title">폴리싱 전 <span class="phase-title__en">Pre-Polishing Setup</span></h1>
+        <p class="phase-desc">오브젝트 정보를 확인하고 폴리싱 파라미터를 설정합니다.</p>
+      </div>
+      <div class="pre-grid">
+        <!-- 좌상: 오브젝트 선택 + 폴리싱 파라미터 + 스캔 시작 -->
+        <div class="card card--glass setup-card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" />
+                <path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h2 class="card__title">오브젝트 &amp; 파라미터</h2>
+          </div>
+
+          <div class="setup-row">
+            <label class="setup-row__label">오브젝트</label>
+            <select class="setup-select" id="objectSelect">
+              <option value="bmw_z4">BMW Z4</option>
+              <option value="benz_coupe">Mercedes-Benz Coupe</option>
+              <option value="ferrari_sf90">Ferrari SF90</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="setup-row__label">대상 재질</label>
+            <select class="setup-select" id="objMaterialSelect">
+              <option value="polymer">Polymer (도장)</option>
+              <option value="steel">Structural steel (스탬핑)</option>
+            </select>
+          </div>
+
+          <!-- 원본 이미지 -->
+          <div class="object-preview">
+            <img src="/images/bmw_z4.png" alt="BMW Z4" class="object-preview__img" id="objectPreviewImg" />
+          </div>
+
+          <div class="params-list">
+            <div class="param-item">
+              <label class="param-item__label">수직 하중 (N)</label>
+              <div class="param-item__control">
+                <input type="range" min="10" max="100" value="20" class="param-slider" id="paramForce" />
+                <span class="param-item__val" id="paramForceVal">20 N</span>
+              </div>
+            </div>
+            <div class="param-item">
+              <label class="param-item__label">각속도 (RPM)</label>
+              <div class="param-item__control">
+                <input type="range" min="500" max="12000" step="100" value="3000" class="param-slider" id="paramRPM" />
+                <span class="param-item__val" id="paramRPMVal">3000 RPM</span>
+              </div>
+            </div>
+            <div class="param-item">
+              <label class="param-item__label">이송 속도 (mm/s)</label>
+              <div class="param-item__control">
+                <input type="range" min="10" max="200" value="50" class="param-slider" id="paramSpeed" />
+                <span class="param-item__val" id="paramSpeedVal">50 mm/s</span>
+              </div>
+            </div>
+            <div class="param-item">
+              <label class="param-item__label">패드 직경 (mm)</label>
+              <div class="param-item__control">
+                <input type="range" min="50" max="200" step="5" value="150" class="param-slider" id="paramPad" />
+                <span class="param-item__val" id="paramPadVal">150 mm</span>
+              </div>
+            </div>
+            <div class="param-item">
+              <label class="param-item__label">Preston 계수 (kp)</label>
+              <div class="param-item__control">
+                <input type="number" value="8.0e-13" step="1e-14" class="param-input" id="paramPreston" />
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn--secondary btn--scan" id="btnScan">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="5" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.5" />
+              <path d="M2 10h16" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+            스캔 시작
+          </button>
+        </div>
+
+        <!-- 우상: 스캔 결과 포인트 클라우드 -->
+        <div class="card card--glass scan-card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="5" cy="6" r="1" fill="currentColor" /><circle cx="10" cy="5" r="1" fill="currentColor" />
+                <circle cx="15" cy="7" r="1" fill="currentColor" /><circle cx="7" cy="10" r="1" fill="currentColor" />
+                <circle cx="13" cy="11" r="1" fill="currentColor" /><circle cx="9" cy="14" r="1" fill="currentColor" />
+              </svg>
+            </div>
+            <h2 class="card__title">스캔 결과 (Point Cloud)</h2>
+            <span class="card__badge" id="scanBadge">대기</span>
+          </div>
+          <div class="scan-view" id="scanView">
+            <img src="/images/scan_pointcloud.png" alt="Scanned point cloud" class="scan-view__img" id="scanImg"
+              style="display: none;" />
+            <div class="scan-overlay" id="scanOverlay">
+              <span>스캔 시작을 눌러</span>
+              <span>포인트 클라우드를 생성하세요</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 하단(전체 폭): 경로 정보 -->
+        <div class="card card--glass path-card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 17L10 3l7 14" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h2 class="card__title">경로 정보</h2>
+          </div>
+          <div class="path-stats">
+            <div class="stat-box">
+              <span class="stat-box__val" id="pathWaypoints">—</span>
+              <span class="stat-box__label">웨이포인트</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-box__val" id="pathPasses">3</span>
+              <span class="stat-box__label">패스 횟수</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-box__val" id="pathTime">~2.5 min</span>
+              <span class="stat-box__label">예상 소요시간</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 맨 아래: 폴리싱 시작 -->
+      <button class="btn btn--primary btn--start btn--start-wide" id="btnStart">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <polygon points="6,3 18,10 6,17" fill="currentColor" />
+        </svg>
+        폴리싱 시작
+      </button>
+    </section>
+
+    <!-- ======================== PHASE 2: DURING POLISHING ======================== -->
+    <section class="phase-panel" id="phaseDuring">
+      <div class="phase-header">
+        <h1 class="phase-title">폴리싱 중 <span class="phase-title__en">Live Monitoring</span></h1>
+        <div class="phase-header__status">
+          <div class="status-chip" id="stateChip">
+            <span class="status-chip__dot"></span>
+            <span class="status-chip__text" id="stateText">IDLE</span>
+          </div>
+          <span class="elapsed-time" id="elapsedTime">00:00</span>
+        </div>
+      </div>
+      <div class="during-grid">
+        <!-- 왼쪽 열: 진행률(상) + 카메라(하) -->
+        <div class="during-col during-col--left">
+          <!-- Progress -->
+          <div class="card card--glass progress-card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <rect x="2" y="7" width="16" height="6" rx="3" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </div>
+              <h2 class="card__title">진행률</h2>
+            </div>
+            <div class="progress-display">
+              <div class="progress-ring-wrap">
+                <div class="progress-ring-container">
+                  <svg class="progress-ring" width="140" height="140" viewBox="0 0 140 140">
+                    <circle class="progress-ring__bg" cx="70" cy="70" r="60" />
+                    <circle class="progress-ring__fill" cx="70" cy="70" r="60" id="progressRing" />
+                  </svg>
+                  <div class="progress-ring__text">
+                    <span class="progress-ring__val" id="progressVal">0</span>
+                    <span class="progress-ring__pct">%</span>
+                  </div>
+                </div>
+                <span class="progress-ring__caption">전체</span>
+              </div>
+              <div class="progress-bots">
+                <div class="prog-bot">
+                  <div class="prog-bot__top">
+                    <span class="prog-bot__name">천장 <em>C</em></span>
+                    <span class="prog-bot__val" id="progValC">0%</span>
+                  </div>
+                  <div class="prog-bot__bar"><div class="prog-bot__fill" id="progBarC"></div></div>
+                </div>
+                <div class="prog-bot">
+                  <div class="prog-bot__top">
+                    <span class="prog-bot__name">좌측 <em>SL</em></span>
+                    <span class="prog-bot__val" id="progValSL">0%</span>
+                  </div>
+                  <div class="prog-bot__bar"><div class="prog-bot__fill" id="progBarSL"></div></div>
+                </div>
+                <div class="prog-bot">
+                  <div class="prog-bot__top">
+                    <span class="prog-bot__name">우측 <em>SR</em></span>
+                    <span class="prog-bot__val" id="progValSR">0%</span>
+                  </div>
+                  <div class="prog-bot__bar"><div class="prog-bot__fill" id="progBarSR"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera -->
+          <div class="card card--glass camera-card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.5" />
+                  <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </div>
+              <h2 class="card__title">카메라</h2>
+              <select class="camera-select" id="cameraSelect" title="카메라 선택">
+                <option value="left_front">왼쪽 앞</option>
+                <option value="left_back">왼쪽 뒤</option>
+                <option value="right_front">오른쪽 앞</option>
+                <option value="right_back">오른쪽 뒤</option>
+                <option value="ceiling">천장</option>
+              </select>
+              <span class="card__badge card__badge--live" id="cameraBadge">DEMO</span>
+            </div>
+            <div class="camera-view" id="cameraView">
+              <img alt="Camera" class="camera-view__img" id="cameraImg" style="display: none;" />
+              <canvas id="cameraCanvas" class="camera-view__img" style="display: none;"></canvas>
+              <div class="camera-overlay" id="cameraOverlay">
+                <span>카메라 토픽 대기중...</span>
+                <span class="camera-overlay__topic">/camera/&lt;코너&gt;/compressed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽 열: 접촉력(상) + 히트맵(하) -->
+        <div class="during-col during-col--right">
+        <!-- Force Graphs (로봇팔 3개: 천장 C / 좌측면 SL / 우측면 SR) -->
+        <div class="card card--glass force-card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <polyline points="2,16 6,8 10,12 14,4 18,10" stroke="currentColor" stroke-width="1.5" fill="none"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h2 class="card__title">접촉력 (Force) · 로봇팔 3</h2>
+          </div>
+          <div class="force-multi">
+            <div class="force-bot">
+              <div class="force-bot__head">
+                <span class="force-bot__name">천장 <em>C</em></span>
+                <span class="force-bot__val"><span id="forceLiveValC">0.00</span> N</span>
+              </div>
+              <div class="chart-container chart-container--mini">
+                <canvas id="forceChartC"></canvas>
+              </div>
+            </div>
+            <div class="force-bot">
+              <div class="force-bot__head">
+                <span class="force-bot__name">좌측면 <em>SL</em></span>
+                <span class="force-bot__val"><span id="forceLiveValSL">0.00</span> N</span>
+              </div>
+              <div class="chart-container chart-container--mini">
+                <canvas id="forceChartSL"></canvas>
+              </div>
+            </div>
+            <div class="force-bot">
+              <div class="force-bot__head">
+                <span class="force-bot__name">우측면 <em>SR</em></span>
+                <span class="force-bot__val"><span id="forceLiveValSR">0.00</span> N</span>
+              </div>
+              <div class="chart-container chart-container--mini">
+                <canvas id="forceChartSR"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="card card--glass heatmap-card">
+          <div class="card__header">
+            <div class="card__icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.5" />
+                <rect x="5" y="5" width="4" height="4" fill="currentColor" opacity="0.3" />
+                <rect x="11" y="5" width="4" height="4" fill="currentColor" opacity="0.6" />
+                <rect x="5" y="11" width="4" height="4" fill="currentColor" opacity="0.8" />
+                <rect x="11" y="11" width="4" height="4" fill="currentColor" />
+              </svg>
+            </div>
+            <h2 class="card__title">제거량 히트맵</h2>
+          </div>
+          <div class="heatmap-view">
+            <canvas id="heatmapCanvas" width="400" height="280"></canvas>
+            <img src="/images/removal_map.png" alt="Removal heatmap" class="heatmap-view__fallback"
+              id="heatmapFallback" />
+          </div>
+          <div class="heatmap-legend">
+            <span class="heatmap-legend__min">미연마</span>
+            <div class="heatmap-legend__bar"></div>
+            <span class="heatmap-legend__max" id="heatmapMax">연마 완료</span>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================== PHASE 3: POST-POLISHING ======================== -->
+    <section class="phase-panel" id="phasePost">
+      <div class="phase-header">
+        <h1 class="phase-title">폴리싱 완료 <span class="phase-title__en">Results & Comparison</span></h1>
+      </div>
+      <div class="post-grid">
+        <!-- 왼쪽: 3D 커버리지 (남은 높이 채움) -->
+        <div class="post-col post-col--left">
+          <div class="card card--glass coverage3d-card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M3 10h14M10 3a11 11 0 010 14M10 3a11 11 0 000 14" stroke="currentColor" stroke-width="1" fill="none" opacity="0.6"/>
+                </svg>
+              </div>
+              <h2 class="card__title">3D 커버리지 (드래그로 360° 회전)</h2>
+              <span class="card__badge" id="cov3dBadge">대기</span>
+            </div>
+            <div class="cov3d-canvas-wrap">
+              <canvas id="coverage3dCanvas"></canvas>
+              <div id="cov3dOverlay" class="cov3d-overlay">
+                <span>폴리싱이 완료되면 3D 커버리지가 표시됩니다</span>
+                <span style="font-size:0.8rem;">드래그=회전 · 휠=확대/축소</span>
+              </div>
+            </div>
+            <div class="heatmap-legend" style="margin-top:8px;">
+              <span class="heatmap-legend__min" style="color:#ff3b30;">● 미폴리싱</span>
+              <span style="flex:1;"></span>
+              <span class="heatmap-legend__max" style="color:#59bfff;" id="cov3dStat">● 폴리싱 완료</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 전/후 비교 + 결과 지표 -->
+        <div class="post-col post-col--right">
+          <div class="card card--glass compare-card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <rect x="2" y="2" width="7" height="16" rx="1" stroke="currentColor" stroke-width="1.5" />
+                  <rect x="11" y="2" width="7" height="16" rx="1" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </div>
+              <h2 class="card__title">전 / 후 비교</h2>
+            </div>
+            <div class="compare-pair">
+              <figure class="compare-pane">
+                <img src="/images/bmw_z4.png" alt="Before" />
+                <figcaption><b>Before</b> · 원본</figcaption>
+              </figure>
+              <figure class="compare-pane">
+                <div class="heat-pane">
+                  <img src="/images/sanding_heatmap.gif" alt="제거량 히트맵" />
+                  <div class="heat-colorbar">
+                    <span>3.0</span>
+                    <div class="heat-colorbar__scale"></div>
+                    <span>0</span>
+                    <span class="heat-colorbar__unit">μm</span>
+                  </div>
+                </div>
+                <figcaption><b>After</b> · 제거량 히트맵 (μm)</figcaption>
+              </figure>
+            </div>
+          </div>
+
+          <div class="card card--glass metrics-card">
+            <div class="card__header">
+              <div class="card__icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 17V7l4 4 3-6 4 3 3-5v14H3z" stroke="currentColor" stroke-width="1.5" fill="none" />
+                </svg>
+              </div>
+              <h2 class="card__title">결과 지표</h2>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric-box metric-box--accent">
+                <span class="metric-box__val" id="metricMaxRemoval">0.039</span>
+                <span class="metric-box__unit">μm</span>
+                <span class="metric-box__label">최대 제거깊이</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-box__val" id="metricAvgRemoval">0.025</span>
+                <span class="metric-box__unit">μm</span>
+                <span class="metric-box__label">평균 제거깊이</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-box__val" id="metricCompletion">0.0</span>
+                <span class="metric-box__unit">%</span>
+                <span class="metric-box__label">완성률</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-box__val" id="metricTotalTime">2:31</span>
+                <span class="metric-box__unit">min</span>
+                <span class="metric-box__label">총 소요시간</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-box__val" id="metricContactRatio">78.5</span>
+                <span class="metric-box__unit">%</span>
+                <span class="metric-box__label">접촉 비율</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-box__val" id="metricAvgForceResult">1.49</span>
+                <span class="metric-box__unit">N</span>
+                <span class="metric-box__label">평균 접촉력</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 맨 아래: 분석레포트 / 새 폴리싱 -->
+      <div class="post-actions">
+        <button class="btn btn--outline" id="btnNewPolish">새 폴리싱 시작</button>
+        <button class="btn btn--primary" id="btnAnalyze">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 13V3m0 10h10M6 9.5l2.5-3 2 2L13.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          분석레포트
+        </button>
+      </div>
+
+      <!-- 분석레포트 모달 -->
+      <div class="report-modal" id="reportModal" hidden>
+        <div class="report-modal__box">
+          <div class="report-modal__head">
+            <h2 class="report-modal__title">분석 레포트</h2>
+            <button class="report-modal__close" id="reportClose" aria-label="닫기">✕</button>
+          </div>
+          <div class="report-modal__body" id="reportBody"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
