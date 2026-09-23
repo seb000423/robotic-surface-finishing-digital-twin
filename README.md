@@ -63,33 +63,27 @@
 
 ## System
 
-```text
-┌──────────────┐     ┌────────────────────┐     ┌──────────────────────┐
-│   scan.py    │     │ path_generator.py  │     │   polishing_v5.py    │
-│  (깊이 스캔)  │ ──▶ │   (3D 경로 생성)    │ ──▶ │ (다중 로봇 폴리싱)     │
-└──────────────┘     └────────────────────┘     └──────────────────────┘
-       │                      │                            │
-       ▼                      ▼                            ▼
- scan_result/{obj}/     scan_result/{obj}/          Isaac Sim 물리 시뮬레이션
- points/*.ply           path_*.npy                  (RMPFlow + 가상 스프링 접촉력)
-                        rail_config.json                   │
-                                                           ▼
-                                             ROS2 publish ─▶ web_dashboard
-                                             (실시간 힘 / 진행률 / 커버리지)
-```
+<div align="center">
+  <img src="assets/system_architecture.png" width="100%" alt="Scan-to-path workflow and monitoring">
+  <br>
+  <sub>Depth Scan → Path Generation → Polishing, Coverage Feedback 재폴리싱과 ROS 2 모니터링</sub>
+</div>
+<br>
 
 <div align="center">
 
 | Phase | Description |
 |---|---|
 | **1. Scan** | Isaac Sim 가상 깊이 카메라(`omni.replicator`)로 차체를 다방향 촬영, 깊이 → 3D 역투영으로 Point Cloud 생성 |
-| **2. Path Generation** | Raster 경로 생성, 작업 반경(0.35 ~ 0.85 m)·표면 기울기 필터, 로봇별 영역 분할 및 레일 정지점 계산 |
+| **2. Path Generation** | `path_generator.py --mode full`로 표면 법선 + Raster 경로 생성, 작업 반경(0.35 ~ 0.85 m)·표면 기울기 필터, 로봇별 영역 분할 및 레일 정지점 계산 |
 | **3. Car Entry & Lift** | 반도넛형 진입 스캐너 통과 후 리프트로 차량을 작업 높이까지 상승 |
 | **4. Polishing** | RMPFlow로 경로 추종, 가상 스프링 접촉력 제어 + 패드 회전(3000 RPM) |
-| **5. Re-Polishing** | 커버리지 맵의 미처리 영역을 재추출해 추가 패스 수행 |
-| **6. Monitoring** | ROS2 → rosbridge → 웹 대시보드에서 진행률·접촉력·히트맵 실시간 표시 |
+| **5. Re-Polishing** | 커버리지 맵에서 미처리 영역을 재추출해 최대 2회 추가 패스 수행 |
+| **6. Monitoring** | `ros_publisher` → ROS 2 → rosbridge(:9090) → 웹 대시보드, 완료 시 `public/data/coverage.json` 저장 |
 
 </div>
+
+> 접촉력은 기본적으로 시뮬레이션 패드 위치 기반 추정값이며, 커버리지는 실제 재료 제거량을 측정한 값이 아님.
 
 ---
 
@@ -142,31 +136,42 @@ Web UI [시작] ──HTTP──> dashboard_launcher.py ──> isaac_python pol
                                     ros_publisher ──> /polishing/* ──> rosbridge ──> Web UI
 ```
 
-- **runner** — 씬 구성, 차량 진입·리프트 애니메이션, 메인 루프
-- **RailRobotAgent** — 로봇별 레일 이동, 경로 추종, 접촉 판정, 재폴리싱 패스 관리
+- **runner** — 씬 구성, 차량 진입·리프트 애니메이션, 에이전트 tick · 커버리지 갱신 메인 루프
+- **RailRobotAgent** — 로봇별 레일 정지점, 경로 추종, 접촉 판정 · 복구, 재폴리싱 패스 관리
 - **RMPFlowController** — End-Effector를 표면 법선 방향 자세로 경로 추종
 - **Virtual Spring Force** — 패드 압입량 기반 접촉력 계산 및 어드미턴스 제어
 - **ros_publisher** — 상태·진행률·접촉력·히트맵 토픽 발행
 
 ### Contact Force Control
 
+<div align="center">
+  <img src="assets/control_architecture.png" width="100%" alt="Per-robot force feedback loop">
+  <br>
+  <sub><code>polishing_v5_modules/agent.py</code>의 로봇별 접촉력 피드백 루프</sub>
+</div>
+<br>
+
 ```text
-F_err  = F_target(tilt, mode) − F_measured
-accel  = (F_err − D · v) / M            # Admittance: D = 50, M = 1.0
-v_cmd  = clip(v + accel · dt, ±0.02 m/s)
-cmd    = target + lag_feedforward         # RMPFlow 정상상태 추종 지연 보정
+F_ctrl  = filtered virtual-spring force  (패드 실제 위치 기준)
+F_err   = F_ctrl − F_target(tilt, mode)
+accel   = (F_err − D · v) / M            # Admittance: D = 50, M = 1.0
+v       = clip(v + accel · dt, ±0.02 m/s)
+offset  = clip(offset + v · dt)          # 표면 법선 방향 압입량
+cmd     = surface + normal · clearance   # + RMPFlow 추종 지연(lag) 보정
 ```
 
 <div align="center">
 
-| Surface | Flat | Steep (tilt ≥ 45°) |
+| Surface | Flat (tilt 0°) | Steep (tilt ≥ 45°) |
 |---|:---:|:---:|
 | Top (C) | 8.0 N | 5.0 N |
 | Side (SL / SR) | 6.0 N | 3.5 N |
 
 </div>
 
-- 패드 회전: USD `RevoluteJoint`(`pad_joint`)를 314 rad/s(3000 RPM)로 속도 구동
+- 목표 접촉력은 표면 기울기 0 ~ 45° 구간에서 Flat → Steep 값으로 선형 보간
+- 물리 접촉 센서는 기본 OFF(`USE_PHYSICAL_CONTACT_SENSOR = False`), 힘 피드백은 패드 실제 위치 기반 가상 스프링 추정값 사용
+- 패드 회전: USD `RevoluteJoint`(`pad_joint`)를 314.16 rad/s(3000 RPM)로 속도 구동
 - 과압 보호: 100 N 초과 시 후퇴, 접촉 불량 구간은 일정 스텝 후 스킵
 
 ---
