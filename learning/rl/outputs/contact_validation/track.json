@@ -1,0 +1,56 @@
+{
+  "phase": "track",
+  "num_envs": 1,
+  "contact_mode": "physical",
+  "thresholds": {
+    "free_space_max_n": 0.05,
+    "static_ss_err_max_n": 0.5,
+    "static_ss_std_max_n": 0.3,
+    "static_overshoot_max_ratio": 0.5,
+    "static_penetration_max_m": 0.006,
+    "track_err_mean_max_n": 1.0,
+    "track_err_p95_max_n": 2.5,
+    "reset_spike_max_n": 8.0
+  },
+  "segments": {
+    "track": {
+      "steps": 1200,
+      "err_mean_n": 0.015162997722625733,
+      "err_p95_n": 0.036228561401367175,
+      "err_max_n": 0.8811731338500977,
+      "in_patch_ratio": 1.0,
+      "penetration_m": 0.0012665390968322754,
+      "out_patch_steps": 0,
+      "out_patch_used_max_n": 0.0,
+      "died_resets": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "finite",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "이동 중 force tracking",
+      "pass": true,
+      "detail": "mean=0.015N p95=0.036N max=0.881N"
+    },
+    {
+      "name": "관통량 한계",
+      "pass": true,
+      "detail": "pen=1.27mm"
+    },
+    {
+      "name": "작업면 밖 무가공 (해당 스텝 존재 시)",
+      "pass": true,
+      "detail": "out-patch steps=0 used_max=0.0000N"
+    },
+    {
+      "name": "no fault/reset",
+      "pass": true,
+      "detail": "faults=0 resets=0"
+    }
+  ],
+  "result": "PASS"
+}

@@ -38,7 +38,6 @@ _CAMERA_EVERY = 8
 _CONTACT_FORCE_THRESH = 0.5
 
 # 카메라 정의: (dashboard 토픽키, 차 중심 기준 오프셋[dx,dy,dz]). look_at = 차 중심.
-# 사용자 확인 규약: 앞=-Y, 뒤=+Y, 왼쪽=+X, 오른쪽=-X.
 #   left_front=(+X,-Y) / left_back=(+X,+Y) / right_front=(-X,-Y) / right_back=(-X,+Y)
 # 천장: 차중심 z≈1.44 + dz=4.1 → 절대 z≈5.5 (탑뷰 — 차 전장 대부분이 화각에 들어오게 더 올림).
 #   차 크기 측정값: 길이 3.04m(Y)·폭 1.33m(X)·지붕 z≈1.87. 기본 카메라 vFOV≈35°라

@@ -1,0 +1,75 @@
+{
+  "model_version": "literature_polishing_v1",
+  "k_literature_synthetic": 1.3366939263905998e-06,
+  "pad_radius_m": 0.055,
+  "footprint_sigma_ratio": 0.5,
+  "footprint_active_threshold": 0.05,
+  "effective_radius_ratio": 0.6666666666666666,
+  "reference_force_n": 8.0,
+  "force_exponent": 0.0,
+  "force_saturation_gain": 0.15,
+  "alignment_exponent": 1.0,
+  "compound_factor": 1.0,
+  "pad_factor": 1.0,
+  "heat_efficiency_gain": 0.0,
+  "peak_selectivity_gain": 1.0,
+  "base_removal_fraction": 0.5,
+  "selective_removal_fraction": 1.0,
+  "heat_gain": 1e-06,
+  "cooling_time_constant_s": 20.0,
+  "heat_proxy_max": 10.0,
+  "minimum_effective_removal_um": 0.1,
+  "pass_debounce_s": 0.5,
+  "tags": {
+    "k_literature_synthetic": "L-DERIVED",
+    "force_exponent": "PT-DESIGN",
+    "force_saturation_gain": "PT-DESIGN",
+    "alignment_exponent": "PT-DESIGN",
+    "compound_factor": "PT-DESIGN",
+    "pad_factor": "PT-DESIGN",
+    "peak_selectivity_gain": "PT-DESIGN",
+    "base_removal_fraction": "PT-DESIGN",
+    "selective_removal_fraction": "PT-DESIGN",
+    "heat_gain": "PT-DESIGN"
+  },
+  "reference": {
+    "patch_size_m": [
+      0.2,
+      0.2
+    ],
+    "pad_diameter_m": 0.11,
+    "target_force_n": 8.0,
+    "feed_speed_mm_s": 5.0,
+    "rpm_schedule": [
+      4000.0,
+      3250.0,
+      2750.0
+    ],
+    "stage_time_ratio": [
+      0.5,
+      0.3333333333333333,
+      0.16666666666666666
+    ],
+    "total_time_s": 1800.0,
+    "path_type": "raster",
+    "step_over_spacing_ratio": 0.4,
+    "target_mean_removal_um": 3.0,
+    "grid_resolution_m": 0.001,
+    "quality_dt_s": 0.05
+  },
+  "calibration_check": {
+    "ra_um": 0.12040906473972775,
+    "rz_um": 0.8589332009595889,
+    "rz_method": "rz_5peak_5valley_v1",
+    "max_residual_scratch_um": 0.0,
+    "mean_removal_um": 3.0,
+    "max_removal_um": 3.6958082564862607,
+    "clearcoat_min_um": 36.86793478770134,
+    "healthy_overremoval_um": 2.0,
+    "heat_proxy_peak": 0.08573046981913968,
+    "coverage_ratio": 1.0,
+    "model_version": "literature_polishing_v1",
+    "k_literature_synthetic": 1.3366939263905998e-06,
+    "process_time_s": 1800.0499999989106
+  }
+}

@@ -1,13 +1,15 @@
 """Scene setup and main loop for polishing_v5."""
+import json
 import os
+import time
 import sys
 
 import numpy as np
 from scipy.spatial import KDTree
 
-from omni.isaac.core import World
-from omni.isaac.core.objects import VisualCuboid
-from omni.isaac.core.utils.prims import create_prim
+from isaacsim.core.api import World
+from isaacsim.core.api.objects import VisualCuboid
+from isaacsim.core.utils.prims import create_prim
 
 from . import common
 from .common import *
@@ -260,7 +262,7 @@ def main(simulation_app, obj_name="car"):
         ).Set(0.05)
 
     # 공유 물리 재질 (NoBounceMaterial)
-    from omni.isaac.core.materials import PhysicsMaterial
+    from isaacsim.core.api.materials import PhysicsMaterial
     PhysicsMaterial(
         prim_path="/World/NoBounceMaterial",
         dynamic_friction=POLISHING_DYNAMIC_FRICTION,
@@ -277,7 +279,6 @@ def main(simulation_app, obj_name="car"):
 
     # 자동차 콜라이더 설정 (공유 1회)
     from pxr import Usd, UsdGeom
-    # 사용자 요청: 특정 차량 메시(polySurface371) 제거(숨김+비활성+충돌off)
     _remove_names = {"bmw_z4_car_007_color_polySurface371"}
     target_prim = stage.GetPrimAtPath("/World/Car")
     if target_prim.IsValid():
@@ -293,9 +294,23 @@ def main(simulation_app, obj_name="car"):
                 mc = UsdPhysics.MeshCollisionAPI.Apply(prim)
                 # "none"(정확 삼각망)은 compliant 접촉 미지원 → rigid 슬램(차체에선 1000N+ 검증됨).
                 # convexDecomposition이 그나마 슬램이 작아 유지. (옛 v1이 none에서 OK였던 건 작은 마우스라서)
-                mc.CreateApproximationAttr().Set("convexDecomposition")
+                # 실접촉 모드 기본 "none"(정확 삼각망): convexDecomposition 껍데기는 점군보다 바깥에
+                # 부풀어 패드가 표면 위 수 cm 에서 먼저 닿는다(힘 게이트 탈락·슬램). 환경변수로 재정의.
+                mc.CreateApproximationAttr().Set(os.environ.get(
+                    "POLISH_CAR_COLLIDER", "none" if USE_PHYSICAL_CONTACT_SENSOR else "convexDecomposition"))
+                _car_mat = "/World/NoBounceMaterial"
+                if USE_PHYSICAL_CONTACT_SENSOR:
+                    # 실접촉: 차체 쪽에도 순응 접촉 재질 (양쪽 순응이어야 PhysX compliant contact 유효)
+                    _cm = UsdShade.Material.Define(stage, "/World/PhysicsMaterials/car_compliant")
+                    _um = UsdPhysics.MaterialAPI.Apply(_cm.GetPrim())
+                    _um.CreateStaticFrictionAttr().Set(0.0); _um.CreateDynamicFrictionAttr().Set(0.0)
+                    _um.CreateRestitutionAttr().Set(0.0)
+                    _pm = PhysxSchema.PhysxMaterialAPI.Apply(_cm.GetPrim())
+                    _pm.CreateCompliantContactStiffnessAttr().Set(float(PAD_COMPLIANT_STIFFNESS_N_M))
+                    _pm.CreateCompliantContactDampingAttr().Set(float(PAD_COMPLIANT_DAMPING_N_S_M))
+                    _car_mat = "/World/PhysicsMaterials/car_compliant"
                 UsdShade.MaterialBindingAPI.Apply(prim).Bind(
-                    UsdShade.Material(stage.GetPrimAtPath("/World/NoBounceMaterial")),
+                    UsdShade.Material(stage.GetPrimAtPath(_car_mat)),
                     UsdShade.Tokens.weakerThanDescendants, "physics",
                 )
 
@@ -327,6 +342,16 @@ def main(simulation_app, obj_name="car"):
         }
         for label, cfg in rail_config_data.items()
     ]
+    # 웹 UI 대수 반영: POLISH_ROBOTS="C,SL,SR" 처럼 라벨을 주면 그 로봇만 만든다 (3대 = 천장 C + 측면 SL/SR)
+    _want = [x.strip() for x in os.environ.get("POLISH_ROBOTS", "").split(",") if x.strip()]
+    if _want:
+        _have = [c["label"] for c in RAIL_CONFIGS]
+        RAIL_CONFIGS = [c for c in RAIL_CONFIGS if c["label"] in _want]
+        print(f"[main] POLISH_ROBOTS={_want} → 활성 {[c['label'] for c in RAIL_CONFIGS]} (구성 {_have})", flush=True)
+        if not RAIL_CONFIGS:
+            print("[main] POLISH_ROBOTS 에 맞는 로봇이 없어 전체를 사용합니다", flush=True)
+            RAIL_CONFIGS = [{"label": label, "rail_x": float(cfg["rail_x"]), "base_yaw": float(cfg["base_yaw"]), "yz_stops": cfg["yz_stops"],
+                             "mount_mode": cfg.get("mount_mode"), "outward_sign": cfg.get("outward_sign", -1)} for label, cfg in rail_config_data.items()]
     is_overhead_mode = any(c.get("mount_mode") == "overhead" for c in RAIL_CONFIGS)
 
     # 시각적 레일 — 레일 모드에서만 (오버헤드는 갠트리가 대체)
@@ -359,6 +384,180 @@ def main(simulation_app, obj_name="car"):
         print(f"[main] Robot {cfg['label']}: 베이스={[round(v,3) for v in agent.base_position]}, "
               f"YZ정지={[[round(y,2), round(z,2)] for y, z in agent.yz_stops]}")
 
+    # 잔차 정책 + 차 전체 셀 격자 (POLISH_RL=1). v5 시뮬레이션 동작은 기본 그대로.
+    rl_registry = None
+    def _rl_flush(tag=""):
+        if rl_registry is not None:
+            from .rl_bridge import write_judgement
+            out = os.environ.get("POLISH_RL_OUT", os.path.join(_SRC_DIR, "learning", "rl", "logs",
+                                                                "v5_rl", "car_cells_judgement.csv"))
+            summary = write_judgement(rl_registry, out)
+            # 웹 UI 결과 요약 (learning/ui_bridge/out/last_run.json) — /api/sim/status 가 읽는다
+            try:
+                import json as _json, time as _time
+                from .rl_bridge import judge_cells
+                rows = judge_cells(rl_registry)
+                done = [r for r in rows if r["visits"] > 0]
+                gus = sorted(float(r["gu_proxy_after"]) for r in done)
+                def _mean(xs): return float(sum(xs) / len(xs)) if xs else 0.0
+                def _pct(xs, p):
+                    if not xs: return 0.0
+                    k = max(0, min(len(xs) - 1, int(round(p / 100.0 * (len(xs) - 1))))); return float(xs[k])
+                sd = (sum((g - _mean(gus)) ** 2 for g in gus) / len(gus)) ** 0.5 if gus else 0.0
+                robots_f = {a.label: float(a.filtered_contact_force) for a in agents}
+                rec = {
+                    "ts": _time.time(), "tag": tag, "sim_step": sim_step, "elapsed_s": sim_step / 60.0,
+                    "recipe": {"force": float(rl_bridge.recipe_top.target_contact_force_n),
+                               "feed_mm_s": float(rl_bridge.recipe_top.feed_speed_mm_s),
+                               "rpm": float(rl_bridge.recipe_top.rpm),
+                               "spacing_ratio": float(rl_bridge.recipe_top.step_over_spacing_ratio),
+                               "n_passes": int(rl_bridge.recipe_top.n_passes)},
+                    "cells": summary,
+                    "quality": {
+                        "cells": len(done), "ra": _mean([float(r["ra_after_um"]) for r in done]),
+                        "rz": max([float(r["rz_after_um"]) for r in done], default=0.0),
+                        "clearcoat": min([float(r["clearcoat_remaining_min_um"]) for r in done], default=0.0),
+                        "scratch": _mean([float(r["scratch_after_um"]) for r in done]),
+                        "scratchBefore": _mean([float(r["scratch_before_um"]) for r in done]),
+                        "glossMean": _mean(gus), "glossP10": _pct(gus, 10), "glossStd": sd,
+                        "glossMin": (gus[0] if gus else 0.0), "glossTiles": len(gus),
+                        "glossPass": bool(gus and _mean(gus) >= 70.0 and _pct(gus, 10) >= 60.0 and sd <= 10.0 and gus[0] >= 45.0),
+                        "glossBand": ("target_pass" if gus and _mean(gus) >= 70 else "partial" if gus and _mean(gus) >= 60 else "low"),
+                    },
+                    "rl": {"force": _mean([float(r["force_n"]) for r in done]),
+                           "force_scale_mean": _mean([1.0 + float(r["policy_action_force"]) * 0.3 for r in done]),
+                           "feed_scale_mean": _mean([1.0 + float(r["policy_action_feed"]) * 0.5 for r in done]),
+                           "stiffness": 350.0 if os.environ.get("POLISH_PHYSICAL_CONTACT", "0") != "1" else 2000.0,
+                           "damping": 35.0 if os.environ.get("POLISH_PHYSICAL_CONTACT", "0") != "1" else 200.0,
+                           "robots": robots_f},
+                }
+                _out_dir = os.path.join(_SRC_DIR, "learning", "ui_bridge", "out")
+                os.makedirs(_out_dir, exist_ok=True)
+                _tmp = os.path.join(_out_dir, "last_run.json.tmp")
+                with open(_tmp, "w", encoding="utf-8") as fh:
+                    _json.dump(rec, fh, ensure_ascii=False, indent=1)
+                os.replace(_tmp, os.path.join(_out_dir, "last_run.json"))
+                if recorder is not None:
+                    try: recorder.finish(_res)
+                    except Exception as _exc: print(f"[main] 기록 종료 실패: {_exc}", flush=True)
+            except Exception as exc:
+                print(f"[main] last_run.json 기록 실패: {exc}")
+    if os.environ.get("POLISH_RL", "0") == "1":
+        from .rl_bridge import CellRegistry, ResidualPolicyBridge
+        _ckpt = os.environ.get("POLISH_RL_CKPT") or None
+        _rt = os.environ.get("POLISH_RL_RECIPE_TOP") or None
+        _rs = os.environ.get("POLISH_RL_RECIPE_SIDE") or None
+        rl_registry = CellRegistry(raw_points, profile=os.environ.get("POLISH_RL_PROFILE", "new_car"))
+        _kw = {}
+        if _ckpt: _kw["ckpt"] = _ckpt
+        if _rt: _kw["recipe_json"] = _rt
+        if _rs: _kw["recipe_json_side"] = _rs
+        rl_bridge = ResidualPolicyBridge(rl_registry, **_kw)
+        for agent in agents:
+            agent.rl_bridge = rl_bridge
+        print(f"[main] POLISH_RL=1 — 잔차 정책 브리지 연결 ({len(agents)}대), 셀 {len(rl_registry.cells)}개")
+
+    # 모니터 피드 (POLISH_MONITOR_FEED=<json 경로>): 20 스텝마다 로봇 힘·상태·진행·셀 판정 기록
+    monitor_feed = None
+    _feed_path = os.environ.get("POLISH_MONITOR_FEED", "")
+    if _feed_path:
+        from learning.ui_bridge.monitor_feed import MonitorFeed
+        monitor_feed = MonitorFeed(_feed_path)
+        monitor_feed.event("C", f"공정 시작 — 로봇 {len(agents)}대, 정책 {'ON' if rl_registry is not None else 'OFF'}", "info", 0.0)
+        print(f"[main] 모니터 피드 → {_feed_path}")
+    _NAMES = {"C": "천장", "SL": "좌측", "SR": "우측"}
+    # 웹 UI가 Isaac 월드(Z-up, 차 길이축 Y)를 자기 좌표계로 옮길 때 쓰는 기준: 차 점군 bbox
+    _feed_scene = {"up": "z", "long": "y",
+                   # 설비 수치(웹 UI 소품 배치 동기화): 갠트리 보 높이·반폭·반길이, 천장 베이스 z 범위, 측면 레일 x, 텔레리프트 접힘/펼침
+                   "gantry_beam_z": float(common.GANTRY_BEAM_Z), "gantry_half_x": float(common.GANTRY_HALF_X), "gantry_half_y": float(common.GANTRY_HALF_Y),
+                   "overhead_z": [float(common.OVERHEAD_Z_MIN), float(common.OVERHEAD_Z_MAX)],
+                   "rail_x": [float(c["rail_x"]) for c in RAIL_CONFIGS if c.get("mount_mode") == "side"],
+                   "lift_h": [float(common.TELE_LIFT_RETRACTED_H), float(common.TELE_LIFT_EXTENDED_H)],
+                   "car_lift_z": float(common.CAR_LIFT_Z),
+                   "car_min": [float(v) for v in np.min(raw_points, axis=0)] if len(raw_points) else [0, 0, 0],
+                   "car_max": [float(v) for v in np.max(raw_points, axis=0)] if len(raw_points) else [0, 0, 0]}
+    _FEED_EVERY = max(1, int(os.environ.get("POLISH_MONITOR_FEED_EVERY", "6")))   # 6 스텝 ≈ 10 Hz (팔 동기화용)
+    # 유효 레시피 값(웹 UI 상태줄·조건 대조용): 잔차 브리지의 top 레시피
+    _feed_recipe = None
+    try:
+        _rc = getattr(rl_bridge, "recipe_top", None) if rl_bridge is not None else None
+        if _rc is not None:
+            _feed_recipe = {"force_n": float(getattr(_rc, "target_contact_force_n", 0.0)), "feed_mm_s": float(getattr(_rc, "feed_speed_mm_s", 0.0)),
+                            "rpm": float(getattr(_rc, "rpm", 0.0)), "step_over_ratio": float(getattr(_rc, "step_over_spacing_ratio", 0.0)),
+                            "n_passes": int(getattr(_rc, "n_passes", 0)), "pad_radius_m": float(common.POLISHING_DISK_RADIUS),
+                            "robots": [a.label for a in agents]}
+    except Exception as _exc:
+        print(f"[main] 레시피 값 수집 실패: {_exc}", flush=True)
+    # 기록기(POLISH_RECORD=<sqlite 경로> 또는 1): UI 리플레이/지연 재생용 — 피드와 같은 주기로 프레임을 DB 에 쓴다
+    recorder = None
+    _rec_env = os.environ.get("POLISH_RECORD", "")
+    if _rec_env:
+        try:
+            from learning.ui_bridge.sim_recorder import SimRecorder
+            _rec_path = _rec_env if _rec_env != "1" else os.path.join(_SRC_DIR, "learning", "ui_bridge", "out",
+                                                                       time.strftime("run_%Y%m%d_%H%M%S.sqlite"))
+            recorder = SimRecorder(_rec_path, meta={"scene": _feed_scene, "hz": 60.0 / _FEED_EVERY, "recipe_values": _feed_recipe,
+                                                     "robots": [{"id": a.label, "name": _NAMES.get(a.label, a.label)} for a in agents],
+                                                     "recipe": {"top": os.environ.get("POLISH_RL_RECIPE_TOP", ""),
+                                                                "side": os.environ.get("POLISH_RL_RECIPE_SIDE", "")},
+                                                     "rl": os.environ.get("POLISH_RL", "0") == "1",
+                                                     "physical_contact": os.environ.get("POLISH_PHYSICAL_CONTACT", "0") == "1"})
+            print(f"[main] 기록기 → {_rec_path}", flush=True)
+        except Exception as _exc:
+            print(f"[main] 기록기 생성 실패(시뮬 계속): {_exc}", flush=True)
+    def _feed_tick():
+        if monitor_feed is None and recorder is None:
+            return
+        robots = []
+        for a in agents:
+            st_name = str(getattr(a, "run_state", "POLISH")).split(".")[-1]
+            seg_prog = (a.current_path_idx_float / max(len(a.path) - 1, 1)) if len(getattr(a, "path", [])) else 0.0
+            rob = {"id": a.label, "name": _NAMES.get(a.label, a.label),
+                   "force": float(a.filtered_contact_force), "target": float(getattr(a, "_target_force", 0.0)),
+                   "state": st_name, "progress": float(min(max(seg_prog, 0.0), 1.0)),
+                   "rl_force_scale": float(getattr(a, "_rl_force_scale", 1.0)),
+                   "rl_feed_scale": float(getattr(a, "_rl_feed_scale", 1.0))}
+            # 웹 UI 3D 팔 동기화용: 팔 관절각 6개(rad, URDF 순서) + 베이스 자세(Isaac 월드, quat w,x,y,z)
+            try:
+                _q = np.asarray(a.articulation.get_joint_positions(), dtype=float)
+                rob["q"] = [float(v) for v in _q[:6]]
+            except Exception:
+                pass
+            try:
+                rob["base"] = {"pos": [float(v) for v in a.base_position[:3]],
+                               "quat": [float(v) for v in a.base_orientation[:4]]}
+            except Exception:
+                pass
+            robots.append(rob)
+        try:
+            cov = polish_viz.covered_count() / max(polish_viz.total_count(), 1)
+        except Exception:
+            cov = 0.0
+        cells = {}
+        if rl_registry is not None:
+            try:
+                from .rl_bridge import judge_cells
+                rows = judge_cells(rl_registry)
+                cells = {"total": len(rows),
+                         "pass": sum(1 for r in rows if r["overall_pass"]),
+                         "rework": sum(1 for r in rows if r["disposition"] == "rework_candidate"),
+                         "repaint": sum(1 for r in rows if r["disposition"] == "spot_repaint_review"),
+                         "not_reached": sum(1 for r in rows if r["disposition"] == "not_reached"),
+                         "items": [[float(r["center_x_m"]), float(r["center_y_m"]), float(r["center_z_m"]),
+                                    r["disposition"], float(r["gu_proxy_after"])] for r in rows if r["visits"] > 0]}
+            except Exception as exc:
+                cells = {"error": str(exc)[:80]}
+        overall_state = "DONE" if all(a.done for a in agents) else ("HOLD" if _ctl.get("pause") else (robots[0]["state"] if robots else "POLISH"))
+        if recorder is not None:
+            try:
+                recorder.frame(sim_step / 60.0, overall_state, cov, sim_step / 60.0, robots)
+                if cells and sim_step % (_FEED_EVERY * 100) == 0:     # 셀 판정 스냅샷은 ~10 s 마다
+                    recorder.cells(sim_step / 60.0, cells)
+            except Exception as _exc:
+                print(f"[main] 기록 실패: {_exc}", flush=True)
+        if monitor_feed is not None:
+            monitor_feed.update(overall_state, cov, robots, elapsed_s=sim_step / 60.0, cells=cells, scene=_feed_scene, recipe=_feed_recipe)
+
     # 물리 초기화
     world.reset()
     for agent in agents:
@@ -373,7 +572,7 @@ def main(simulation_app, obj_name="car"):
     _car_center = (np.mean(raw_points, axis=0) if len(raw_points) else np.array([0.0, 0.0, 1.0]))
     ros_pub = make_publisher(agents, polish_viz, _car_center)
 
-    from omni.isaac.core.prims import XFormPrim as _XFP
+    from isaacsim.core.prims import SingleXFormPrim as _XFP
     viz_flush_step = 0
     lift_step = 0
     scan_cloud_revealed = False
@@ -404,10 +603,22 @@ def main(simulation_app, obj_name="car"):
     # POLISH_RENDER_EVERY=1(기본)=매 스텝 렌더, 4~10이면 벽시계 속도 크게 상승.
     render_every = max(1, int(os.environ.get("POLISH_RENDER_EVERY", "1")))
     render_idx = 0
+    # 헤드리스 종료 조건 (기본값은 기존과 동일: 창을 닫을 때까지 무한 루프).
+    #   MAX_SIM_STEPS=N          → world.step() N회 후 루프 종료 (0=무제한)
+    #   POLISH_EXIT_WHEN_DONE=1  → 모든 로봇 완료 + 리프트 하강 완료 시 루프 종료
+    max_sim_steps = int(os.environ.get("MAX_SIM_STEPS", "0") or 0)
+    exit_when_done = os.environ.get("POLISH_EXIT_WHEN_DONE", "0") == "1"
+    _ctl_path = os.environ.get("POLISH_CONTROL", ""); _ctl_mtime = [None]; _ctl = {"pause": False}
+    sim_step = 0
     while simulation_app.is_running():
         do_render = (render_idx % render_every == 0)
         render_idx += 1
         world.step(render=do_render)
+        sim_step += 1
+        if max_sim_steps > 0 and sim_step >= max_sim_steps:
+            print(f"[main] MAX_SIM_STEPS={max_sim_steps} 도달 — 시뮬레이션 루프 종료", flush=True)
+            _rl_flush("max_steps")
+            break
         if not world.is_playing():
             continue
 
@@ -499,14 +710,41 @@ def main(simulation_app, obj_name="car"):
                 print("[main] 리프트 하강 완료 — 차량 원위치 복귀. (시뮬레이션 계속 실행 중)")
                 lowering = False  # 하강 루프 탈출, 이후 idle 루프
                 lowered_done = True  # 재진입 방지
+                if exit_when_done:
+                    print("[main] POLISH_EXIT_WHEN_DONE=1 — 폴리싱·하강 완료, 시뮬레이션 루프 종료", flush=True)
+                    _rl_flush("done")
+                    break
             continue
 
         # 하강까지 모두 끝났으면 idle(시뮬 창만 유지, 아무 동작 안 함)
         if lowered_done:
+            if exit_when_done:
+                break
             continue
 
-        for agent in agents:
-            agent.step(stage)
+        # 웹 UI 실행 중 컨트롤(POLISH_CONTROL=<json>): {"pause": bool, "force_scale": x, "feed_scale": y} — 30 스텝마다 mtime 확인
+        if _ctl_path and sim_step % 30 == 0:
+            try:
+                _m = os.path.getmtime(_ctl_path) if os.path.exists(_ctl_path) else None
+                if _m is not None and _m != _ctl_mtime[0]:
+                    _ctl_mtime[0] = _m
+                    _c = json.load(open(_ctl_path)) or {}
+                    _ctl["pause"] = bool(_c.get("pause", False))
+                    _fs = max(0.3, min(2.0, float(_c.get("force_scale", 1.0)))); _fd = max(0.2, min(3.0, float(_c.get("feed_scale", 1.0))))
+                    for agent in agents:
+                        agent._ui_force_scale = _fs; agent._ui_feed_scale = _fd
+                    print(f"[main] 컨트롤: pause={_ctl['pause']} force×{_fs:.2f} feed×{_fd:.2f}", flush=True)
+                    if monitor_feed is not None:
+                        monitor_feed.event("C", f"웹 UI 컨트롤: {'일시정지' if _ctl['pause'] else '진행'} · 힘×{_fs:.2f} · 이송×{_fd:.2f}", "info", sim_step / 60.0)
+            except Exception as _exc:
+                print(f"[main] 컨트롤 파일 읽기 실패: {_exc}", flush=True)
+        if not _ctl["pause"]:
+            for agent in agents:
+                agent.step(stage)
+        if (monitor_feed is not None or recorder is not None) and sim_step % _FEED_EVERY == 0:
+            _feed_tick()
+        if rl_registry is not None and sim_step % 3000 == 0:      # ~50 s 마다 중간 판정 저장
+            _rl_flush("periodic")
 
         # 대시보드 실시간 데이터 퍼블리시(계측 전용)
         ros_pub.tick(polishing=True)
@@ -520,6 +758,6 @@ def main(simulation_app, obj_name="car"):
             polish_viz.flush(stage)
             cov = polish_viz.covered_count()
             total = polish_viz.total_count()
-            print(f"[main] ✓ 모든 로봇 폴리싱 완료(누적 {cov}/{total}점) — 리프트 하강 시작")
+            print(f"[main] 모든 로봇 폴리싱 완료(누적 {cov}/{total}점) — 리프트 하강 시작")
             lowering = True
             lower_step = 0

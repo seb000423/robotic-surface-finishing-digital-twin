@@ -13,8 +13,9 @@ sys.path = [p for p in sys.path if "/opt/ros" not in p]
 simulation_app = SimulationApp({"headless": False})
 
 # ROS2 브릿지 활성화 및 rclpy 임포트
-from omni.isaac.core.utils.extensions import enable_extension
-enable_extension("omni.isaac.ros2_bridge")
+from isaacsim.core.utils.extensions import enable_extension
+enable_extension("isaacsim.ros2.bridge")
+enable_extension("isaacsim.sensors.physics")  # Isaac Sim 6: ContactSensor wrapper ext
 
 try:
     import rclpy
@@ -24,15 +25,17 @@ except ImportError:
     ROS2_AVAILABLE = False
     print("[WARNING] rclpy 모듈을 찾을 수 없습니다. ROS2 퍼블리시가 비활성화됩니다.")
 
-from omni.isaac.core import World
-from omni.isaac.core.objects import VisualSphere
+from isaacsim.core.api import World
+from isaacsim.core.api.objects import VisualSphere
 from isaacsim.core.prims import SingleArticulation
-from omni.isaac.core.utils.prims import create_prim
-from omni.isaac.sensor import ContactSensor
+from isaacsim.core.utils.prims import create_prim
+from isaacsim.sensors.physics import ContactSensor
 
 # 스크립트 위치 기준 경로 설정
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _SRC_DIR = os.path.dirname(_SCRIPT_DIR)
+# (구) 아무 데도 안 쓰이던 잔재 코드 제거: 미정의 이름 `final_polishing` 단독 참조로
+# 실행 시 NameError 발생, `_ROBOTARM_POLISHING_DIR`도 다른 PC 절대경로라 참조 없이 죽은 코드였음.
 
 # RMPFlow 컨트롤러 경로 추가
 sys.path.append(os.path.join(_SRC_DIR, "rmpflow"))
@@ -615,7 +618,7 @@ def main():
     world.scene.add_default_ground_plane()
     
     # 로봇이 흰색이라 잘 보이도록 어두운 톤의 바닥 시각화용 박스 추가
-    from omni.isaac.core.objects import VisualCuboid
+    from isaacsim.core.api.objects import VisualCuboid
     world.scene.add(
         VisualCuboid(
             prim_path="/World/DarkFloor",
@@ -655,9 +658,7 @@ def main():
     # 스캔 데이터 로드 (원본 포인트 클라우드)
     raw_points = load_ply_points(PLY_PATH)
     
-    # ---------------------------------------------------------
     # 본네트(Hood) 부분만 추출 (앞유리창 제외)
-    # ---------------------------------------------------------
     # Y축 기준으로 -0.35보다 큰 쪽은 위로 솟아오르는 앞유리(Windshield)이므로 잘라냅니다.
     filtered_points = []
     for p in raw_points:
@@ -665,7 +666,6 @@ def main():
             filtered_points.append(p)
     raw_points = np.array(filtered_points)
     print(f"Filtered to {len(raw_points)} points (Hood only, Windshield removed).")
-    # ---------------------------------------------------------
 
     # [정밀 제어를 위한 실제 표면 법선 계산 준비]
     from scipy.spatial import KDTree
@@ -710,7 +710,6 @@ def main():
         print(f"Loaded {len(points)} waypoints from {PATH_NPY} for robot tracking.")
         
         points = filter_safe_waypoints(points, raw_points, kdtree)
-        # --------------------------------------------------------
     else:
         print(f"[ERROR] Cannot find {PATH_NPY}")
         points = np.array([])
@@ -724,7 +723,7 @@ def main():
     ]
     pad_path = pad_path_candidates[0]
     try:
-        from omni.isaac.core.utils.prims import get_prim_at_path
+        from isaacsim.core.utils.prims import get_prim_at_path
         for candidate in pad_path_candidates:
             if get_prim_at_path(candidate):
                 pad_path = candidate
@@ -749,7 +748,7 @@ def main():
         physx_scene.GetPrim().CreateAttribute("physxScene:maxDepenetrationVelocity", Sdf.ValueTypeNames.Float).Set(0.05)
         
     # 1-2. 스펀지처럼 반발력이 없는 물리 재질 생성 (PhysicsMaterial 사용)
-    from omni.isaac.core.materials import PhysicsMaterial
+    from isaacsim.core.api.materials import PhysicsMaterial
     no_bounce_material = PhysicsMaterial(
         prim_path="/World/NoBounceMaterial",
         dynamic_friction=POLISHING_DYNAMIC_FRICTION,
@@ -784,7 +783,6 @@ def main():
                 # 마찰력 0 재질 바인딩
                 material_prim = stage.GetPrimAtPath("/World/NoBounceMaterial")
                 UsdShade.MaterialBindingAPI.Apply(prim).Bind(UsdShade.Material(material_prim), UsdShade.Tokens.weakerThanDescendants, "physics")
-    # -------------------------------------------------------------------------
     # (실제 물리 모터(Revolute Joint) 추가 코드는 로봇 Articulation 트리를 붕괴시켜 로봇이 주저앉는 원인이 되므로 삭제함)
     
     pad_prim = stage.GetPrimAtPath(contact_report_path)
@@ -827,7 +825,7 @@ def main():
     # 터미널에서 로봇 관절의 일원으로서 패드의 모터 속도를 추출할 것입니다.
     
     # --- 동적 TCP 변환 초기화 (하드코딩 제거) ---
-    from omni.isaac.core.utils.xforms import get_world_pose
+    from isaacsim.core.utils.xforms import get_world_pose
     from scipy.spatial.transform import Rotation as R
 
     link_6_path = "/World/M0609/m0609/m0609/link_6"
@@ -842,7 +840,6 @@ def main():
     else:
         pad_contact_offset_local = compute_pad_contact_offset_local(stage, link_6_path, pad_path)
     # (동적 측정 삭제: USD Xform 원점이 실제 메쉬 끝단이 아니라 0.8cm 부근에 찍혀 있어서 오차가 발생함)
-    # ---------------------------------------------
     
     # RMPFlow 제어기 초기화
     controller = RMPFlowController(
@@ -852,7 +849,7 @@ def main():
         end_effector_frame_name="link_6"
     )
     
-    from omni.isaac.core.objects import VisualCuboid, VisualCylinder
+    from isaacsim.core.api.objects import VisualCuboid, VisualCylinder
     
     # 1. 로봇 단상 시각화 (Z=0 ~ Z=0.5)
     world.scene.add(
@@ -868,7 +865,7 @@ def main():
     
 
     # pyrefly: ignore [missing-import]
-    import omni.isaac.core.utils.rotations as rot_utils
+    import isaacsim.core.utils.rotations as rot_utils
     
     current_target_idx = 0
     current_path_idx_float = 0.0 # 부드러운 보간을 위한 실수형 인덱스
@@ -898,8 +895,8 @@ def main():
     completed_path_prim.CreateWidthsAttr().Set([0.007])
     completed_path_prim.CreateDisplayColorAttr().Set([(1.0, 0.82, 0.05)])
     
-    from omni.isaac.core.utils.xforms import get_world_pose
-    from omni.isaac.core.utils.prims import get_prim_at_path
+    from isaacsim.core.utils.xforms import get_world_pose
+    from isaacsim.core.utils.prims import get_prim_at_path
     
     if ROS2_AVAILABLE:
         rclpy.init(args=None)
@@ -1002,7 +999,7 @@ def main():
             color=np.array([0.0, 1.0, 0.0])
         )
 
-    from omni.isaac.core.utils.types import ArticulationAction
+    from isaacsim.core.utils.types import ArticulationAction
 
     run_state = STATE_HOME
     state_step_count = 0
@@ -1252,7 +1249,6 @@ def main():
                 normal = NORMAL_SMOOTHING * previous_normal + (1.0 - NORMAL_SMOOTHING) * normal
                 normal = normal / np.linalg.norm(normal)
             previous_normal = normal
-            # ---------------------------------------------------------
             
             # --- 동적 TCP 제어 ---
             # 1. 목표 회전: 샌딩면이 본네트 안쪽을 향하도록 link_6 +Z를 -normal에 맞춥니다.

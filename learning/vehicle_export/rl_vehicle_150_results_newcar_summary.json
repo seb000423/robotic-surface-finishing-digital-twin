@@ -1,0 +1,218 @@
+{
+  "policy_type": "BC 부트스트랩 + 종말보상 PPO (논문 기반 최종 GU proxy 종말 보상)",
+  "checkpoint": "learning/rl/champion/model_terminal_ppo_14ch_it800.pt",
+  "evaluation_mode": "flat_trained_bc_ppo_terminal_policy_inference",
+  "curved_generalization_validated": false,
+  "note_curved": "정책은 120×120 mm 평면 patch 학습본. 아래 top/side 구분은 같은 평면 학습 정책의 자세별 추론 결과이지 곡면 재학습·검증 결과가 아니다.",
+  "clearcoat_safety_limit_um": 35.0,
+  "thresholds": {
+    "gu_min": 70.0,
+    "ra_max_um": 0.2,
+    "rz_max_um": 2.0,
+    "clearcoat_min_um": 35.0,
+    "provenance": "literature-derived project target — 논문 기반 디지털 트윈 판정값. 프로젝트 자체 실측·보정값 아님. 미달 시 목표를 낮추지 않고 실패로 판정"
+  },
+  "all": {
+    "n_cells": 150,
+    "n_pass": 147,
+    "gu_after": {
+      "mean": 72.852,
+      "min": 65.92,
+      "max": 74.76
+    },
+    "scratch_after_um": {
+      "mean": 0.151,
+      "min": 0.018,
+      "max": 0.64
+    },
+    "scratch_reduction_pct": 62.0,
+    "clearcoat_remaining_min_um": {
+      "mean": 41.759,
+      "min": 35.3,
+      "max": 47.95
+    }
+  },
+  "top_facing_cells (보닛/루프 등, tilt≤45°)": {
+    "n_cells": 50,
+    "n_pass": 48,
+    "gu_after": {
+      "mean": 72.598,
+      "min": 65.92,
+      "max": 74.76
+    },
+    "scratch_after_um": {
+      "mean": 0.123,
+      "min": 0.026,
+      "max": 0.411
+    },
+    "scratch_reduction_pct": 66.3,
+    "clearcoat_remaining_min_um": {
+      "mean": 41.33,
+      "min": 35.3,
+      "max": 45.73
+    }
+  },
+  "side_facing_cells (도어/펜더 등, tilt>45°)": {
+    "n_cells": 100,
+    "n_pass": 99,
+    "gu_after": {
+      "mean": 72.98,
+      "min": 68.53,
+      "max": 74.72
+    },
+    "scratch_after_um": {
+      "mean": 0.165,
+      "min": 0.018,
+      "max": 0.64
+    },
+    "scratch_reduction_pct": 60.1,
+    "clearcoat_remaining_min_um": {
+      "mean": 41.973,
+      "min": 35.53,
+      "max": 47.95
+    }
+  },
+  "per_region": {
+    "R1:bonnet": {
+      "n_cells": 25,
+      "n_pass": 23,
+      "gu_after": {
+        "mean": 72.248,
+        "min": 65.92,
+        "max": 74.29
+      },
+      "scratch_after_um": {
+        "mean": 0.116,
+        "min": 0.032,
+        "max": 0.323
+      },
+      "scratch_reduction_pct": 67.2,
+      "clearcoat_remaining_min_um": {
+        "mean": 40.989,
+        "min": 35.3,
+        "max": 44.88
+      }
+    },
+    "R2:roof": {
+      "n_cells": 25,
+      "n_pass": 25,
+      "gu_after": {
+        "mean": 72.949,
+        "min": 71.09,
+        "max": 74.76
+      },
+      "scratch_after_um": {
+        "mean": 0.13,
+        "min": 0.026,
+        "max": 0.411
+      },
+      "scratch_reduction_pct": 65.4,
+      "clearcoat_remaining_min_um": {
+        "mean": 41.671,
+        "min": 36.24,
+        "max": 45.73
+      }
+    },
+    "R3:door_left": {
+      "n_cells": 25,
+      "n_pass": 24,
+      "gu_after": {
+        "mean": 72.87,
+        "min": 68.53,
+        "max": 74.72
+      },
+      "scratch_after_um": {
+        "mean": 0.184,
+        "min": 0.018,
+        "max": 0.536
+      },
+      "scratch_reduction_pct": 59.3,
+      "clearcoat_remaining_min_um": {
+        "mean": 42.246,
+        "min": 35.53,
+        "max": 47.39
+      }
+    },
+    "R4:door_right": {
+      "n_cells": 25,
+      "n_pass": 25,
+      "gu_after": {
+        "mean": 72.658,
+        "min": 70.89,
+        "max": 74.52
+      },
+      "scratch_after_um": {
+        "mean": 0.171,
+        "min": 0.018,
+        "max": 0.64
+      },
+      "scratch_reduction_pct": 56.0,
+      "clearcoat_remaining_min_um": {
+        "mean": 41.176,
+        "min": 36.09,
+        "max": 46.94
+      }
+    },
+    "R5:fender_left": {
+      "n_cells": 25,
+      "n_pass": 25,
+      "gu_after": {
+        "mean": 73.252,
+        "min": 70.56,
+        "max": 74.36
+      },
+      "scratch_after_um": {
+        "mean": 0.157,
+        "min": 0.025,
+        "max": 0.485
+      },
+      "scratch_reduction_pct": 61.1,
+      "clearcoat_remaining_min_um": {
+        "mean": 42.79,
+        "min": 37.7,
+        "max": 47.95
+      }
+    },
+    "R6:fender_right": {
+      "n_cells": 25,
+      "n_pass": 25,
+      "gu_after": {
+        "mean": 73.138,
+        "min": 70.24,
+        "max": 74.58
+      },
+      "scratch_after_um": {
+        "mean": 0.149,
+        "min": 0.021,
+        "max": 0.411
+      },
+      "scratch_reduction_pct": 64.0,
+      "clearcoat_remaining_min_um": {
+        "mean": 41.681,
+        "min": 36.43,
+        "max": 46.39
+      }
+    }
+  },
+  "failed_cells": [
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "5",
+      "failure_reason": "gu_below_target(69.5<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "17",
+      "failure_reason": "gu_below_target(65.9<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "4",
+      "failure_reason": "gu_below_target(68.5<70)"
+    }
+  ],
+  "synthetic_disclaimer": "모든 품질 수치는 논문 근거 모델의 SYNTHETIC 출력 — 실측 아님."
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "recipe_id": "recipe_outer_side_cand",
+  "source": "bo_outer_loop_v1_policy_in_loop (side)",
+  "polishing_model_version": "literature_polishing_v1",
+  "gloss_model_version": "literature_gu_proxy_v1",
+  "pad_profile_id": "fixed_pad_v1",
+  "compound_profile_id": "compound_v1",
+  "target_contact_force_n": 8.3,
+  "feed_speed_mm_s": 6.9,
+  "rpm": 4648.0,
+  "step_over_spacing_ratio": 0.262,
+  "n_passes": 3,
+  "tool_path_type": "raster",
+  "tool_angle_rad": [
+    0.0,
+    0.0
+  ],
+  "gu_target": 70.0,
+  "gu_type": "literature_proxy",
+  "constraints": {
+    "force_hard_limit_n": 14.0,
+    "clearcoat_safety_limit_um": 30.0,
+    "healthy_overremoval_limit_um": 3.0,
+    "heat_proxy_limit": 9.0,
+    "coverage_min": 0.9
+  },
+  "objective_weights": {
+    "w_gu": 1.0,
+    "w_scratch": 0.5,
+    "w_map": 0.3,
+    "w_healthy": 0.3,
+    "w_time": 0.2,
+    "w_ra": 0.2,
+    "scratch_scale_um": 2.0,
+    "overremoval_scale_um": 2.0,
+    "time_scale_s": 1800.0,
+    "ra_scale_um": 0.2
+  },
+  "search_space": {
+    "force_n": [
+      5.0,
+      8.4
+    ],
+    "feed_mm_s": [
+      1.0,
+      8.0
+    ],
+    "rpm": [
+      3000.0,
+      6000.0
+    ],
+    "spacing_ratio": [
+      0.15,
+      0.8
+    ],
+    "n_passes": [
+      1,
+      3
+    ]
+  },
+  "result": {
+    "cost": 0.49366395440530353,
+    "gu_mean": 67.75979630194574,
+    "gu_worst": 53.825074436696,
+    "gloss_pass_all": false,
+    "process_time_s": 672.7287803711555,
+    "clearcoat_min_um": 38.380022318531026,
+    "healthy_overremoval_um": 0.28221804621582064
+  }
+}

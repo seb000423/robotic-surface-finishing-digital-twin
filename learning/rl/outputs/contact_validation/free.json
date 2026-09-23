@@ -1,0 +1,57 @@
+{
+  "phase": "free",
+  "num_envs": 1,
+  "contact_mode": "physical",
+  "thresholds": {
+    "free_space_max_n": 0.05,
+    "static_ss_err_max_n": 0.5,
+    "static_ss_std_max_n": 0.3,
+    "static_overshoot_max_ratio": 0.5,
+    "static_penetration_max_m": 0.006,
+    "track_err_mean_max_n": 1.0,
+    "track_err_p95_max_n": 2.5,
+    "reset_spike_max_n": 8.0
+  },
+  "segments": {
+    "free": {
+      "steps": 400,
+      "max_sensor_raw_n": 0.0,
+      "max_force_used_n": 0.0,
+      "removal_max_um": 0.0,
+      "temp_over_ambient_c": 0.0
+    }
+  },
+  "checks": [
+    {
+      "name": "finite",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "free-space sensor ~0N",
+      "pass": true,
+      "detail": "max raw=0.0000N (< 0.05)"
+    },
+    {
+      "name": "no sensor fault",
+      "pass": true,
+      "detail": "faults=0"
+    },
+    {
+      "name": "force_used ~0 (비접촉 무가공 게이트)",
+      "pass": true,
+      "detail": "max used=0.0000N"
+    },
+    {
+      "name": "비접촉 제거량 0",
+      "pass": true,
+      "detail": "removal max=0.000000um"
+    },
+    {
+      "name": "비접촉 발열 0",
+      "pass": true,
+      "detail": "temp-ambient=0.000C (rise span=0.000C)"
+    }
+  ],
+  "result": "PASS"
+}

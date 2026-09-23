@@ -1,0 +1,9 @@
+condition,round,env,gu_before,gu_after,scratch_before_um,scratch_after_um,ra_before_um,ra_after_um,rz_before_um,rz_after_um,clearcoat_min_um,temperature_mean_c,temperature_peak_c,thermal_damage_peak,gu_pass,ra_pass,rz_pass,cc_pass,scratch_improved,thermal_safe,overall_pass,checkpoint,contact_mode
+baseline,0,0,48.02,56.55,1.829,1.699,0.2484,0.1994,2.241,2.103,39.07,25.779,30.43,0.0,False,True,False,True,True,True,False,action=0,physical
+baseline,0,1,55.02,63.8,1.759,1.404,0.17,0.1419,1.857,1.662,39.15,25.779,30.43,0.0,False,True,True,True,True,True,False,action=0,physical
+baseline,0,2,51.5,64.36,1.457,1.264,0.1698,0.1191,1.748,1.489,40.84,25.779,30.43,0.0,False,True,True,True,True,True,False,action=0,physical
+baseline,0,3,49.7,58.18,1.634,1.342,0.2671,0.2208,2.239,2.074,44.5,25.779,30.43,0.0,False,False,False,True,True,True,False,action=0,physical
+ppo,0,2,51.5,67.47,1.457,1.011,0.1698,0.1502,1.748,1.447,40.17,24.972,36.866,0.020586,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+ppo,0,1,55.02,65.92,1.759,1.195,0.17,0.1586,1.857,1.6,38.78,24.972,36.39,0.007176,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+ppo,0,0,48.02,59.05,1.829,1.456,0.2484,0.207,2.241,2.051,38.49,24.972,34.574,0.0,False,False,False,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+ppo,0,3,49.7,61.24,1.634,1.232,0.2671,0.2042,2.239,1.923,44.15,24.972,36.798,0.007372,False,False,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical

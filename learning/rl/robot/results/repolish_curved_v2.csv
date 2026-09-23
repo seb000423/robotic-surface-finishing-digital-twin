@@ -1,0 +1,9 @@
+checkpoint,env,sequence,outcome,passes,gu_before,gu_final,ra_final_um,rz_final_um,scratch_before_um,scratch_final_um,clearcoat_min_um,temperature_peak_c,thermal_damage_peak,quality_ok,safety_ok
+model_ppo_curved.pt,3,0,fail_force_overload,0,49.7,60.7,0.1984,1.926,1.634,1.255,44.12,35.82,0.006907,False,False
+model_ppo_curved.pt,3,1,fail_force_overload,0,49.04,61.5,0.1656,1.686,1.704,1.198,43.57,35.94,0.008501,False,False
+model_ppo_curved.pt,1,0,fail_force_overload,1,55.02,66.77,0.1727,1.316,1.759,0.634,37.52,36.13,0.017748,False,False
+model_ppo_curved.pt,1,1,fail_force_overload,0,50.15,64.11,0.1497,1.813,1.678,1.305,45.03,35.91,0.008167,False,False
+model_ppo_curved.pt,0,0,fail_quality_regression,2,48.02,53.39,0.1785,1.443,1.829,0.392,35.29,37.61,0.078861,False,True
+model_ppo_curved.pt,2,0,fail_quality_regression,2,51.5,65.88,0.1403,1.152,1.457,0.206,37.47,36.79,0.049087,False,True
+model_ppo_curved.pt,2,1,fail_quality_regression,2,61.36,66.15,0.1395,0.975,1.412,0.097,37.28,36.25,0.0435,False,True
+model_ppo_curved.pt,0,1,fail_quality_regression,3,53.57,67.72,0.166,1.476,1.814,0.078,43.5,36.4,0.064053,False,True

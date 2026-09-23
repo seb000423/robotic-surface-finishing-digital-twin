@@ -30,7 +30,7 @@ import omni.replicator.core as rep
 
 from pxr import Usd, UsdGeom, Vt, Gf
 from isaacsim.core.api import World
-from omni.isaac.core.utils.prims import create_prim
+from isaacsim.core.utils.prims import create_prim
 
 DEPTH_DIR = os.path.join(OUTPUT_DIR, "depth")
 POINTS_DIR = os.path.join(OUTPUT_DIR, "points")
@@ -148,7 +148,6 @@ def main():
 
     print("[DEBUG] Setting Semantic Label for Target Mesh")
     from pxr import Semantics
-    # 사용자가 클릭한 특정 파츠의 경로
     target_prim_path = f"/World/{args.obj_name.capitalize()}/tc/tc/bmw_z4_car_007_color_polySurface37"
     target_prim = stage.GetPrimAtPath(target_prim_path)
     if target_prim.IsValid():

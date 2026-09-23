@@ -1,0 +1,112 @@
+{
+  "phase": "static",
+  "num_envs": 1,
+  "contact_mode": "physical",
+  "thresholds": {
+    "free_space_max_n": 0.05,
+    "static_ss_err_max_n": 0.5,
+    "static_ss_std_max_n": 0.3,
+    "static_overshoot_max_ratio": 0.5,
+    "static_penetration_max_m": 0.006,
+    "track_err_mean_max_n": 1.0,
+    "track_err_p95_max_n": 2.5,
+    "reset_spike_max_n": 8.0
+  },
+  "segments": {
+    "static_3N": {
+      "steps": 600,
+      "steady_state_mean_n": 2.9999713865915933,
+      "steady_state_err_n": -2.8613408406652496e-05,
+      "steady_state_std_n": 0.0004577416581803519,
+      "overshoot_n": 0.2253401279449463,
+      "settle_time_s": 5.05,
+      "penetration_m": 0.0007430016994476318,
+      "max_raw_n": 3.3894317150115967,
+      "model_ss_mean_n": 6.559982900619507,
+      "net_vs_matrix_max_n": 0.0,
+      "died_resets": 0
+    },
+    "static_5N": {
+      "steps": 600,
+      "steady_state_mean_n": 5.000014966328939,
+      "steady_state_err_n": 1.4966328938825768e-05,
+      "steady_state_std_n": 0.00046115919850773363,
+      "overshoot_n": 0.0014176368713378906,
+      "settle_time_s": 5.05,
+      "penetration_m": 0.001010209321975708,
+      "max_raw_n": 5.002852916717529,
+      "model_ss_mean_n": 6.65349401473999,
+      "net_vs_matrix_max_n": 0.0,
+      "died_resets": 0
+    },
+    "static_8N": {
+      "steps": 600,
+      "steady_state_mean_n": 7.999989054997762,
+      "steady_state_err_n": -1.094500223786099e-05,
+      "steady_state_std_n": 0.00042092444399061433,
+      "overshoot_n": 0.0015087127685546875,
+      "settle_time_s": 5.0,
+      "penetration_m": 0.0013787448406219482,
+      "max_raw_n": 8.002768516540527,
+      "model_ss_mean_n": 6.7824754110972085,
+      "net_vs_matrix_max_n": 0.0,
+      "died_resets": 0
+    },
+    "static_10N": {
+      "steps": 600,
+      "steady_state_mean_n": 9.999935455322266,
+      "steady_state_err_n": -6.454467773409078e-05,
+      "steady_state_std_n": 0.0008312861342518246,
+      "overshoot_n": 0.00237274169921875,
+      "settle_time_s": 5.05,
+      "penetration_m": 0.0016472041606903076,
+      "max_raw_n": 10.004535675048828,
+      "model_ss_mean_n": 6.876429932912191,
+      "net_vs_matrix_max_n": 0.0,
+      "died_resets": 0
+    }
+  },
+  "checks": [
+    {
+      "name": "static 3N",
+      "pass": true,
+      "detail": "ss=3.000N err=-0.000N std=0.000N ovs=0.225N settle=5.05s pen=0.74mm resets=0"
+    },
+    {
+      "name": "static 3N net≈pair힘(허위접촉 없음)",
+      "pass": true,
+      "detail": "max|net-matrix|=0.000N"
+    },
+    {
+      "name": "static 5N",
+      "pass": true,
+      "detail": "ss=5.000N err=+0.000N std=0.000N ovs=0.001N settle=5.05s pen=1.01mm resets=0"
+    },
+    {
+      "name": "static 5N net≈pair힘(허위접촉 없음)",
+      "pass": true,
+      "detail": "max|net-matrix|=0.000N"
+    },
+    {
+      "name": "static 8N",
+      "pass": true,
+      "detail": "ss=8.000N err=-0.000N std=0.000N ovs=0.002N settle=5.0s pen=1.38mm resets=0"
+    },
+    {
+      "name": "static 8N net≈pair힘(허위접촉 없음)",
+      "pass": true,
+      "detail": "max|net-matrix|=0.000N"
+    },
+    {
+      "name": "static 10N",
+      "pass": true,
+      "detail": "ss=10.000N err=-0.000N std=0.001N ovs=0.002N settle=5.05s pen=1.65mm resets=0"
+    },
+    {
+      "name": "static 10N net≈pair힘(허위접촉 없음)",
+      "pass": true,
+      "detail": "max|net-matrix|=0.000N"
+    }
+  ],
+  "result": "PASS"
+}

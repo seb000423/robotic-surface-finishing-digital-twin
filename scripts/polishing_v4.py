@@ -17,8 +17,9 @@ sys.path = [p for p in sys.path if "/opt/ros" not in p]
 
 simulation_app = SimulationApp({"headless": False})
 
-from omni.isaac.core.utils.extensions import enable_extension
-enable_extension("omni.isaac.ros2_bridge")
+from isaacsim.core.utils.extensions import enable_extension
+enable_extension("isaacsim.ros2.bridge")
+enable_extension("isaacsim.sensors.physics")  # Isaac Sim 6: ContactSensor wrapper ext
 
 try:
     import rclpy
@@ -27,12 +28,12 @@ try:
 except ImportError:
     ROS2_AVAILABLE = False
 
-from omni.isaac.core import World
-from omni.isaac.core.objects import VisualSphere, VisualCylinder, VisualCuboid
+from isaacsim.core.api import World
+from isaacsim.core.api.objects import VisualSphere, VisualCylinder, VisualCuboid
 from isaacsim.core.prims import SingleArticulation
-from omni.isaac.core.utils.prims import create_prim
-from omni.isaac.sensor import ContactSensor
-from omni.isaac.core.utils.types import ArticulationAction
+from isaacsim.core.utils.prims import create_prim
+from isaacsim.sensors.physics import ContactSensor
+from isaacsim.core.utils.types import ArticulationAction
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial import KDTree
 
@@ -48,12 +49,10 @@ _SRC_DIR = os.path.dirname(_SCRIPT_DIR)
 sys.path.append(os.path.join(_SRC_DIR, "rmpflow"))
 from m0609_rmpflow_controller import RMPFlowController
 
-# ─────────────────────────────────────────────
 # 로봇 설정 (path_generator.py의 ROBOT_BASE_POSITIONS와 동일해야 함)
 # base_yaw: 로봇이 차량 방향을 향하도록 설정
 #   왼쪽 로봇(X < 0): -π/2 → +X 방향 바라봄
 #   오른쪽 로봇(X > 0): +π/2 → -X 방향 바라봄
-# ─────────────────────────────────────────────
 ROBOT_CONFIGS = [
     {"base_position": np.array([-1.0, -0.65, 0.5]), "base_yaw": -0.5 * np.pi},  # Robot 0: 왼쪽 앞
     {"base_position": np.array([-1.0, -0.95, 0.5]), "base_yaw": -0.5 * np.pi},  # Robot 1: 왼쪽 뒤
@@ -72,9 +71,7 @@ ROBOT_COLORS = [
 ]
 VIZ_UPDATE_INTERVAL_STEPS = 5  # 경로 시각화 업데이트 주기
 
-# ─────────────────────────────────────────────
 # 물리/제어 상수 (polishing_v1.py와 동일)
-# ─────────────────────────────────────────────
 HOOD_Y_MAX = 9999.0
 PATH_MIN_RADIUS = 0.48
 PATH_MAX_RADIUS = 0.66
@@ -125,7 +122,7 @@ CONTACT_SETTLE_STEPS = 2
 PATH_ADVANCE_PER_STEP = 1.0 / 60.0
 PATH_CREEP_ADVANCE_PER_STEP = 0.0
 STATUS_LOG_INTERVAL_STEPS = 15
-# 왼쪽 로봇(yaw=-π/2): joint_1=0 → 팔이 world -90° (차량 방향) ✓
+# 왼쪽 로봇(yaw=-π/2): joint_1=0 → 팔이 world -90° (차량 방향)
 # 오른쪽 로봇(yaw=+π/2): joint_1=0 → 팔이 world +90° (차량 반대!) → joint_1=π 필요
 HOME_JOINT_POSITIONS_LEFT  = np.array([0.0,      -1.05, 1.45, 0.0, 1.15, 0.0])
 HOME_JOINT_POSITIONS_RIGHT = np.array([np.pi,    -1.05, 1.45, 0.0, 1.15, 0.0])
@@ -144,9 +141,7 @@ STATE_RETURN_HOME = "RETURN_HOME"
 STATE_DONE = "DONE"
 
 
-# ─────────────────────────────────────────────
 # 유틸리티 함수 (polishing_v1.py와 동일)
-# ─────────────────────────────────────────────
 
 def load_ply_points(path):
     points = []
@@ -417,9 +412,7 @@ def create_polishing_contact_disk_for_robot(stage, robot_root_path, old_pad_path
     return disk_path
 
 
-# ─────────────────────────────────────────────
 # RobotAgent: 로봇 1대의 상태 및 시뮬레이션 로직 캡슐화
-# ─────────────────────────────────────────────
 
 class RobotAgent:
     def __init__(self, idx, config, raw_points, kdtree, scan_dir):
@@ -520,7 +513,7 @@ class RobotAgent:
         ]
         old_pad_path = pad_candidates[0]
         try:
-            from omni.isaac.core.utils.prims import get_prim_at_path
+            from isaacsim.core.utils.prims import get_prim_at_path
             for c in pad_candidates:
                 if get_prim_at_path(c):
                     old_pad_path = c
@@ -938,9 +931,7 @@ class RobotAgent:
                 )
 
 
-# ─────────────────────────────────────────────
 # 메인
-# ─────────────────────────────────────────────
 
 def main():
     import omni.usd
@@ -998,7 +989,7 @@ def main():
         ).Set(0.05)
 
     # 공유 물리 재질 (NoBounceMaterial)
-    from omni.isaac.core.materials import PhysicsMaterial
+    from isaacsim.core.api.materials import PhysicsMaterial
     PhysicsMaterial(
         prim_path="/World/NoBounceMaterial",
         dynamic_friction=POLISHING_DYNAMIC_FRICTION,

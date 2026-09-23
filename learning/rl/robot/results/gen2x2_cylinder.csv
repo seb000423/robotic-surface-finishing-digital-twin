@@ -1,0 +1,13 @@
+condition,round,env,gu_before,gu_after,scratch_before_um,scratch_after_um,ra_before_um,ra_after_um,rz_before_um,rz_after_um,clearcoat_min_um,temperature_mean_c,temperature_peak_c,thermal_damage_peak,gu_pass,ra_pass,rz_pass,cc_pass,scratch_improved,thermal_safe,overall_pass,checkpoint,contact_mode
+baseline,0,2,51.5,58.59,1.457,1.291,0.1698,0.1405,1.748,1.666,41.36,26.621,35.07,0.000112,False,True,True,True,True,True,False,action=0,physical
+baseline,0,3,49.7,54.05,1.634,1.629,0.2671,0.2506,2.239,2.156,44.52,26.621,35.07,0.000112,False,False,False,True,True,True,False,action=0,physical
+baseline,0,1,55.02,60.63,1.759,1.7,0.17,0.1708,1.857,1.872,39.87,26.623,35.239,0.000735,False,True,True,True,True,True,False,action=0,physical
+baseline,0,0,48.02,56.49,1.829,1.695,0.2484,0.1925,2.241,2.051,39.1,26.953,36.154,0.005615,False,True,False,True,True,True,False,action=0,physical
+flat_policy,0,0,48.02,51.7,1.829,1.735,0.2484,0.2324,2.241,2.291,39.37,25.65,36.197,0.000696,False,False,False,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+flat_policy,0,1,55.02,60.25,1.759,1.7,0.17,0.1612,1.857,1.884,39.9,26.149,36.71,0.011438,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+flat_policy,0,2,51.5,59.97,1.457,1.171,0.1698,0.1462,1.748,1.625,41.36,25.932,37.391,0.016699,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+flat_policy,0,3,49.7,61.73,1.634,1.22,0.2671,0.1791,2.239,1.778,43.82,26.122,38.05,0.032315,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-29_21-41-47/model_final.pt,physical
+curved_policy,0,3,49.7,66.8,1.634,0.909,0.2671,0.1922,2.239,1.753,43.54,25.796,35.904,0.015659,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-30_14-56-44/model_final.pt,physical
+curved_policy,0,0,48.02,61.72,1.829,1.122,0.2484,0.1791,2.241,1.812,37.62,25.799,36.047,0.018556,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-30_14-56-44/model_final.pt,physical
+curved_policy,0,2,51.5,68.29,1.457,0.81,0.1698,0.1274,1.748,1.168,39.49,25.799,35.975,0.017171,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-30_14-56-44/model_final.pt,physical
+curved_policy,0,1,55.02,66.96,1.759,0.773,0.17,0.1467,1.857,1.293,37.62,25.799,36.16,0.021921,False,True,True,True,True,True,False,learning/rl/robot/logs/2026-08-30_14-56-44/model_final.pt,physical

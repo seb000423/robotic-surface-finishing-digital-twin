@@ -11,10 +11,8 @@ _SRC_DIR = os.path.dirname(_SCRIPT_DIR)
 
 if os.path.join(_SRC_DIR, "rmpflow") not in sys.path:
     sys.path.append(os.path.join(_SRC_DIR, "rmpflow"))
-# ─────────────────────────────────────────────
 # 레일 설정: path_generator.py가 생성한 rail_config.json에서 로드
 # (두 로봇 모두 왼쪽 X=-1.0, 자동차 길이에 맞춰 Y 정지 위치 자동 계산됨)
-# ─────────────────────────────────────────────
 # RAIL_CONFIGS / RAIL_Y_STOPS 는 main()에서 rail_config.json 로드 후 동적으로 구성
 
 ROBOT_USD_PATH = os.path.join(_SRC_DIR, "usd", "env", "Collected_m0609_with_polisher", "m0609_with_polisher.usd")
@@ -33,9 +31,7 @@ RAIL_SLIDE_SPEED = 0.0018 * POLISH_TRAVEL_SCALE   # m/step — 구간 간 비접
 RAIL_SLIDE_ARRIVAL_TOL = 0.002  # 도착 판정 임계값 (m)
 SLIDE_SETTLE_STEPS = 90    # 슬라이딩 후 물리 안정화 대기 스텝
 
-# ─────────────────────────────────────────────
 # 물리/제어 상수 (polishing_v1.py와 동일)
-# ─────────────────────────────────────────────
 HOOD_Y_MAX = 9999.0   # 레일 모드: 차량 전체 Y 범위 사용
 # 반경 기본값 (rail_config.json이 없을 때 fallback)
 PATH_MIN_RADIUS = 0.35   # M0609 특이점 회피 최소 반경
@@ -51,7 +47,6 @@ FRONT_REAR_NORMAL_MIN_DOT = 0.58 # 앞/뒤면 판정: 법선 Y 성분 최소값
 PRESS_OFFSET_MIN = 0.012  # run9 안정값 복원
 PRESS_OFFSET_MAX = 0.080
 TARGET_NORMAL_FORCE = 10.0  # 목표 접촉력 기본값(평탄면). 아래 가변 제어가 곡률에 따라 조정
-# ── 가변 접촉력 제어(사용자 요청): 재질·곡률·패드에 따라 목표 N을 자동 조정 ──
 # 상단(본네트/천장)은 넓고 비교적 평탄하므로 5~9N대, 측면은 수직·곡률·중력 영향으로 3~6N대.
 TARGET_FORCE_TOP_FLAT = 8.0
 TARGET_FORCE_TOP_STEEP = 5.0
@@ -69,8 +64,18 @@ def adaptive_target_force(tilt_deg, mode="top"):
 CONTACT_FORCE_THRESHOLD = 0.5
 CONTACT_GEOMETRY_MAX_OFFSET = 0.08   # 실제 센서를 (멀지 않으면) 항상 사용 — 측면도 닿는 zoff에서 인식
 USE_VIRTUAL_SOFT_PAD = True   # 가상모델로 안정 제어/진행/마킹. 장애물OFF+convexDecomp라 평형 압입 시 디스크가 실제 표면 접촉→실센서 N도 읽힘(터미널 표시)
+# PhysX 실접촉 모드: POLISH_PHYSICAL_CONTACT=1 이면 패드 충돌체 ON,
+#   힘 = omni.physx 접촉 리포트(pad_contact.py), 가상 스프링 OFF. PhysX 로봇 환경(robot_polish_env)에서
+#   검증된 안정화 레시피(접촉 오프셋 2cm, 순응 재질 2000 N/m·200 N·s/m, 관입속도 상한 0.5 m/s) 적용.
+POLISH_PHYSICAL_CONTACT = os.environ.get("POLISH_PHYSICAL_CONTACT", "0") == "1"
+if POLISH_PHYSICAL_CONTACT:
+    USE_VIRTUAL_SOFT_PAD = False
+PAD_COMPLIANT_STIFFNESS_N_M = float(os.environ.get("POLISH_PAD_STIFFNESS", "2000.0"))
+PAD_COMPLIANT_DAMPING_N_S_M = float(os.environ.get("POLISH_PAD_DAMPING", "200.0"))
+PAD_MAX_DEPENETRATION_VEL = float(os.environ.get("POLISH_PAD_MAX_DEPEN_VEL", "0.5"))
+POLISH_APPROACH_VEL = float(os.environ.get("POLISH_APPROACH_VEL", "0.006"))   # 실접촉 어드미턴스 z 속도 상한 (m/s)
 PAD_ONLY_ROBOT_COLLISIONS = True  # 팔/샌더 본체 collision은 끄고 폴리싱 패드만 차체와 접촉시킴
-USE_PHYSICAL_CONTACT_SENSOR = False  # 디스크 충돌 off → 물리센서값은 잔여 아티팩트라 무시. 힘=실측위치 가상스프링만
+USE_PHYSICAL_CONTACT_SENSOR = POLISH_PHYSICAL_CONTACT  # 기본 False: 디스크 충돌 off, 힘=실측위치 가상스프링. POLISH_PHYSICAL_CONTACT=1 → 실접촉
 TOP_SENSOR_VALID_GAP = 0.025   # 좁힘: 패드가 실제로 닿았을 때만 센서 유효(안 닿으면 정직하게 스킵)
 SIDE_SENSOR_VALID_GAP = 0.035  # 좁힘: 측면도 실제 접촉 근처에서만 인정
 TOP_SENSOR_Z_MARGIN = -0.005
@@ -83,7 +88,7 @@ VIRTUAL_PAD_STIFFNESS = 350.0   # 강성↓: 부드러운 접촉
 VIRTUAL_PAD_DAMPING = 35.0   # 댐핑↑ → 접촉 시 튕김(floating) 억제, 착 달라붙게
 POLISHING_COMPLIANT_STIFFNESS = 200.0   # ※실측 결과 PhysX 순응접촉이 이 셋업에선 미작동(200/2500 모두 슬램 동일) — 값 무의미
 POLISHING_COMPLIANT_DAMPING = 130.0
-POLISHING_DISK_RADIUS = 0.055   # 영상 기준 150mm가 과해 보여 110mm급으로 축소
+POLISHING_DISK_RADIUS = float(os.environ.get("POLISH_PAD_RADIUS", "0.055"))   # 영상 기준 150mm가 과해 보여 110mm급으로 축소. 웹 UI 패드 지름/2 (POLISH_PAD_RADIUS, m)
 POLISHING_DISK_HEIGHT = 0.070   # 가상 스프링(최장 측면 0.065)을 패드 두께 안에 넣도록 키움. 접촉면은 캘리브로 표면에 붙임
 POLISHING_DISK_SIDES = 16
 POLISHING_VISUAL_MAX_COMPRESSION = 0.014   # 말랑 재질: 접촉하면 납작해짐(과도한 높이 튐 억제)
@@ -99,7 +104,7 @@ MAX_PRESS_VELOCITY = 0.025  # 0.008 -> 0.025 (표면 굴곡 추종성 확보)
 # accel = (F_err − D·v)/M. 댐핑 D로 진동/슬램 억제하며 목표 N에 수렴. 닿을 때까지 압입.
 ADMITTANCE_DAMPING = 50.0
 ADMITTANCE_MASS = 1.0
-ADMITTANCE_MAX_VEL = 0.02   # m/s — seek 압입 속도 상한 (v1과 동일)
+ADMITTANCE_MAX_VEL = (POLISH_APPROACH_VEL if POLISH_PHYSICAL_CONTACT else 0.02)   # m/s — seek 압입 속도 상한 (실접촉 모드는 슬램 완화용으로 낮춤)
 # 추종지연 피드포워드: RMPFlow가 명령보다 덜 내려오는 정상상태 지연을 추정해 명령을 더 깊게 보냄
 LAG_FEEDFORWARD_GAIN = 0.12   # 0.08→0.12: bad-contact/stuck 스킵이 터지기 전에 지연을 더 빨리 메움
 LAG_FEEDFORWARD_MAX = 0.08    # 0.05→0.08: RMPFlow 정상상태 지연(~2cm)+여유를 충분히 보정해 패드가 표면에 닿게
@@ -166,12 +171,9 @@ RETURN_HOME_SETTLE_STEPS = 180
 SAFE_APPROACH_CLEARANCE = 0.22
 SAFE_RETRACT_CLEARANCE = 0.22
 
-# ─────────────────────────────────────────────
-# 유리/구멍 회피 + 말랑 패드 곡면 변형 + 진단 로그 (사용자 요청)
 #  - 유리는 깊이카메라에 안 잡혀 점군이 비어 있음 → 패드 발자국(footprint) 아래
 #    점군 점이 충분할 때만 누른다. 부족하면(유리/구멍/가장자리) 스킵.
 #  - 말랑 패드: 스펀지 바닥면 정점을 그 아래 표면 점에 맞춰 휘게(굽은 면이면 굽게).
-# ─────────────────────────────────────────────
 SURFACE_FOOTPRINT_RADIUS = POLISHING_DISK_RADIUS   # 발자국 판정 반경 = 패드 반경
 SURFACE_FOOTPRINT_MIN_RATIO = 0.30   # 구간 중앙값 대비 이 비율 미만이면 유리/구멍으로 보고 스킵
 SURFACE_FOOTPRINT_MIN_ABS = 5        # 발자국 최소 점 개수(절대 하한)
@@ -179,12 +181,10 @@ CONFORMAL_PAD_ENABLED = True         # 말랑 패드 곡면 변형 on/off
 CONFORMAL_MAX_DEFORM = 0.012         # 정점 변형 최대치(m): 시각적으로 갑자기 길어지는 현상 억제
 DIAG_LOG_ENABLED = True              # status_log.txt 진단 로그 on/off
 
-# ─────────────────────────────────────────────
 # 차량 리프트: 정비소 바퀴 리프트처럼 차+점군+경로를 통째로 이만큼 들어올림.
 # 폴리싱 시작 전 차가 바닥에서 이 높이까지 상승(애니메이션). 측면이 바닥에 안 닿게.
 # 모든 점군/경로/베이스 z 가 +CAR_LIFT_Z 된 '리프트 좌표계'에서 동작.
-# ─────────────────────────────────────────────
-CAR_LIFT_Z = 0.90
+CAR_LIFT_Z = float(os.environ.get("POLISH_CAR_LIFT_Z", "0.90"))   # 차체 리프트 높이(m) — 웹 UI carLift(mm)/1000 로 덮어씀
 CAR_LIFT_ANIM_STEPS = 90   # 이 스텝 동안 바닥→리프트높이까지 상승
 
 # 주차 진입 애니메이션: 차가 +Y(창문 없앤 벽) 쪽에서 바닥으로 들어와 리프트(원점)에 주차
@@ -201,10 +201,8 @@ ENTRY_SCANNER_RADIUS = 1.25
 ENTRY_SCANNER_TUBE_RADIUS = 0.045
 ENTRY_SCANNER_SWEEP_HALF_Y = 1.75
 
-# ─────────────────────────────────────────────
 # 오버헤드 갠트리 모드 (rail_config.json의 mount_mode=="overhead"일 때 활성)
 # ※ Z 한계는 리프트만큼 같이 올림(리프트 좌표계)
-# ─────────────────────────────────────────────
 OVERHEAD_STANDOFF = 0.70   # 경로 생성과 맞춘 기본 standoff. 실제 런타임 Z는 rail_config stop Z를 따른다.
 OVERHEAD_Z_MIN    = 1.15 + CAR_LIFT_Z   # 베이스 Z 하한
 OVERHEAD_Z_MAX    = 1.95 + CAR_LIFT_Z   # 베이스 Z 상한 (갠트리 승강 상한)
@@ -241,11 +239,9 @@ SIDE_MARK_FORCE_N = 1.5            # 측면: 물리 센서가 이 이상일 때�
 # EE를 자기 Y축 기준 180° 뒤집어 패드 면을 차체로 돌림. (좌=-1, 우=+1) — 보고 한 비트만 바꾸면 됨
 SIDE_EE_FLIP_SIGNS = ()   # 뒤집기 끔(관통 방지) — 디스크 접촉축 측정 후 올바른 자세로 재설계
 
-# ─────────────────────────────────────────────
 # 측면 받침대: Vention 518823 텔레스코픽 리프트 USD 사용 (기존 파란 원통 대체)
 # 실측 스펙: 접힘 830mm / 펼침 1700mm / 스트로크 870mm / 풋프린트 315mm. 2단 신축.
 # USD는 '접힌 상태(83cm)'로 모델링됨. Y-up·cm 단위라 회전+스케일 보정 필요.
-# ─────────────────────────────────────────────
 USE_TELE_LIFT_ASSET = True   # True=tele_lift.usd 받침대, False=기존 파란 원통(문제 시 즉시 복귀)
 TELE_LIFT_USD_PATH = os.path.join(_SRC_DIR, "usd", "env", "tele_lift.usd")
 TELE_LIFT_BASE_Z = 0.0          # 리프트 바닥판이 놓이는 바닥 Z (튜닝: 위/아래 정렬)
@@ -295,9 +291,7 @@ STATE_RETURN_HOME = "RETURN_HOME"
 STATE_DONE    = "DONE"
 
 
-# ─────────────────────────────────────────────
 # 유틸리티 함수 (polishing_v1.py와 동일)
-# ─────────────────────────────────────────────
 
 def load_ply_points(path):
     points = []
@@ -619,7 +613,7 @@ def prepare_rail_master():
     if os.path.exists(RAIL_MASTER_USD):
         return RAIL_MASTER_USD
     if not os.path.exists(RAIL_USD_PATH):
-        print(f"[Rail] ⚠ 변환 원본 없음: {RAIL_USD_PATH} (obj_to_usd.py로 먼저 생성)", flush=True)
+        print(f"[Rail] 변환 원본 없음: {RAIL_USD_PATH} (obj_to_usd.py로 먼저 생성)", flush=True)
         return RAIL_USD_PATH
     try:
         shutil.copy(RAIL_USD_PATH, RAIL_MASTER_USD)
@@ -668,7 +662,7 @@ def load_rail_tiles(stage, label, rail_x, rail_cy, rail_len, floor_z=None):
     마스터는 중심정렬돼 있어 타일 위치=세그먼트 중심으로 바로 배치된다. 반환: 생성 타일 수.
     """
     import math
-    from omni.isaac.core.utils.prims import create_prim
+    from isaacsim.core.utils.prims import create_prim
     from pxr import Usd, UsdGeom
     if floor_z is None:
         floor_z = RAIL_FLOOR_Z
@@ -732,7 +726,7 @@ def load_tele_lift_prop(stage, prim_path, copy_name, pos_xyz,
     반환: 생성 성공 여부(bool).
     """
     import shutil
-    from omni.isaac.core.utils.prims import create_prim
+    from isaacsim.core.utils.prims import create_prim
     from pxr import Usd, UsdGeom, Gf
 
     per_inst_usd = os.path.join(os.path.dirname(TELE_LIFT_USD_PATH), copy_name)
@@ -757,7 +751,7 @@ def load_tele_lift_prop(stage, prim_path, copy_name, pos_xyz,
 
     lift_prim = stage.GetPrimAtPath(prim_path)
     if not lift_prim or not lift_prim.IsValid():
-        print(f"[TeleLiftProp] ⚠ prim 생성 실패: {prim_path}", flush=True)
+        print(f"[TeleLiftProp] prim 생성 실패: {prim_path}", flush=True)
         return False
     try:
         for p in Usd.PrimRange(lift_prim):
@@ -884,6 +878,26 @@ def create_polishing_contact_disk_for_robot(stage, robot_root_path, old_pad_path
         physx_col.CreateRestOffsetAttr().Set(0.0)
     except Exception:
         pass
+    if USE_PHYSICAL_CONTACT_SENSOR:
+        # PhysX 로봇 환경 레시피: 관입속도 상한 + 순응(compliant) 접촉 재질 (마찰·반발 0)
+        try:
+            physx_rb = PhysxSchema.PhysxRigidBodyAPI.Apply(disk_prim)
+            physx_rb.CreateMaxDepenetrationVelocityAttr().Set(float(PAD_MAX_DEPENETRATION_VEL))
+            mat_path = "/World/PhysicsMaterials/pad_compliant"
+            mat = UsdShade.Material.Define(stage, mat_path)
+            mat_prim = mat.GetPrim()
+            um = UsdPhysics.MaterialAPI.Apply(mat_prim)
+            um.CreateStaticFrictionAttr().Set(0.0); um.CreateDynamicFrictionAttr().Set(0.0)
+            um.CreateRestitutionAttr().Set(0.0)
+            pm = PhysxSchema.PhysxMaterialAPI.Apply(mat_prim)
+            pm.CreateCompliantContactStiffnessAttr().Set(float(PAD_COMPLIANT_STIFFNESS_N_M))
+            pm.CreateCompliantContactDampingAttr().Set(float(PAD_COMPLIANT_DAMPING_N_S_M))
+            UsdShade.MaterialBindingAPI.Apply(disk_prim).Bind(
+                mat, UsdShade.Tokens.strongerThanDescendants, "physics")
+            print(f"[pad] PhysX 실접촉: 순응 재질 k={PAD_COMPLIANT_STIFFNESS_N_M:.0f} N/m, "
+                  f"c={PAD_COMPLIANT_DAMPING_N_S_M:.0f}, 관입속도 ≤{PAD_MAX_DEPENETRATION_VEL} m/s")
+        except Exception as exc:
+            print(f"[pad] 순응 재질 설정 실패: {exc}")
     if physics_material:
         UsdShade.MaterialBindingAPI.Apply(disk_prim).Bind(
             physics_material, UsdShade.Tokens.weakerThanDescendants, "physics"
@@ -907,10 +921,6 @@ def create_polishing_contact_disk_for_robot(stage, robot_root_path, old_pad_path
     return disk_path
 
 
-# ─────────────────────────────────────────────
 # RailRobotAgent: 레일 로봇 1대 (Y축 슬라이딩 + 3구간 순서 폴리싱)
-# ─────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
 # 커버리지 공유맵 — 두 로봇이 동일 인스턴스 참조
-# ─────────────────────────────────────────────

@@ -1,0 +1,3 @@
+checkpoint,env,sequence,outcome,passes,gu_before,gu_final,ra_final_um,rz_final_um,scratch_before_um,scratch_final_um,clearcoat_min_um,temperature_peak_c,thermal_damage_peak,quality_ok,safety_ok
+model_bc_robot.pt,1,0,fail_force_overload,0,55.02,64.17,0.2584,1.927,1.759,0.941,37.95,44.28,0.190763,False,False
+model_bc_robot.pt,0,0,fail_force_overload,0,48.02,57.77,0.2347,2.104,1.829,1.35,37.79,46.56,0.25909,False,False

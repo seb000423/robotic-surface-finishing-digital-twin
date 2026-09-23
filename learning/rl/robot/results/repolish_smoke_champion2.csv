@@ -1,0 +1,9 @@
+checkpoint,env,sequence,outcome,passes,gu_before,gu_final,ra_final_um,rz_final_um,scratch_before_um,scratch_final_um,clearcoat_min_um,temperature_peak_c,thermal_damage_peak,quality_ok,safety_ok
+model_700.pt,3,0,fail_force_overload,0,49.7,60.38,0.208,1.987,1.634,1.287,44.35,35.91,0.008262,False,False
+model_700.pt,0,0,fail_force_overload,1,48.02,59.74,0.223,1.849,1.829,0.808,36.27,42.19,0.177521,False,False
+model_700.pt,2,0,fail_force_overload,1,51.5,66.17,0.2128,1.483,1.457,0.388,38.37,43.05,0.186015,False,False
+model_700.pt,1,0,fail_force_overload,1,55.02,62.79,0.231,1.487,1.759,0.37,36.29,42.97,0.181691,False,False
+model_700.pt,3,1,fail_force_overload,1,49.04,66.72,0.2056,1.524,1.704,0.518,41.42,43.13,0.182962,False,False
+model_700.pt,2,1,fail_force_overload,0,61.36,67.62,0.1237,1.354,1.412,1.095,40.32,35.87,0.007766,False,False
+model_700.pt,1,1,fail_force_overload,1,50.15,68.03,0.2709,1.876,1.678,0.407,43.12,41.19,0.14132,False,False
+model_700.pt,0,1,fail_force_overload,1,53.57,67.75,0.2083,1.536,1.814,0.451,45.97,46.31,0.28412,False,False

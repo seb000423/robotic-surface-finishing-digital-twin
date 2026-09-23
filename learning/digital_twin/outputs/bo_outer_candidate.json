@@ -1,0 +1,8 @@
+{
+  "target_contact_force_n": 6.69,
+  "feed_speed_mm_s": 5.65,
+  "rpm": 3259.0,
+  "step_over_spacing_ratio": 0.27,
+  "n_passes": 2,
+  "source": "bo_outer_loop_v1_policy_in_loop — 검증 전 후보"
+}

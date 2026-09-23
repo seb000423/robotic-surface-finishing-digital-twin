@@ -6,11 +6,15 @@
 ### 6축 협동로봇 기반 차체 표면 마감(폴리싱·샌딩) 디지털 트윈
 
 차체를 3D 스캔하고, 표면 형상에 맞는 폴리싱 경로와  
-**Adaptive Force Control + Multi-Robot Rail/Gantry**를 적용한 Isaac Sim 기반 디지털 트윈 프로젝트
+**Adaptive Force Control + Multi-Robot Rail/Gantry**를 적용하고,  
+**Isaac Lab 잔차 강화학습(BC → PPO)**으로 접촉력·이송속도를 보정하는 Isaac Sim 기반 디지털 트윈 프로젝트
 
 [![Isaac Sim](https://img.shields.io/badge/NVIDIA-Isaac%20Sim-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/isaac/sim)
 [![ROS2](https://img.shields.io/badge/ROS2-Humble-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
 [![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Isaac Lab](https://img.shields.io/badge/NVIDIA-Isaac%20Lab-76B900?logo=nvidia&logoColor=white)](https://isaac-sim.github.io/IsaacLab/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+![RL](https://img.shields.io/badge/RL-BC%20%E2%86%92%20PPO%20Residual-8A2BE2)
 ![Robot](https://img.shields.io/badge/Robot-6%20DOF%20Cobot-00A6A6)
 [![Motion](https://img.shields.io/badge/Motion-RMPFlow-5A5A5A)](https://docs.isaacsim.omniverse.nvidia.com/)
 [![UI](https://img.shields.io/badge/UI-Vite%20%2B%20Chart.js-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -58,6 +62,12 @@
 
 5. **ROS2 Live Dashboard & Launcher**  
    진행률·로봇별 접촉력·제거량 히트맵을 ROS2 토픽으로 발행하고, rosbridge를 통해 웹 UI에서 실시간 시각화. UI 버튼으로 스캔·시뮬레이션 실행.
+
+6. **Residual Reinforcement Learning (Isaac Lab)**  
+   규칙 기반 힘 제어기는 그대로 두고, 그 위에 **[Δ접촉력 ±30 %, Δ이송속도 ±50 %] 보정분만 학습하는 잔차 정책**을 Isaac Lab DirectRLEnv에서 학습. 수제 정책 모방(BC)으로 초기화한 뒤 에피소드 종료 시점의 품질 지표를 보상으로 PPO 미세조정.
+
+7. **Process Recipe Optimization (BO)**  
+   Constrained Bayesian Optimization(GP + EI)으로 접촉력·이송·RPM·줄 간격·패스 수 레시피를 탐색하고, 학습된 정책을 고정한 outer loop로 윗면/측면 자세별 레시피를 분리.
 
 ---
 
@@ -194,6 +204,70 @@ cmd     = surface + normal · clearance   # + RMPFlow 추종 지연(lag) 보정
 
 ---
 
+## Residual Reinforcement Learning (Isaac Lab)
+
+<div align="center">
+
+| Step | Description |
+|---|---|
+| **1. Contact Model Port** | v5의 가상 스프링 + 어드미턴스 접촉 모델을 `(num_envs,)` 텐서 연산으로 이식해 병렬 env 학습 (`learning/rl/env/contact.py`) |
+| **2. Surface Quality Model** | 논문 근거 표면 상태(Ra · 스크래치 · 클리어코트) + Preston형 제거 모델 + 20° 광택(GU) proxy (`learning/digital_twin/`) |
+| **3. BC Bootstrap** | 수제 dwell 정책을 모방해 actor 초기화 (`bootstrap_bc.py`) |
+| **4. Terminal-Reward PPO** | 에피소드 종료 시 전·후 품질 개선량을 보상으로 rsl_rl PPO 미세조정 (`train_ppo.py`) |
+| **5. Recipe BO** | 정책 고정 후 자세별 공정 레시피 탐색 (`bo_outer_loop.py`) |
+| **6. v5 Integration** | 20 Hz 잔차 정책 브리지를 v5 `agent.py` 훅으로 연결, 차체 스캔 점군을 12 cm 셀 483개로 나눠 셀별 판정 (`rl_bridge.py`) |
+
+</div>
+
+```text
+a = π(obs)                              # 정책 출력 = 잔차 2축, tanh ∈ [-1, 1]
+F_target = F_recipe · (1 + 0.30 · a0)    # 목표 접촉력 보정
+v_feed   = v_recipe · (1 + 0.50 · a1)    # 이송속도 보정
+F_cmd    = clip(F_target, 0, F_hard)     # 기존 안전 한계는 정책과 무관하게 유지
+```
+
+### Reward Design
+
+<div align="center">
+  <img src="assets/rl_training_curves.png" width="100%" alt="PPO training curves">
+  <br>
+  <sub>PPO 학습 곡선 — 스텝 보상(좌)은 오르지만 광택 GU(중)는 떨어지는 보상 정렬 문제를 진단한 기록</sub>
+</div>
+<br>
+
+<div align="center">
+
+| Problem | Fix |
+|---|---|
+| 제거량 합계 보상 → 정상 셀 감점이 지배해 "덜 문지르기" 학습 | 셀당 **평균** 보상으로 변경 |
+| 정적 결함 마스크 → 이미 지운 자리를 반복 문질러 보상 획득 | 지급을 **잔여 결함량**으로 게이팅 |
+| 관측 범위 ≈ 패치 크기 → 공간 변별 신호 소멸 | 관측을 패드 **코어 영역 잔여 결함**으로 축소 |
+| 스텝 대리 보상 최적점 ≠ 광택 최적점 | BC 부트스트랩 + **종말(에피소드 끝) 품질 보상** PPO |
+
+</div>
+
+### Results
+
+<div align="center">
+
+| Metric | Result |
+|---|---|
+| 신차 시나리오 150셀 (5종 판정: GU ≥ 70 · Ra ≤ 0.20 µm · Rz ≤ 2.0 µm · 클리어코트 ≥ 35 µm · 스크래치 감소) | **147 / 150** |
+| 레시피 BO 자세별 분리 (손상차 시나리오 150셀) | 91 → **97 / 150** |
+| 고정 레시피 대비 잔존 스크래치 (BC 정책) | **−30 %** |
+| 이송 ×1.5 레시피 — 합격 수 유지 시 셀당 공정시간 | 309 s → **177 s (−43 %)** |
+| PhysX 실접촉 M0609 env, 차체 전체 483셀 순회 | **321 / 483** |
+| 곡면(원통 R = 0.5 m) 작업면 GU — 평면 학습 정책 → 곡면 학습 정책 | 58.4 → **65.9** |
+
+</div>
+
+- 합격 셀은 전부 OEM 도장 보증 제거 한도(Ford 7.5 µm) 이내. 미합격 셀은 `rework_candidate` / `spot_repaint_review`로 처분 분류
+- 차체 순회의 주요 실패 원인은 강곡률 셀의 접촉 과부하 — 감압(×0.7) + 소형 패드(r = 0.035 m) 재실행으로 22셀 추가 합격
+
+> 광택(GU)·거칠기·스크래치 지표는 논문 근거 디지털 트윈 모델의 출력(합성 수치)이며, 실측 광택계로 보정한 값이 아님.
+
+---
+
 ## Engineering Challenges
 
 <div align="center">
@@ -219,7 +293,8 @@ cmd     = surface + normal · clearance   # + RMPFlow 추종 지연(lag) 보정
 | Category | Specification |
 |---|---|
 | OS | Ubuntu 22.04.5 LTS |
-| Simulator | NVIDIA Isaac Sim (standalone `python.sh`) |
+| Simulator | NVIDIA Isaac Sim 6.0.1 (standalone `python.sh`) |
+| RL | Isaac Lab + rsl_rl (PPO), PyTorch (CUDA) |
 | Middleware | ROS2 Humble + rosbridge_suite |
 | Robot | 6축 협동로봇 (시뮬레이션 모델: Doosan M0609, URDF / USD) |
 | End-Effector | Sander + Polishing Pad (`m0609_with_polisher.usd`) |
@@ -311,6 +386,31 @@ npm run dev                          # http://localhost:5173
 npm run build && npm run preview     # 빌드 후 미리보기
 ```
 
+### 5. 강화학습 (Isaac Lab)
+
+```bash
+PY=~/isaacsim/python.sh     # Isaac Lab이 설치된 Isaac Sim python
+
+# 디지털 트윈 단위시험 · 레시피 BO (Isaac Sim 불필요)
+$PY -m learning.digital_twin.tests.test_unit
+$PY -m learning.digital_twin.bo_runner
+
+# BC 부트스트랩 → PPO 미세조정 → 짝지은 평가
+$PY learning/rl/bootstrap_bc.py --headless
+$PY learning/rl/train_ppo.py --headless --num_envs 16 --max_iterations 1500 \
+    --resume learning/rl/champion/model_bc_14ch.pt
+$PY learning/rl/eval_conditions.py --headless \
+    --conditions "baseline=,policy=learning/rl/champion/model_terminal_ppo_14ch_it800.pt"
+
+# PhysX 실접촉 로봇 env — 차체 전체 셀 순회
+bash learning/rl/run_car_cells.sh 0 482 8
+
+# v5 다중 로봇 시뮬레이션 + 잔차 정책 (GUI)
+bash scripts/run_v5_rl_view.sh
+```
+
+자세한 구성은 [`learning/README.md`](learning/README.md) 참고.
+
 ### ROS2 Topic Example
 
 ```bash
@@ -339,9 +439,19 @@ robotic-surface-finishing-digital-twin/
 │   │   ├── agent.py             #   로봇별 제어 (RailRobotAgent)
 │   │   ├── common.py            #   상수 · 힘 제어 파라미터
 │   │   ├── ros_publisher.py     #   ROS2 토픽 발행
+│   │   ├── pad_contact.py       #   PhysX 접촉 리포트 기반 패드 힘
+│   │   ├── rl_bridge.py         #   셀 격자 · 잔차 정책 · 셀별 판정
 │   │   └── visualization.py     #   커버리지 맵 · 경로 시각화
+│   ├── run_v5_rl_view.sh        # v5 + 잔차 정책 실행
 │   ├── main_pipeline.py         # 스캔 → 경로 → 폴리싱 일괄 실행
 │   └── dashboard_launcher.py    # UI 버튼 → Isaac Sim 실행 (:8765)
+│
+├── learning/                    # 학습 스택
+│   ├── bc/                      #   v5 로그 → 모방학습 (MLP)
+│   ├── digital_twin/            #   표면 상태 · 제거 · GU proxy 모델, 레시피 BO
+│   ├── rl/                      #   Isaac Lab env · PPO · 평가 · 체크포인트
+│   ├── vehicle_export/          #   차량 150셀 판정 CSV 생성
+│   └── ui_bridge/               #   시뮬레이션 기록 · 모니터 피드
 │
 ├── rmpflow/                     # RMPFlow 컨트롤러 · yaml · URDF
 ├── scan_obj/                    # 스캔 대상 USD (car, car_small, cube)

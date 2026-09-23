@@ -1,0 +1,67 @@
+{
+ "schema_version": "1.0",
+ "recipe_id": "grid_feed1.3_f1.0_top",
+ "source": "recipe mini-grid feed\u00d71.3 force\u00d71.0",
+ "polishing_model_version": "literature_polishing_v1",
+ "gloss_model_version": "literature_gu_proxy_v1",
+ "pad_profile_id": "fixed_pad_v1",
+ "compound_profile_id": "compound_v1",
+ "target_contact_force_n": 6.69,
+ "feed_speed_mm_s": 7.345,
+ "rpm": 3259.0,
+ "step_over_spacing_ratio": 0.27,
+ "n_passes": 2,
+ "tool_path_type": "raster",
+ "tool_angle_rad": [
+  0.0,
+  0.0
+ ],
+ "gu_target": 70.0,
+ "gu_type": "literature_proxy",
+ "constraints": {
+  "force_hard_limit_n": 14.0,
+  "clearcoat_safety_limit_um": 30.0,
+  "healthy_overremoval_limit_um": 3.0,
+  "heat_proxy_limit": 9.0,
+  "coverage_min": 0.9
+ },
+ "objective_weights": {
+  "w_gu": 1.0,
+  "w_scratch": 0.5,
+  "w_map": 0.3,
+  "w_healthy": 0.3,
+  "w_time": 0.2,
+  "w_ra": 0.2,
+  "scratch_scale_um": 2.0,
+  "overremoval_scale_um": 2.0,
+  "time_scale_s": 1800.0,
+  "ra_scale_um": 0.2
+ },
+ "search_space": {
+  "force_n": [
+   5.0,
+   8.4
+  ],
+  "feed_mm_s": [
+   1.0,
+   8.0
+  ],
+  "rpm": [
+   3000.0,
+   6000.0
+  ],
+  "spacing_ratio": [
+   0.15,
+   0.8
+  ],
+  "n_passes": [
+   1,
+   3
+  ]
+ },
+ "result": {
+  "vehicle_150_top_pass": "32/50 (\uad6c recipe 28/50)",
+  "combined_with_side_recipe": "95/150"
+ },
+ "posture": "top (tilt<=45deg) \uc804\uc6a9 \u2014 side \ub294 bo_best_recipe.json \uc0ac\uc6a9"
+}

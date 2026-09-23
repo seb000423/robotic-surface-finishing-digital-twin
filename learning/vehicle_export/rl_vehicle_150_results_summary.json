@@ -1,0 +1,506 @@
+{
+  "policy_type": "BC 부트스트랩 + 종말보상 PPO (논문 기반 최종 GU proxy 종말 보상)",
+  "checkpoint": "learning/rl/champion/model_terminal_ppo_14ch_it800.pt",
+  "evaluation_mode": "flat_trained_bc_ppo_terminal_policy_inference",
+  "curved_generalization_validated": false,
+  "note_curved": "정책은 120×120 mm 평면 patch 학습본. 아래 top/side 구분은 같은 평면 학습 정책의 자세별 추론 결과이지 곡면 재학습·검증 결과가 아니다.",
+  "clearcoat_safety_limit_um": 35.0,
+  "thresholds": {
+    "gu_min": 70.0,
+    "ra_max_um": 0.2,
+    "rz_max_um": 2.0,
+    "clearcoat_min_um": 35.0,
+    "provenance": "literature-derived project target — 논문 기반 디지털 트윈 판정값. 프로젝트 자체 실측·보정값 아님. 미달 시 목표를 낮추지 않고 실패로 판정"
+  },
+  "all": {
+    "n_cells": 150,
+    "n_pass": 99,
+    "gu_after": {
+      "mean": 70.157,
+      "min": 62.31,
+      "max": 73.86
+    },
+    "scratch_after_um": {
+      "mean": 0.434,
+      "min": 0.069,
+      "max": 1.227
+    },
+    "scratch_reduction_pct": 60.5,
+    "clearcoat_remaining_min_um": {
+      "mean": 40.789,
+      "min": 35.18,
+      "max": 47.69
+    }
+  },
+  "top_facing_cells (보닛/루프 등, tilt≤45°)": {
+    "n_cells": 50,
+    "n_pass": 32,
+    "gu_after": {
+      "mean": 69.792,
+      "min": 62.31,
+      "max": 73.13
+    },
+    "scratch_after_um": {
+      "mean": 0.418,
+      "min": 0.098,
+      "max": 1.227
+    },
+    "scratch_reduction_pct": 63.2,
+    "clearcoat_remaining_min_um": {
+      "mean": 40.628,
+      "min": 35.18,
+      "max": 47.69
+    }
+  },
+  "side_facing_cells (도어/펜더 등, tilt>45°)": {
+    "n_cells": 100,
+    "n_pass": 67,
+    "gu_after": {
+      "mean": 70.339,
+      "min": 65.35,
+      "max": 73.86
+    },
+    "scratch_after_um": {
+      "mean": 0.442,
+      "min": 0.069,
+      "max": 1.133
+    },
+    "scratch_reduction_pct": 59.1,
+    "clearcoat_remaining_min_um": {
+      "mean": 40.869,
+      "min": 35.45,
+      "max": 47.13
+    }
+  },
+  "per_region": {
+    "R1:bonnet": {
+      "n_cells": 25,
+      "n_pass": 15,
+      "gu_after": {
+        "mean": 69.5,
+        "min": 63.86,
+        "max": 72.15
+      },
+      "scratch_after_um": {
+        "mean": 0.48,
+        "min": 0.098,
+        "max": 1.227
+      },
+      "scratch_reduction_pct": 60.8,
+      "clearcoat_remaining_min_um": {
+        "mean": 40.316,
+        "min": 36.11,
+        "max": 45.65
+      }
+    },
+    "R2:roof": {
+      "n_cells": 25,
+      "n_pass": 17,
+      "gu_after": {
+        "mean": 70.084,
+        "min": 62.31,
+        "max": 73.13
+      },
+      "scratch_after_um": {
+        "mean": 0.356,
+        "min": 0.145,
+        "max": 1.114
+      },
+      "scratch_reduction_pct": 65.9,
+      "clearcoat_remaining_min_um": {
+        "mean": 40.941,
+        "min": 35.18,
+        "max": 47.69
+      }
+    },
+    "R3:door_left": {
+      "n_cells": 25,
+      "n_pass": 18,
+      "gu_after": {
+        "mean": 70.53,
+        "min": 66.28,
+        "max": 73.32
+      },
+      "scratch_after_um": {
+        "mean": 0.433,
+        "min": 0.145,
+        "max": 0.904
+      },
+      "scratch_reduction_pct": 58.7,
+      "clearcoat_remaining_min_um": {
+        "mean": 41.05,
+        "min": 35.73,
+        "max": 45.47
+      }
+    },
+    "R4:door_right": {
+      "n_cells": 25,
+      "n_pass": 16,
+      "gu_after": {
+        "mean": 69.995,
+        "min": 65.35,
+        "max": 73.66
+      },
+      "scratch_after_um": {
+        "mean": 0.423,
+        "min": 0.069,
+        "max": 0.847
+      },
+      "scratch_reduction_pct": 61.4,
+      "clearcoat_remaining_min_um": {
+        "mean": 40.444,
+        "min": 35.45,
+        "max": 46.85
+      }
+    },
+    "R5:fender_left": {
+      "n_cells": 25,
+      "n_pass": 16,
+      "gu_after": {
+        "mean": 70.301,
+        "min": 66.18,
+        "max": 73.86
+      },
+      "scratch_after_um": {
+        "mean": 0.547,
+        "min": 0.128,
+        "max": 1.133
+      },
+      "scratch_reduction_pct": 54.0,
+      "clearcoat_remaining_min_um": {
+        "mean": 41.071,
+        "min": 36.04,
+        "max": 47.13
+      }
+    },
+    "R6:fender_right": {
+      "n_cells": 25,
+      "n_pass": 17,
+      "gu_after": {
+        "mean": 70.53,
+        "min": 65.49,
+        "max": 73.8
+      },
+      "scratch_after_um": {
+        "mean": 0.365,
+        "min": 0.08,
+        "max": 0.679
+      },
+      "scratch_reduction_pct": 63.0,
+      "clearcoat_remaining_min_um": {
+        "mean": 40.912,
+        "min": 35.57,
+        "max": 45.8
+      }
+    }
+  },
+  "failed_cells": [
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "5",
+      "failure_reason": "gu_below_target(68.4<70)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "7",
+      "failure_reason": "gu_below_target(63.9<70);ra_above_target(0.200>0.20);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "8",
+      "failure_reason": "gu_below_target(68.7<70)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "13",
+      "failure_reason": "gu_below_target(68.3<70)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "14",
+      "failure_reason": "gu_below_target(66.4<70);ra_above_target(0.224>0.20)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "17",
+      "failure_reason": "gu_below_target(68.0<70)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "20",
+      "failure_reason": "gu_below_target(66.7<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "21",
+      "failure_reason": "gu_below_target(63.9<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "22",
+      "failure_reason": "gu_below_target(69.1<70)"
+    },
+    {
+      "region_id": "R1",
+      "region_name": "bonnet",
+      "cell_id": "24",
+      "failure_reason": "gu_below_target(68.9<70)"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "0",
+      "failure_reason": "gu_below_target(62.3<70);ra_above_target(0.244>0.20);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "2",
+      "failure_reason": "gu_below_target(68.2<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "5",
+      "failure_reason": "gu_below_target(69.5<70);ra_above_target(0.200>0.20)"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "9",
+      "failure_reason": "gu_below_target(64.3<70);ra_above_target(0.218>0.20)"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "10",
+      "failure_reason": "gu_below_target(69.4<70)"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "11",
+      "failure_reason": "gu_below_target(67.3<70);ra_above_target(0.201>0.20);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "20",
+      "failure_reason": "gu_below_target(67.6<70);ra_above_target(0.225>0.20)"
+    },
+    {
+      "region_id": "R2",
+      "region_name": "roof",
+      "cell_id": "21",
+      "failure_reason": "gu_below_target(67.4<70);ra_above_target(0.208>0.20)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "0",
+      "failure_reason": "gu_below_target(68.3<70)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "3",
+      "failure_reason": "gu_below_target(69.2<70)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "4",
+      "failure_reason": "gu_below_target(68.1<70)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "8",
+      "failure_reason": "gu_below_target(66.3<70);ra_above_target(0.219>0.20)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "12",
+      "failure_reason": "gu_below_target(69.6<70)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "19",
+      "failure_reason": "gu_below_target(67.4<70)"
+    },
+    {
+      "region_id": "R3",
+      "region_name": "door_left",
+      "cell_id": "23",
+      "failure_reason": "gu_below_target(69.8<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "4",
+      "failure_reason": "gu_below_target(68.4<70);ra_above_target(0.212>0.20)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "10",
+      "failure_reason": "gu_below_target(66.6<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "11",
+      "failure_reason": "gu_below_target(69.4<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "12",
+      "failure_reason": "gu_below_target(65.5<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "13",
+      "failure_reason": "gu_below_target(66.9<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "14",
+      "failure_reason": "gu_below_target(68.2<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "15",
+      "failure_reason": "gu_below_target(65.4<70);clearcoat_budget_exhausted"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "18",
+      "failure_reason": "gu_below_target(69.5<70)"
+    },
+    {
+      "region_id": "R4",
+      "region_name": "door_right",
+      "cell_id": "23",
+      "failure_reason": "gu_below_target(69.7<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "1",
+      "failure_reason": "gu_below_target(70.0<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "3",
+      "failure_reason": "gu_below_target(66.2<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "4",
+      "failure_reason": "gu_below_target(67.7<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "6",
+      "failure_reason": "gu_below_target(69.8<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "8",
+      "failure_reason": "gu_below_target(67.0<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "12",
+      "failure_reason": "gu_below_target(68.5<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "13",
+      "failure_reason": "gu_below_target(69.0<70);ra_above_target(0.200>0.20)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "19",
+      "failure_reason": "gu_below_target(69.4<70)"
+    },
+    {
+      "region_id": "R5",
+      "region_name": "fender_left",
+      "cell_id": "23",
+      "failure_reason": "gu_below_target(67.7<70);ra_above_target(0.220>0.20);rz_above_target(2.16>2.0)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "4",
+      "failure_reason": "gu_below_target(69.1<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "5",
+      "failure_reason": "gu_below_target(68.1<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "6",
+      "failure_reason": "gu_below_target(69.9<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "9",
+      "failure_reason": "gu_below_target(67.8<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "11",
+      "failure_reason": "gu_below_target(69.1<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "12",
+      "failure_reason": "gu_below_target(68.4<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "13",
+      "failure_reason": "gu_below_target(65.5<70)"
+    },
+    {
+      "region_id": "R6",
+      "region_name": "fender_right",
+      "cell_id": "22",
+      "failure_reason": "gu_below_target(67.9<70)"
+    }
+  ],
+  "synthetic_disclaimer": "모든 품질 수치는 논문 근거 모델의 SYNTHETIC 출력 — 실측 아님."
+}

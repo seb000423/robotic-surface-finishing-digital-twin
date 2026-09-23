@@ -1,0 +1,39 @@
+{
+  "phase": "parallel",
+  "num_envs": 1,
+  "contact_mode": "physical",
+  "thresholds": {
+    "free_space_max_n": 0.05,
+    "static_ss_err_max_n": 0.5,
+    "static_ss_std_max_n": 0.3,
+    "static_overshoot_max_ratio": 0.5,
+    "static_penetration_max_m": 0.006,
+    "track_err_mean_max_n": 1.0,
+    "track_err_p95_max_n": 2.5,
+    "reset_spike_max_n": 8.0
+  },
+  "segments": {
+    "parallel_1": {
+      "steps": 600,
+      "per_env": [
+        {
+          "env": 0,
+          "ss_mean_n": 5.77855122089386,
+          "err_mean_n": 0.018802347183227538,
+          "err_p95_n": 0.047985076904296826,
+          "max_n": 6.659173011779785,
+          "penetration_m": 0.0012665390968322754,
+          "faults": 0
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "parallel x1 전 env 추종+무NaN",
+      "pass": true,
+      "detail": "worst env0: err_mean=0.019N p95=0.048N pen=1.27mm"
+    }
+  ],
+  "result": "PASS"
+}

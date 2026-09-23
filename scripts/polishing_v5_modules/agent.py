@@ -6,10 +6,20 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from isaacsim.core.prims import SingleArticulation
-from omni.isaac.core.objects import VisualCuboid, VisualCylinder
-from omni.isaac.core.utils.prims import create_prim
-from omni.isaac.core.utils.types import ArticulationAction
-from omni.isaac.sensor import ContactSensor
+from isaacsim.core.api.objects import VisualCuboid, VisualCylinder
+from isaacsim.core.utils.prims import create_prim
+from isaacsim.core.utils.types import ArticulationAction
+# ContactSensor 는 선택 사항: 이 프로젝트는 가상 접촉(USE_PHYSICAL_CONTACT_SENSOR=False)이 기본이고,
+# Isaac Sim 6 에서는 구 래퍼(isaacsim.sensors.physics, deprecated)가 기본 로드되지 않는다.
+ContactSensor = None
+for _mod in ("isaacsim.sensors.physics", "isaacsim.sensors.experimental.physics"):
+    try:
+        ContactSensor = getattr(__import__(_mod, fromlist=["ContactSensor"]), "ContactSensor")
+        break
+    except Exception:
+        continue
+if ContactSensor is None:
+    print("[agent] ContactSensor 사용 불가 — 가상 접촉만 사용 (물리 센서 비활성)")
 
 from .common import *
 from .common import _SCRIPT_DIR, _SRC_DIR, ROBOT_USD_PATH
@@ -28,6 +38,13 @@ class RailRobotAgent:
         self.label    = config["label"]
         # 리프트 좌표계로: 정지 위치 z 에 CAR_LIFT_Z 더함 (경로 점군도 동일하게 올림)
         self.yz_stops = [[float(y), float(z) + CAR_LIFT_Z] for (y, z) in config["yz_stops"]]
+        # 웹 UI "이동 레일" 끔(POLISH_RAIL=0): 측면 로봇은 가운데 정지 위치 하나만 쓴다(레일 이동 없음, 도달 범위만 닦음)
+        self.rail_enabled = os.environ.get("POLISH_RAIL", "1") != "0"
+        if not self.rail_enabled and config.get("mount_mode") == "side" and len(self.yz_stops) > 1:
+            self.yz_stops = [self.yz_stops[len(self.yz_stops) // 2]]
+        # 웹 UI "텔레스코픽 리프트" 끔(POLISH_LIFT=0): 측면 로봇 베이스 높이를 정지 위치 평균으로 고정
+        self.lift_enabled = os.environ.get("POLISH_LIFT", "1") != "0"
+        self._fixed_z = float(np.mean([z for (_, z) in self.yz_stops])) if self.yz_stops else None
         self.is_overhead = config.get("mount_mode") == "overhead"
         self.is_side = config.get("mount_mode") == "side"
         self.outward_sign = int(config.get("outward_sign", -1))   # 측면 바깥 방향(좌-1/우+1)
@@ -115,7 +132,7 @@ class RailRobotAgent:
         self.base_position = np.array([self.rail_x, first_y, first_z])
         # 측면 단상은 짧은 중립 높이에서 시작 → 차 상승 후 SLIDE에서 working 높이까지 천천히 상승
         if self.is_side:
-            self.base_position[2] = SIDE_COLUMN_NEUTRAL_Z
+            self.base_position[2] = SIDE_COLUMN_NEUTRAL_Z if self.lift_enabled else float(self._fixed_z)
         # 오버헤드는 천장 가까이(슬라이더 짧게) 시작 → 어프로치에서 천천히 하강
         if self.is_overhead:
             self.base_position[2] = OVERHEAD_Z_MAX
@@ -166,6 +183,14 @@ class RailRobotAgent:
         self._glass_skip_count = 0       # 유리/구멍 스킵 누적
         self._side_debug_done = False    # 측면 디스크 접촉축 1회 측정 플래그
         self._repolish_pass = False      # 재폴리싱 패스 여부(이미 칠한 점 건너뜀)
+        # 잔차 정책 브리지
+        self.rl_bridge = None
+        self._rl_force_scale = 1.0
+        self._rl_feed_scale = 1.0
+        self._ui_force_scale = 1.0     # 웹 UI 실행 중 조정(정책 배율 위에 곱함, POLISH_CONTROL)
+        self._ui_feed_scale = 1.0
+        self._last_step_advance_wp = 0.0
+        self._wp_spacing_cache = (None, 0.0)
         self._completed_segs: set = set()  # 이미 완료(RETRACT까지 진행)한 구간 인덱스
         self._polish_pass = 0            # 독립 재폴리싱 패스 카운터 (0=초기, ≥1=재폴리싱)
         self._max_passes = 2             # 최대 독립 재폴리싱 횟수
@@ -197,6 +222,7 @@ class RailRobotAgent:
     def setup(self, world, stage, physics_material_path):
         import omni.usd
         from pxr import UsdShade, UsdPhysics, PhysxSchema
+        self._physx_schema = PhysxSchema
 
         # 로봇 USD 로드
         create_prim(
@@ -212,6 +238,20 @@ class RailRobotAgent:
             name=f"m0609_rail_{self.label}",
         )
 
+        if USE_PHYSICAL_CONTACT_SENSOR:   # 실접촉: 관절 솔버 반복↑
+
+            try:
+
+                _art = PhysxSchema.PhysxArticulationAPI.Apply(stage.GetPrimAtPath(self.robot_root_path))
+
+                _art.CreateSolverPositionIterationCountAttr().Set(8)
+
+                _art.CreateSolverVelocityIterationCountAttr().Set(2)
+
+            except Exception as _exc:
+
+                print(f'[Rail {self.label}] 솔버 반복 설정 실패: {_exc}')
+
         # 영상 기준 기존 흰 원형 패드가 커 보이고 실제 접촉패드와 겹쳐 보여 숨긴다.
         self._remove_sander_parts(stage, {"tn__114555_", "tn__104327_"})
 
@@ -226,7 +266,7 @@ class RailRobotAgent:
         ]
         old_pad_path = pad_candidates[0]
         try:
-            from omni.isaac.core.utils.prims import get_prim_at_path
+            from isaacsim.core.utils.prims import get_prim_at_path
             for c in pad_candidates:
                 if get_prim_at_path(c):
                     old_pad_path = c
@@ -269,12 +309,20 @@ class RailRobotAgent:
                 report_api = PhysxSchema.PhysxContactReportAPI.Apply(pad_prim)
                 report_api.CreateThresholdAttr().Set(0.0)
 
-        self.contact_sensor = ContactSensor(
-            prim_path=contact_report_path + "/contact_sensor",
-            name=f"pad_contact_sensor_rail_{self.label}",
-            frequency=60,
-            translation=np.array([0, 0, 0]),
-        )
+        self.contact_sensor = None
+        self._pad_reporter = None
+        if USE_PHYSICAL_CONTACT_SENSOR:
+            # Isaac Sim 6: omni.physx 접촉 리포트로 패드 순접촉력을 읽는다 (pad_contact.py)
+            from .pad_contact import PadContactReporter
+            self._pad_reporter = PadContactReporter.get(1.0 / 60.0)
+            self._pad_reporter.register(self.pad_path)
+        if False and USE_PHYSICAL_CONTACT_SENSOR and ContactSensor is not None:
+            self.contact_sensor = ContactSensor(
+                prim_path=contact_report_path + "/contact_sensor",
+                name=f"pad_contact_sensor_rail_{self.label}",
+                frequency=60,
+                translation=np.array([0, 0, 0]),
+            )
 
         if self.is_overhead:
             self._setup_gantry_visuals(world)
@@ -341,7 +389,8 @@ class RailRobotAgent:
 
     def initialize(self):
         self.articulation.initialize()
-        self.contact_sensor.initialize()
+        if self.contact_sensor is not None:
+            self.contact_sensor.initialize()
         self.controller = RMPFlowController(
             name=f"polishing_controller_{self.idx}",
             robot_articulation=self.articulation,
@@ -353,10 +402,8 @@ class RailRobotAgent:
         self._apply_home_pose(teleport=True)
         self._apply_pad_spin_velocity(0.0)
 
-        # 팔꿈치 차체 관통 방지: 삭제됨 (사용자 요청)
         pass
 
-        # 차체를 RMPFlow 장애물로 등록: 삭제됨 (사용자 요청)
         pass
 
         print(f"[Rail {self.label}] 초기화 완료")
@@ -395,7 +442,6 @@ class RailRobotAgent:
         self.completed_path_prim.CreateWidthsAttr().Set([0.007])
         self.completed_path_prim.CreateDisplayColorAttr().Set([Gf.Vec3f(1.0, 0.82, 0.05)])
 
-        # 현재 목표 구체(큰 공) — 사용자 요청으로 제거(생성 안 함)
         self.path_pointer_path = None
 
         # 커버리지 완료 포인트 (녹색)
@@ -579,7 +625,7 @@ class RailRobotAgent:
     def _pad_contact_world_pos(self, stage):
         local_contact = np.array([0.0, -0.5 * float(POLISHING_DISK_HEIGHT), 0.0])
         try:
-            from omni.isaac.core.utils.xforms import get_world_pose
+            from isaacsim.core.utils.xforms import get_world_pose
             pad_world_pos, pad_world_quat = get_world_pose(self.pad_path)
             pad_world_rot = R.from_quat([
                 pad_world_quat[1],
@@ -618,7 +664,7 @@ class RailRobotAgent:
                 ], dtype=float))
 
         try:
-            from omni.isaac.core.utils.xforms import get_world_pose
+            from isaacsim.core.utils.xforms import get_world_pose
             pad_world_pos, pad_world_quat = get_world_pose(self.pad_path)
             pad_world_rot = R.from_quat([
                 pad_world_quat[1],
@@ -930,7 +976,7 @@ class RailRobotAgent:
             self.base_position[0] = self.rail_x
         self.current_seg_idx = seg_idx
         self.slide_target_y = y_stop
-        self.slide_target_z = z_stop
+        self.slide_target_z = z_stop if (self.lift_enabled or not self.is_side) else float(self._fixed_z)
 
         # 현재 베이스 위치에서 경로의 시작/끝 중 가까운 쪽부터 폴리싱 시작 (한붓그리기 연속성)
         if len(path) > 1:
@@ -1131,7 +1177,7 @@ class RailRobotAgent:
         # 생성 검증 (SR 등 2번째 reference가 누락되는지 진단)
         lift_prim = stage.GetPrimAtPath(self.tele_lift_path)
         if not lift_prim or not lift_prim.IsValid():
-            print(f"[Rail {self.label}] ⚠ tele_lift prim 생성 실패: {self.tele_lift_path}", flush=True)
+            print(f"[Rail {self.label}] tele_lift prim 생성 실패: {self.tele_lift_path}", flush=True)
             return
         # 같은 USD를 여러 로봇이 reference → 인스턴스화되면 내부 튜브 prim을 못 움직이므로 해제
         try:
@@ -1173,7 +1219,7 @@ class RailRobotAgent:
     def _update_tele_lift(self, stage, new_y, new_z):
         """고정단(측면=바닥/천장=빔)은 그 높이에 고정(Y만 레일 추종),
         2단 튜브를 고정단↔로봇 베이스 거리에 맞춰 신축."""
-        from omni.isaac.core.prims import XFormPrim
+        from isaacsim.core.prims import SingleXFormPrim as XFormPrim
         anchor_z = self._tele_lift_anchor_z()
         XFormPrim(prim_path=self.tele_lift_path).set_world_pose(
             position=np.array([self.rail_x, new_y, anchor_z]))
@@ -1186,7 +1232,7 @@ class RailRobotAgent:
         self._set_tube_lift(stage, TELE_LIFT_STAGE2_PRIM, ext)
 
     def _update_column_visuals(self, stage, new_y, new_z):
-        from omni.isaac.core.prims import XFormPrim
+        from isaacsim.core.prims import SingleXFormPrim as XFormPrim
         import numpy as np
         
         # 로봇 베이스 위치 업데이트 (공통)
@@ -1240,7 +1286,7 @@ class RailRobotAgent:
         targets = [p.GetPath() for p in Usd.PrimRange(robot_root_prim)
                    if p.GetName() in part_names]
         if not targets:
-            print(f"[Rail {self.label}] ⚠ 부품 못 찾음: {part_names}", flush=True)
+            print(f"[Rail {self.label}] 부품 못 찾음: {part_names}", flush=True)
         for tpath in targets:
             prim = stage.GetPrimAtPath(tpath)
             if prim and prim.IsValid():
@@ -1254,13 +1300,11 @@ class RailRobotAgent:
         L = self.label
         beam_z = GANTRY_BEAM_Z
         # 기둥: 바닥(z=0)에 닿게 + 가로빔/레일 '밑면'까지만 → 빔이 기둥 위에 얹히고
-        #       기둥이 레일 위로 솟지 않음 (사용자 요청). 빔/레일 z(beam_z)는 로봇 마운트라 불변.
         post_bottom = 0.0
         post_top = beam_z - 0.06          # 가로빔(두께 0.12) 밑면
         post_h = post_top - post_bottom
         post_cz = 0.5 * (post_bottom + post_top)
 
-        # (베이스 테이블 큰 박스는 제거 — 사용자 요청)
         # 4개 수직 기둥 (모서리)
         for i, (sx, sy) in enumerate([(-1, -1), (-1, 1), (1, -1), (1, 1)]):
             world.scene.add(VisualCylinder(
@@ -1305,7 +1349,7 @@ class RailRobotAgent:
 
     def _update_gantry_visuals(self, new_y, new_z):
         """캐리지 Y이동 + 수직 Z슬라이더 신축 (매 스텝)."""
-        from omni.isaac.core.prims import XFormPrim
+        from isaacsim.core.prims import SingleXFormPrim as XFormPrim
         L = self.label
         beam_z = GANTRY_BEAM_Z
         XFormPrim(prim_path=f"/World/GantryCarriage_{L}").set_world_pose(
@@ -1357,6 +1401,23 @@ class RailRobotAgent:
         dz = target_z - self.base_position[2]
         self.base_position[2] += np.clip(dz, -zstep, zstep)
         self._update_column_visuals(stage, self.base_position[1], self.base_position[2])
+
+    def _waypoint_spacing(self) -> float:
+        """현재 구간 경로의 평균 웨이포인트 간격(m) — 이송 속도 환산용 (구간별 캐시)."""
+        key = id(self.path)
+        if self._wp_spacing_cache[0] == key:
+            return self._wp_spacing_cache[1]
+        sp = 0.025
+        try:
+            if len(self.path) >= 2:
+                d = np.linalg.norm(np.diff(np.asarray(self.path)[:, :3], axis=0), axis=1)
+                d = d[d > 1e-6]
+                if len(d):
+                    sp = float(np.median(d))
+        except Exception:
+            pass
+        self._wp_spacing_cache = (key, sp)
+        return sp
 
     def step(self, stage):
         """1 physics step 실행. 완료 시 self.done = True."""
@@ -1659,6 +1720,8 @@ class RailRobotAgent:
                 normal_tilt_deg,
                 mode="side" if self.is_side else "top",
             )
+            # 잔차 정책: 목표 힘 × (1 + a0·0.30) — 직전 20 Hz 제어 스텝의 출력 (rl_bridge)
+            self._target_force *= self._rl_force_scale * self._ui_force_scale
 
             # 측면은 디스크가 더 일찍(zoff↑) 물리적으로 닿음 → 가상 접촉거리를 그에 맞춰
             # (안 맞추면 가상이 접촉을 못 보고 계속 밀어 N↑→원위치)
@@ -1678,7 +1741,7 @@ class RailRobotAgent:
             hard_force_limit = PHYSICAL_FORCE_HARD_LIMIT_SIDE_N if self.is_side else PHYSICAL_FORCE_HARD_LIMIT_TOP_N
             bad_gap_mult = BAD_CONTACT_GAP_MULT_SIDE if self.is_side else BAD_CONTACT_GAP_MULT
             clear_mult = SIDE_CONTACT_CLEARANCE_MULT if self.is_side else BAD_CONTACT_GAP_MULT
-            # ★실제 패드 위치 기반 가상 스프링 (명령값 z_offset이 아니라 실측 접촉면 거리 사용).
+            # 실제 패드 위치 기반 가상 스프링 (명령값 z_offset이 아니라 실측 접촉면 거리 사용).
             # actual_clearance = 패드 접촉면이 표면 위로 떠 있는 실제 거리(법선방향, +위/−파묻힘).
             # 명령값 기준이면 안 닿아도 목표 N을 만들어 제어기를 속이지만, 실측 기준이면 정직함.
             if actual_clearance is not None:
@@ -1695,7 +1758,12 @@ class RailRobotAgent:
             sensor_model_gate = max(CONTACT_FORCE_THRESHOLD, 0.35 * self._target_force)
 
             # 접촉력 읽기
-            contact_reading = self.contact_sensor.get_current_frame()
+            contact_reading = (self.contact_sensor.get_current_frame()
+                               if self.contact_sensor is not None else None)
+            if self._pad_reporter is not None:
+                # 접촉 리포트 순접촉력 → 표면 법선 성분
+                _fv = self._pad_reporter.force(self.pad_path)
+                contact_reading = {"force": np.array([abs(float(np.dot(_fv, normal))), 0.0, 0.0])}
             sensor_measured_force = (
                 np.linalg.norm(contact_reading["force"])
                 if contact_reading and "force" in contact_reading else 0.0
@@ -1740,6 +1808,10 @@ class RailRobotAgent:
                 self.z_offset <= (_contact_dist + z_sensor_margin) and
                 command_virtual_force >= sensor_model_gate
             )
+            if self._pad_reporter is not None and sensor_measured_force > 0.0:
+                # 실접촉: PhysX 접촉 리포트에 힘이 있으면 물리적으로 닿은 것 — 스캔 점군 기준
+                #   기하 게이트(충돌체 껍데기와 점군의 간격)에 막혀 버리지 않게 유효로 인정
+                sensor_force_is_valid = True
             sensor_raw_force = (
                 min(sensor_measured_force, hard_force_limit)
                 if sensor_force_is_valid else 0.0
@@ -1802,6 +1874,15 @@ class RailRobotAgent:
                 FORCE_FILTER_ALPHA * raw_force +
                 (1.0 - FORCE_FILTER_ALPHA) * self.filtered_contact_force
             )
+            # 잔차 정책 브리지: 측정 힘·패드 접촉점·이송·진행률을 넘겨 20 Hz 로
+            #   [Δforce, Δfeed] 를 받고, 같은 주기로 현재 셀의 품질 모델을 스텝한다.
+            if self.rl_bridge is not None:
+                _feed_mps = self._last_step_advance_wp * self._waypoint_spacing() * 60.0
+                _progress = self.current_path_idx_float / max(len(self.path) - 1, 1)
+                self._rl_force_scale, self._rl_feed_scale = self.rl_bridge.substep(
+                    self.label, float(self.filtered_contact_force), np.asarray(actual_pad_pos, float),
+                    float(_feed_mps), float(_progress), bool(normal_tilt_deg > 45.0),
+                    bool(polish_contact_verified))
 
             arm_clearance, arm_guard_link, arm_guard_margin, arm_skip_clearance = self._arm_surface_clearance(stage)
             arm_guard_active = (
@@ -1828,7 +1909,7 @@ class RailRobotAgent:
                         self.step_count += 1
                         self.state_step_count += 1
                         return
-                    msg = (f"[Rail {self.label}] ⚠ 팔 링크 차체 접근 "
+                    msg = (f"[Rail {self.label}] 팔 링크 차체 접근 "
                            f"→ waypoint {self.current_target_idx} 스킵 "
                            f"(link={arm_guard_link}, clearance={float(arm_clearance):+.3f}m)")
                     print(msg, flush=True)
@@ -1953,7 +2034,7 @@ class RailRobotAgent:
                 BAD_CONTACT_SKIP_STEPS_SIDE if self.is_side else BAD_CONTACT_SKIP_STEPS_TOP
             )
             if self._bad_contact_steps >= bad_contact_limit:
-                msg = (f"[Rail {self.label}] ⚠ 실제 접촉 실패 "
+                msg = (f"[Rail {self.label}] 실제 접촉 실패 "
                        f"→ waypoint {self.current_target_idx} 스킵 "
                        f"(actual_gap={float(actual_gap):.3f}m, "
                        f"cmd_gap={cmd_clearance:+.3f}m, virtual={virtual_force:.1f}N)")
@@ -1990,7 +2071,7 @@ class RailRobotAgent:
             if self._stuck_steps_since_check >= self._stuck_check_interval:
                 cur_progress = float(self.current_path_idx_float)
                 if cur_progress <= self._stuck_last_path_idx + 0.20:
-                    msg = (f"[Rail {self.label}] ⚠ {self._stuck_check_interval}스텝 정체 "
+                    msg = (f"[Rail {self.label}] {self._stuck_check_interval}스텝 정체 "
                            f"→ waypoint {self.current_target_idx} 강제 스킵 "
                            f"(sensor={sensor_raw_force:.1f}N, virtual={virtual_force:.2f}N)")
                     print(msg, flush=True)
@@ -2019,7 +2100,7 @@ class RailRobotAgent:
 
             # ── 어드미턴스 힘제어 (polishing_v1 레시피 + 가상스프링 속임 제거) ──
             #  accel = (F_err − D·v)/M.  댐핑 D로 진동/슬램 억제.
-            #  ★핵심 수정: '가상 스프링'은 명령값 기준이라 실제 패드가 안 닿아도 목표 N을
+            #  핵심 수정: '가상 스프링'은 명령값 기준이라 실제 패드가 안 닿아도 목표 N을
             #    만들어 제어기를 속여 압입을 멈추게 했음(=보이지 않는 스프링에 패드가 뜸).
             #  → 진짜 물리 센서가 잡힐 때만 그 실측 N으로 힘제어. 아직 안 닿았으면 control_force=0
             #    으로 둬서 '닿을 때까지 계속 압입'(seek). 실제로 닿는 순간 실측 N으로 전환.
@@ -2052,7 +2133,7 @@ class RailRobotAgent:
             # 이미 닿았으면(센서 유효/물리접촉) 더 키우지 않고 천천히 감쇠(과압 방지).
             if actual_clearance is not None:
                 lag = float(actual_clearance) - cmd_clearance   # >0: 명령보다 패드가 위(덜 내려옴)
-                # ★패드가 실제로 표면에 닿았을 때(actual_clearance≤2mm)만 보정을 감쇠한다.
+                # 패드가 실제로 표면에 닿았을 때(actual_clearance≤2mm)만 보정을 감쇠한다.
                 #   - virtual_force는 떠 있어도 댐핑항(−D·z_vel)만으로 유령 접촉력을 만들고,
                 #   - pad_compression>0도 두꺼운 가상패드(1.8cm) 탓에 1.7cm 떠 있어도 토큰 압축이 생겨
                 #   둘 다 lag 보정을 꺼버렸음 → 패드가 표면 위에 영원히 떠 있던 원인.
@@ -2111,10 +2192,12 @@ class RailRobotAgent:
                     step_advance = (
                         PATH_ADVANCE_PER_CONTACT_STEP_SIDE if self.is_side
                         else PATH_ADVANCE_PER_CONTACT_STEP_TOP
-                    )
+                    ) * self._rl_feed_scale * self._ui_feed_scale   # 잔차 정책: 이송 × (1 + a1·0.50) × UI 배율
                     self.current_path_idx_float += step_advance
+                    self._last_step_advance_wp = step_advance
                 else:
                     self.current_path_idx_float += PATH_CREEP_ADVANCE_PER_STEP
+                    self._last_step_advance_wp = PATH_CREEP_ADVANCE_PER_STEP
 
             self.current_target_idx = int(self.current_path_idx_float)
 
@@ -2184,6 +2267,4 @@ class RailRobotAgent:
                 )
 
 
-# ─────────────────────────────────────────────
 # 메인
-# ─────────────────────────────────────────────

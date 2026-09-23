@@ -1,0 +1,13 @@
+data/processed/
+checkpoints/
+__pycache__/
+# RL 학습 로그 (재생성 가능). 최종 체크포인트는 rl/champion/ 에 보관
+rl/logs/
+# 재현 기준 JSON 은 추적, 재생성 가능한 이미지·CSV 는 무시
+outputs/*.png
+digital_twin/outputs/*.png
+digital_twin/outputs/*.csv
+rl/robot/logs/
+rl/robot/logs_smoke/
+rl/thermal/logs/
+ui_bridge/out/

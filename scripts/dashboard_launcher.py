@@ -189,7 +189,7 @@ def main():
     print(f"[launcher] isaac_python = {ISAAC_PYTHON}", flush=True)
     print(f"[launcher] scripts_dir  = {SCRIPTS_DIR}", flush=True)
     if not os.path.exists(ISAAC_PYTHON):
-        print(f"[launcher] ⚠ isaac_python 경로가 존재하지 않습니다. "
+        print(f"[launcher] isaac_python 경로가 존재하지 않습니다. "
               f"ISAAC_PYTHON 환경변수로 지정하세요.", flush=True)
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     try:

@@ -26,22 +26,47 @@ def _parse_args(argv=None):
     return args
 
 
+def _enable_extension_safe(enable_extension, ext_name, required=False):
+    """Enable a Kit extension without ever raising (headless runs must survive a missing ext)."""
+    try:
+        ok = bool(enable_extension(ext_name))
+    except Exception as exc:  # noqa: BLE001
+        ok = False
+        print(f"[bootstrap] extension '{ext_name}' enable raised: {exc}", flush=True)
+    if not ok:
+        level = "ERROR" if required else "WARN"
+        print(f"[bootstrap] [{level}] extension '{ext_name}' is not available", flush=True)
+    return ok
+
+
 def run_from_cli(argv=None):
     args = _parse_args(argv)
     _strip_ros_paths()
 
     from isaacsim import SimulationApp
 
-    simulation_app = SimulationApp({"headless": bool(args.headless)})
+    # 렌더러: Isaac Sim 6.0 의 SimulationApp 기본값은 RealTimePathTracing(무거움). 보기/녹화용은
+    # RTX Real-Time(RaytracedLighting) 이 훨씬 가볍다. POLISH_RENDERER 로 교체
+    # (RaytracedLighting | RealTimePathTracing | PathTracing | MinimalRendering).
+    _renderer = os.environ.get("POLISH_RENDERER", "RaytracedLighting")
+    simulation_app = SimulationApp({"headless": bool(args.headless), "renderer": _renderer})
+    print(f"[bootstrap] renderer={_renderer} headless={bool(args.headless)}", flush=True)
     try:
-        from omni.isaac.core.utils.extensions import enable_extension
+        from isaacsim.core.utils.extensions import enable_extension
 
-        enable_extension("omni.isaac.ros2_bridge")
-        try:
-            import rclpy  # noqa: F401
-            from std_msgs.msg import Float64  # noqa: F401
-        except ImportError:
-            pass
+        # Isaac Sim 6: the ContactSensor wrapper (isaacsim.sensors.physics, extsDeprecated)
+        # is not loaded by the default python experience; agent.py imports it at module level.
+        _enable_extension_safe(enable_extension, "isaacsim.sensors.physics", required=True)
+
+        # ROS 2 bridge is only used by the dashboard publisher (ros_publisher.py).
+        # Skipped when POLISH_ROS_PUBLISH=0; never fatal when ROS is absent.
+        if os.environ.get("POLISH_ROS_PUBLISH", "1") != "0":
+            _enable_extension_safe(enable_extension, "isaacsim.ros2.bridge")
+            try:
+                import rclpy  # noqa: F401
+                from std_msgs.msg import Float64  # noqa: F401
+            except ImportError:
+                pass
 
         from .runner import main
 

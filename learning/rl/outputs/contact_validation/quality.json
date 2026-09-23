@@ -1,0 +1,57 @@
+{
+  "phase": "quality",
+  "num_envs": 1,
+  "contact_mode": "physical",
+  "thresholds": {
+    "free_space_max_n": 0.05,
+    "static_ss_err_max_n": 0.5,
+    "static_ss_std_max_n": 0.3,
+    "static_overshoot_max_ratio": 0.5,
+    "static_penetration_max_m": 0.006,
+    "track_err_mean_max_n": 1.0,
+    "track_err_p95_max_n": 2.5,
+    "reset_spike_max_n": 8.0
+  },
+  "segments": {
+    "quality_coupling": {
+      "steps": 1200,
+      "consumed_force_mean_n": 5.780079927921295,
+      "sensor_filtered_mean_n": 5.78072380399704,
+      "model_force_mean_n": 6.7041436977386475,
+      "consumed_vs_sensor_n": 0.000643876075744565,
+      "consumed_vs_model_n": 0.9240637698173524,
+      "removal_max_um": 0.7644794658609976,
+      "untouched_cell_ratio": 0.11666666666666667,
+      "temp_peak_c": 34.904694757044446,
+      "ambient_c": 23.0
+    }
+  },
+  "checks": [
+    {
+      "name": "finite",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "제거량 모델이 센서힘을 소비 (모델힘 아님)",
+      "pass": true,
+      "detail": "consumed=5.780N ≈ sensor=5.781N ≠ model=6.704N"
+    },
+    {
+      "name": "접촉 구간 제거 발생",
+      "pass": true,
+      "detail": "removal max=0.7645um"
+    },
+    {
+      "name": "미접촉 영역 무가공",
+      "pass": true,
+      "detail": "untouched ratio=0.117"
+    },
+    {
+      "name": "온도 모델 구동 (상승 & 안전상한 미만)",
+      "pass": true,
+      "detail": "peak=34.90C (ambient 23.0C, limit 80C)"
+    }
+  ],
+  "result": "PASS"
+}
