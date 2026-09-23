@@ -174,7 +174,7 @@ cmd    = target + lag_feedforward         # RMPFlow 정상상태 추종 지연 �
 ## Surface Scan & Coverage
 
 <div align="center">
-  <img src="assets/scan_path_coverage.png" width="100%" alt="Point cloud, generated paths, and coverage map">
+  <img src="assets/scan_pipeline.png" width="100%" alt="Point cloud, generated paths, and coverage map">
   <br>
   <sub>깊이 스캔 Point Cloud → 로봇별 폴리싱 경로 (C / SL / SR) → 폴리싱 커버리지 맵</sub>
 </div>
