@@ -174,10 +174,9 @@ cmd    = target + lag_feedforward         # RMPFlow 정상상태 추종 지연 �
 ## Surface Scan & Coverage
 
 <div align="center">
-  <img src="web_dashboard/public/images/scan_pointcloud.png" width="32%" alt="Scanned point cloud">
-  <img src="web_dashboard/public/images/sanding_heatmap.gif" width="40%" alt="Sanding removal heatmap">
+  <img src="assets/scan_path_coverage.png" width="100%" alt="Point cloud, generated paths, and coverage map">
   <br>
-  <sub>스캔 Point Cloud (좌) / 제거량 히트맵 (우)</sub>
+  <sub>깊이 스캔 Point Cloud (높이별 색상) → 로봇별 폴리싱 경로 (C / SL / SR) → 폴리싱 커버리지 맵</sub>
 </div>
 
 ---
