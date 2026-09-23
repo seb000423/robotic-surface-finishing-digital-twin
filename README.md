@@ -113,43 +113,21 @@
 
 ## Control Architecture
 
-```text
-Web UI [시작] ──HTTP──> dashboard_launcher.py ──> isaac_python polishing_v5.py
-                                                          │
-                                                          ▼
-                                                  runner.main (Scene / Loop)
-                                                          │
-                              ┌───────────────────────────┼───────────────────────────┐
-                              ▼                           ▼                           ▼
-                     RailRobotAgent (C)         RailRobotAgent (SL)         RailRobotAgent (SR)
-                              │                           │                           │
-                              └────────────┬──────────────┴──────────────┬────────────┘
-                                           ▼                             ▼
-                                  RMPFlowController              Virtual Spring Force
-                                  (EE pose tracking)            (Admittance Control)
-                                           │                             │
-                                           └──────────────┬──────────────┘
-                                                          ▼
-                                             6-Axis Cobot + Polishing Pad
-                                                          │
-                                                          ▼
-                                    ros_publisher ──> /polishing/* ──> rosbridge ──> Web UI
-```
-
-- **runner** — 씬 구성, 차량 진입·리프트 애니메이션, 에이전트 tick · 커버리지 갱신 메인 루프
-- **RailRobotAgent** — 로봇별 레일 정지점, 경로 추종, 접촉 판정 · 복구, 재폴리싱 패스 관리
-- **RMPFlowController** — End-Effector를 표면 법선 방향 자세로 경로 추종
-- **Virtual Spring Force** — 패드 압입량 기반 접촉력 계산 및 어드미턴스 제어
-- **ros_publisher** — 상태·진행률·접촉력·히트맵 토픽 발행
-
-### Contact Force Control
-
 <div align="center">
   <img src="assets/control_architecture.png" width="100%" alt="Per-robot force feedback loop">
   <br>
   <sub><code>polishing_v5_modules/agent.py</code>의 로봇별 접촉력 피드백 루프</sub>
 </div>
 <br>
+
+- **runner** — 씬 구성, 차량 진입·리프트 애니메이션, 에이전트 tick · 커버리지 갱신 메인 루프
+- **RailRobotAgent** — 로봇별 레일 정지점, 경로 추종, 접촉 판정 · 복구, 재폴리싱 패스 관리
+- **RMPFlowController** — End-Effector를 표면 법선 방향 자세로 경로 추종
+- **Virtual Spring Force** — 패드 압입량 기반 접촉력 계산 및 어드미턴스 제어
+- **ros_publisher** — 상태·진행률·접촉력·히트맵 토픽 발행
+- **dashboard_launcher** — Web UI [시작] 버튼 → HTTP(:8765) → `isaac_python polishing_v5.py` 실행
+
+### Contact Force Control
 
 ```text
 F_ctrl  = filtered virtual-spring force  (패드 실제 위치 기준)
